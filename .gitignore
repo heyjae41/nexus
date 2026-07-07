@@ -1,0 +1,5 @@
+# OS
+.DS_Store
+
+# OMC session state
+.omc/
