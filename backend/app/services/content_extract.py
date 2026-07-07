@@ -16,29 +16,39 @@ class ExtractedContent:
     read_minutes: int | None
 
 
+def _pop_key_visual(soup: BeautifulSoup) -> str | None:
+    element = soup.select_one(".key-visual, [data-key-visual]")
+    if element is None:
+        return None
+    html = element.decode()
+    element.extract()
+    return html
+
+
+def _meta_content(soup: BeautifulSoup, name: str) -> str | None:
+    element = soup.select_one(f'meta[name="{name}"]')
+    return element["content"] if element else None
+
+
+def _extract_title(soup: BeautifulSoup) -> str | None:
+    element = soup.select_one("h1, [data-title]")
+    return element.get_text(strip=True) if element else None
+
+
 def extract_content(html: str) -> ExtractedContent:
     soup = BeautifulSoup(html, "html.parser")
-
-    key_visual = soup.select_one(".key-visual, [data-key-visual]")
-    key_visual_html = key_visual.decode() if key_visual else None
-    if key_visual:
-        key_visual.extract()
+    key_visual_html = _pop_key_visual(soup)
 
     article = soup.find("article") or soup.body or soup
     body_html = article.decode_contents().strip() if article else None
-
-    title_el = soup.select_one("h1, [data-title]")
-    meta_author = soup.select_one('meta[name="author"]')
-    meta_minutes = soup.select_one('meta[name="read-minutes"]')
-
     text = article.get_text(" ", strip=True) if article else ""
-    summary = text[:SUMMARY_MAX] or None
+    read_minutes = _meta_content(soup, "read-minutes")
 
     return ExtractedContent(
-        title=title_el.get_text(strip=True) if title_el else None,
-        summary=summary,
+        title=_extract_title(soup),
+        summary=text[:SUMMARY_MAX] or None,
         body_html=body_html,
         key_visual_html=key_visual_html,
-        author=meta_author["content"] if meta_author else None,
-        read_minutes=int(meta_minutes["content"]) if meta_minutes else None,
+        author=_meta_content(soup, "author"),
+        read_minutes=int(read_minutes) if read_minutes else None,
     )
