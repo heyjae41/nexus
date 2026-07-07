@@ -22,7 +22,6 @@ export default function MobileNav({ user: _user }) {
         backdropFilter: 'blur(14px)',
         WebkitBackdropFilter: 'blur(14px)',
         borderTop: '1px solid rgba(255,255,255,.08)',
-        display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'center',
         padding: '8px 0 12px',
