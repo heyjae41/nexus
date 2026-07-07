@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { useState } from 'react'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import MobileNav from './components/MobileNav'
@@ -16,11 +15,12 @@ import Hotdeal from './views/Hotdeal'
 import Onboarding from './views/Onboarding'
 import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
+import { useLocalStorageState } from './utils/useLocalStorageState'
 
 function AppInner() {
-  const [user, setUser] = useState(null)
-  const [enrolled, setEnrolled] = useState([])
-  const [comments, setComments] = useState({})
+  const [user, setUser] = useLocalStorageState('nexus.user', null)
+  const [enrolled, setEnrolled] = useLocalStorageState('nexus.enrolled', [])
+  const [comments, setComments] = useLocalStorageState('nexus.comments', {})
   const { pathname } = useLocation()
 
   const isArticle = pathname.startsWith('/articles/')
@@ -49,18 +49,18 @@ function AppInner() {
     <div className="appbody">
       <Nav user={user} />
       <Routes>
-        <Route path="/" element={<Home user={user} enrolled={enrolled} />} />
+        <Route path="/" element={<Home />} />
         <Route path="/curation" element={<Curation />} />
         <Route path="/articles/:id" element={<ArticleDetail />} />
         <Route path="/classes" element={<Classes />} />
         <Route path="/classes/:id" element={<ClassDetail enrolled={enrolled} onEnroll={enroll} />} />
-        <Route path="/community" element={<Community user={user} comments={comments} />} />
-        <Route path="/community/:id" element={<CommunityDetail user={user} comments={comments} onAddComment={addComment} />} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/community/:id" element={<CommunityDetail comments={comments} onAddComment={addComment} />} />
         <Route path="/meet" element={<Meet />} />
         <Route path="/meet/:id" element={<MeetDetail />} />
         <Route path="/hotdeal" element={<Hotdeal />} />
         <Route path="/onboarding" element={<Onboarding onFinish={finishOnboarding} />} />
-        <Route path="/checkout/:classId" element={<Checkout user={user} onPay={finishOnboarding} />} />
+        <Route path="/checkout/:classId" element={<Checkout onPay={finishOnboarding} />} />
         <Route path="/dashboard" element={<Dashboard user={user} enrolled={enrolled} />} />
       </Routes>
       {!isArticle && <Footer />}

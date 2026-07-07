@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ArticleCard from '../components/ArticleCard'
+import ClassCard from '../components/ClassCard'
+import EventCard from '../components/EventCard'
+import PostCard from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
 import { fetchHome } from '../api/client'
 import { CLASSES, POSTS, EVENTS } from '../data'
-import { classGrad, communityAvatarGrad, meetGrad, fmtKo, initial } from '../utils/grads'
+import { clickableProps } from '../utils/a11y'
 
 const HOT_CLASS_IDS = ['c4', 'c1', 'c2', 'c6']
 
@@ -13,6 +16,7 @@ function HeroCard({ title, tag, meta, onClick }) {
     <div
       onClick={onClick}
       className="lk"
+      {...clickableProps(onClick)}
       style={{
         background: 'rgba(12,12,15,.5)',
         backdropFilter: 'blur(8px)',
@@ -37,157 +41,6 @@ function HeroCard({ title, tag, meta, onClick }) {
   )
 }
 
-function ClassCard({ cls, index }) {
-  const navigate = useNavigate()
-  const grad = classGrad(index)
-  const price = cls.price >= 1000000
-    ? Math.floor(cls.price / 10000) + '만원'
-    : fmtKo(cls.price) + '원'
-
-  return (
-    <div
-      className="card"
-      onClick={() => navigate(`/classes/${cls.id}`)}
-      style={{
-        background: '#15151A',
-        border: '1px solid rgba(255,255,255,.06)',
-        borderRadius: 16, overflow: 'hidden',
-      }}
-    >
-      <div style={{ height: 120, background: grad, position: 'relative' }}>
-        <span style={{
-          position: 'absolute', top: 8, left: 10,
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 10, fontWeight: 600, color: '#fff',
-          background: 'rgba(0,0,0,.5)', padding: '3px 7px', borderRadius: 5,
-        }}>
-          {cls.category}
-        </span>
-        {cls.tag && (
-          <span style={{
-            position: 'absolute', top: 8, right: 10,
-            fontSize: 10, fontWeight: 700, color: '#E8123C',
-            background: 'rgba(232,18,60,.15)', padding: '3px 7px', borderRadius: 5,
-          }}>
-            {cls.tag}
-          </span>
-        )}
-      </div>
-      <div style={{ padding: '12px 14px 14px' }}>
-        <p style={{ height: 13, marginBottom: 8 }}>
-          <span style={{ fontSize: 12, color: '#E8123C', fontWeight: 600 }}>{cls.category}</span>
-        </p>
-        <p style={{
-          fontSize: 15, fontWeight: 700, color: '#ECECEF',
-          lineHeight: 1.4, margin: '0 0 8px',
-          display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>
-          {cls.title}
-        </p>
-        <p style={{ fontSize: 12.5, color: '#7a7a84', margin: '0 0 8px' }}>
-          {cls.instructor} · {cls.rating}★
-        </p>
-        <p style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, textAlign: 'right' }}>
-          {price}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function CommunityCard({ post, index }) {
-  const navigate = useNavigate()
-  const grad = communityAvatarGrad(index)
-  return (
-    <div
-      className="card"
-      onClick={() => navigate(`/community/${post.id}`)}
-      style={{
-        display: 'flex', gap: 14, alignItems: 'flex-start',
-        background: '#15151A',
-        border: '1px solid rgba(255,255,255,.06)',
-        borderRadius: 14, padding: '14px 16px',
-      }}
-    >
-      <div style={{
-        width: 50, height: 50, borderRadius: '50%',
-        background: grad, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 18, fontWeight: 800, color: '#fff',
-      }}>
-        {initial(post.author)}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          fontSize: 15.5, fontWeight: 700, color: '#ECECEF',
-          lineHeight: 1.4, margin: '0 0 8px',
-          display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>
-          {post.title}
-        </p>
-        <p style={{ fontSize: 12.5, color: '#7a7a84', margin: 0 }}>
-          #{post.tag} · 좋아요 {fmtKo(post.likes)} · 댓글 {post.commentCount}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function MeetCard({ event, index }) {
-  const navigate = useNavigate()
-  const grad = meetGrad(index)
-  const dateShort = event.date.replace('2026.', '').replace(/ \([^)]+\)/, '')
-
-  return (
-    <div
-      className="card"
-      onClick={() => navigate(`/meet/${event.id}`)}
-      style={{
-        background: '#15151A',
-        border: '1px solid rgba(255,255,255,.06)',
-        borderRadius: 16, overflow: 'hidden',
-      }}
-    >
-      <div style={{
-        height: 120, position: 'relative',
-        background: event.img
-          ? `center/cover no-repeat url(${event.img}), ${grad}`
-          : grad,
-      }}>
-        <span style={{
-          position: 'absolute', top: 8, left: 10,
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 10, fontWeight: 600, color: '#fff',
-          background: 'rgba(0,0,0,.5)', padding: '3px 7px', borderRadius: 5,
-        }}>
-          {event.tag}
-        </span>
-        <span style={{
-          position: 'absolute', bottom: 8, right: 10,
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 10.5, fontWeight: 600, color: '#fff',
-          background: 'rgba(0,0,0,.65)', padding: '3px 8px', borderRadius: 5,
-        }}>
-          {dateShort}
-        </span>
-      </div>
-      <div style={{ padding: '12px 14px 14px' }}>
-        <p style={{
-          fontSize: 15, fontWeight: 700, color: '#ECECEF',
-          lineHeight: 1.4, margin: '0 0 8px',
-        }}>
-          {event.title}
-        </p>
-        <p style={{ fontSize: 12.5, color: '#7a7a84', margin: 0 }}>
-          📍{event.location} · {fmtKo(event.going)}명 참여
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function SectionHeader({ emoji, title, moreLabel, moreTo }) {
   return (
     <div className="sec-header">
@@ -199,7 +52,7 @@ function SectionHeader({ emoji, title, moreLabel, moreTo }) {
   )
 }
 
-export default function Home({ user }) {
+export default function Home() {
   const navigate = useNavigate()
   const [homeData, setHomeData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -343,7 +196,7 @@ export default function Home({ user }) {
           <section style={{ marginBottom: 56 }}>
             <SectionHeader emoji="🔥" title="지금 뜨는 클래스" moreTo="/classes" />
             <div className="rgrid-4">
-              {hotClasses.map((cls, i) => <ClassCard key={cls.id} cls={cls} index={i} />)}
+              {hotClasses.map((cls, i) => <ClassCard key={cls.id} cls={cls} index={i} compact />)}
             </div>
           </section>
 
@@ -351,7 +204,15 @@ export default function Home({ user }) {
           <section style={{ marginBottom: 56 }}>
             <SectionHeader emoji="💬" title="이번 주 커뮤니티" moreTo="/community" />
             <div className="rgrid-2">
-              {homePosts.map((post, i) => <CommunityCard key={post.id} post={post} index={i} />)}
+              {homePosts.map((post, i) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  index={i}
+                  onClick={() => navigate(`/community/${post.id}`)}
+                  compact
+                />
+              ))}
             </div>
           </section>
 
@@ -359,7 +220,7 @@ export default function Home({ user }) {
           <section style={{ marginBottom: 24 }}>
             <SectionHeader emoji="📍" title="가야할 밋플" moreTo="/meet" />
             <div className="rgrid-3">
-              {homeEvents.map((event, i) => <MeetCard key={event.id} event={event} index={i} />)}
+              {homeEvents.map((event, i) => <EventCard key={event.id} event={event} index={i} compact />)}
             </div>
           </section>
         </div>

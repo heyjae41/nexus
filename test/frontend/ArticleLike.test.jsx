@@ -86,12 +86,17 @@ describe('ArticleDetail — like button optimistic update', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
     })
-    // Like
+    // Like — optimistic +1 (326→327), then API confirms likeCount=327 so display becomes 327+1=328
     fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
-    expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
-    // Unlike
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 327/i }))
-    expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
+    // Wait for in-flight guard to clear: API sets likeCount=327, liked=true → display 328
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 328/i })).toBeInTheDocument()
+    })
+    // Unlike — optimistic -1 (328→327)
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 328/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    })
   })
 
   it('calls likeArticle API on like click', async () => {

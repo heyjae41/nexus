@@ -77,9 +77,20 @@ export default function Onboarding({ onFinish }) {
           />
 
           <p style={{ fontSize: 14, color: '#9a9aa4', marginBottom: 12 }}>저는...</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
+          <div
+            role="radiogroup"
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}
+          >
             {[['직장인', '💼'], ['개발자', '⌨️']].map(([r, icon]) => (
-              <div key={r} onClick={() => setRole(r)} style={cardStyle(role === r)}>
+              <div
+                key={r}
+                role="radio"
+                aria-checked={role === r}
+                tabIndex={0}
+                onClick={() => setRole(r)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRole(r) } }}
+                style={cardStyle(role === r)}
+              >
                 <p style={{ fontSize: 22, margin: '0 0 6px' }}>{icon}</p>
                 <p style={{ fontSize: 15, fontWeight: 700, color: '#ECECEF', margin: 0 }}>{r}</p>
               </div>
@@ -111,6 +122,7 @@ export default function Onboarding({ onFinish }) {
                   key={item}
                   className="btn chip"
                   onClick={() => toggleInterest(item)}
+                  aria-pressed={active}
                   style={{
                     padding: '8px 16px', borderRadius: 20, fontSize: 14, fontWeight: 600,
                     background: active ? '#E8123C' : '#15151A',

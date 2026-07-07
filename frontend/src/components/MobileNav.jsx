@@ -15,6 +15,7 @@ export default function MobileNav({ user: _user }) {
   return (
     <nav
       className="mobnav"
+      aria-label="모바일 하단 메뉴"
       style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         zIndex: 60,

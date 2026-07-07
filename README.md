@@ -38,6 +38,9 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 python -m pytest test                          # 단위 + API (SQLite in-memory, PG 불필요)
 python -m pytest test --cov=backend/app        # 커버리지 (기준 80%+)
 cd frontend && npm test                        # 프론트엔드 컴포넌트 테스트
+
+# E2E (옵션): backend(8000) + frontend dev(5173) 실행 상태에서
+cd frontend && npm run e2e                     # Playwright 스모크 (test/e2e)
 ```
 
 품질 검사:

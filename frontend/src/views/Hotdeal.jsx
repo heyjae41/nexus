@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { DEALS, HD_CATS } from '../data'
 import { fmtKo } from '../utils/grads'
 
+// Base URL for the paybooc hotdeal portal; per-item url field takes precedence when present
+const HOTDEAL_BASE_URL = 'https://open.paybooc.co.kr'
+
 function DealCard({ deal }) {
   const [imgError, setImgError] = useState(false)
 
   return (
     <div
       className="card"
-      onClick={() => window.open('https://open.paybooc.co.kr', '_blank', 'noopener noreferrer')}
+      onClick={() => window.open(deal.url || HOTDEAL_BASE_URL, '_blank', 'noopener noreferrer')}
       style={{
         background: '#12121C', border: '1px solid rgba(255,255,255,.07)',
         borderRadius: 16, overflow: 'hidden',

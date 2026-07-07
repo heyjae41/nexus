@@ -6,9 +6,27 @@ import { classGrad, fmtKo } from '../utils/grads'
 export default function Checkout({ onPay }) {
   const { classId } = useParams()
   const navigate = useNavigate()
-  const cls = CLASSES.find(c => c.id === classId) || CLASSES[0]
+  const cls = CLASSES.find(c => c.id === classId)
   const [payDone, setPayDone] = useState(false)
   const [installment, setInstallment] = useState('일시불')
+
+  if (!cls) {
+    return (
+      <main style={{ padding: '64px 40px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <p style={{ fontSize: 16, color: '#9a9aa4', marginBottom: 24 }}>클래스를 찾을 수 없습니다.</p>
+        <button
+          className="btn"
+          onClick={() => navigate('/classes')}
+          style={{
+            background: '#E8123C', color: '#fff',
+            fontSize: 14, fontWeight: 700, padding: '10px 22px', borderRadius: 10,
+          }}
+        >
+          ← 클래스 목록
+        </button>
+      </main>
+    )
+  }
 
   const price = cls.price
   const discount = Math.floor(price * 0.05)
@@ -55,7 +73,7 @@ export default function Checkout({ onPay }) {
 
   return (
     <main style={{ padding: '32px 40px 64px', maxWidth: 920, margin: '0 auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 32 }}>
+      <div className="detailgrid detailgrid-checkout" style={{ gap: 32 }}>
         {/* Left */}
         <div>
           <button className="back-link btn" onClick={() => navigate(`/classes/${cls.id}`)}

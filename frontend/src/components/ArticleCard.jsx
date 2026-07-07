@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { articleGrad, fmtKo } from '../utils/grads'
+import { articleGrad } from '../utils/grads'
 
 /* Badge Korean labels — §API integration */
 const BADGE_LABELS = {

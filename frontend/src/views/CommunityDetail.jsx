@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { POSTS, getDefaultComments } from '../data'
 import { communityAvatarGrad, fmtKo, initial } from '../utils/grads'
 
-export default function CommunityDetail({ user, comments, onAddComment }) {
+export default function CommunityDetail({ comments, onAddComment }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const commentRef = useRef()
@@ -28,7 +28,7 @@ export default function CommunityDetail({ user, comments, onAddComment }) {
     commentRef.current.value = ''
   }
 
-  const actionBtn = (label, active, onClick) => ({
+  const actionBtn = (active) => ({
     display: 'flex', alignItems: 'center', gap: 7,
     padding: '9px 18px', borderRadius: 24,
     fontSize: 14, fontWeight: 600, cursor: 'pointer', border: 'none',
@@ -74,12 +74,12 @@ export default function CommunityDetail({ user, comments, onAddComment }) {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
-        <button className="btn actn" style={actionBtn('♥', liked)} onClick={handleLike}>
+        <button className="btn actn" style={actionBtn(liked)} onClick={handleLike}>
           ♥ 좋아요 {fmtKo(localLikes)}
         </button>
-        <button className="btn actn" style={actionBtn('🔖', false)}>🔖 저장</button>
+        <button className="btn actn" style={actionBtn(false)}>🔖 저장</button>
         <div style={{ flex: 1 }} />
-        <button className="btn actn" style={actionBtn('↗', false)}>↗ 공유</button>
+        <button className="btn actn" style={actionBtn(false)}>↗ 공유</button>
       </div>
 
       {/* Comments */}

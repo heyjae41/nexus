@@ -1,4 +1,5 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { clickableProps } from '../utils/a11y'
 
 const NAV_LINKS = [
   { label: '홈', path: '/', match: ['/'] },
@@ -68,6 +69,7 @@ export default function Nav({ user }) {
         <div
           className="hidemob"
           onClick={() => navigate('/classes')}
+          {...clickableProps(() => navigate('/classes'))}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             width: 210, padding: '8px 14px',

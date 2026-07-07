@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { CLASSES } from '../data'
-import { classGrad, articleGrad, fmtKo, initial } from '../utils/grads'
+import { classGrad, articleGrad, initial } from '../utils/grads'
 
 const CURATION_RECS = [
   { id: 'a1', title: 'GPT-5 시대, 금융권은 LLM을 어떻게 도입하고 있나', readTime: '7분' },
@@ -66,7 +66,7 @@ export default function Dashboard({ user, enrolled }) {
         <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 20px' }}>이어서 학습하기</h2>
         {hasClasses ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {myClasses.map((cls, i) => {
+            {myClasses.map((cls) => {
               const grad = classGrad(CLASSES.indexOf(cls))
               return (
                 <div

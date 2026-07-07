@@ -1,12 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { fetchArticle, fetchArticles, likeArticle } from '../api/client'
 import { EDITORIAL_ARTICLES } from '../data'
 import { fmtEn, articleGrad } from '../utils/grads'
 import KeyVisual from '../components/KeyVisual'
 import '../styles/article.css'
-
-const EDITORIAL_IDS = ['a1', 'a2', 'a3']
 
 /* ---- Reading progress bar ---- */
 function useReadingProgress() {
@@ -145,6 +143,7 @@ export default function ArticleDetail() {
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
+  const likeInFlight = useRef(false)
 
   useReadingProgress()
 
@@ -179,6 +178,8 @@ export default function ArticleDetail() {
   const displayLikeCount = fmtEn(likeCount + (liked ? 1 : 0))
 
   const handleLike = async () => {
+    if (likeInFlight.current) return
+    likeInFlight.current = true
     const next = !liked
     setLiked(next)
     try {
@@ -186,6 +187,8 @@ export default function ArticleDetail() {
       if (data?.likesCount !== undefined) setLikeCount(data.likesCount)
     } catch {
       setLiked(!next)
+    } finally {
+      likeInFlight.current = false
     }
   }
 
@@ -245,8 +248,8 @@ export default function ArticleDetail() {
         <button className="btn actn" style={btnStyle(false)}>↗ 공유</button>
       </div>
 
-      {/* Key visual */}
-      {(staticArt || article?.keyVisualHtml) && (
+      {/* Key visual — skip for external (brunch) articles */}
+      {!article?.isExternal && (staticArt || article?.keyVisualHtml) && (
         <div style={{ maxWidth: readW, margin: '24px auto', padding: '0 20px' }}>
           <KeyVisual
             articleId={id}
@@ -256,16 +259,42 @@ export default function ArticleDetail() {
         </div>
       )}
 
-      {/* Body */}
-      <div className="art-body" style={{ padding: '0 20px', margin: '32px auto' }}>
-        {article?.bodyHtml ? (
-          <div dangerouslySetInnerHTML={{ __html: article.bodyHtml }} />
-        ) : staticArt?.blocks ? (
-          staticArt.blocks.map((block, i) => <BodyBlock key={i} block={block} />)
-        ) : apiLoading ? (
-          <p style={{ color: '#7a7a84' }}>본문을 불러오는 중...</p>
-        ) : null}
-      </div>
+      {/* Body — external articles show a notice card linking to the original */}
+      {article?.isExternal ? (
+        <div className="art-body" style={{ padding: '0 20px', margin: '32px auto' }}>
+          <div style={{
+            background: '#15151A', border: '1px solid rgba(255,255,255,.08)',
+            borderRadius: 16, padding: '32px 24px', textAlign: 'center',
+          }}>
+            <p style={{ fontSize: 16, color: '#9a9aa4', marginBottom: 20 }}>
+              이 글은 브런치에서 볼 수 있습니다
+            </p>
+            <a
+              href={article.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: '#E8123C', color: '#fff',
+                padding: '11px 24px', borderRadius: 24,
+                fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}
+            >
+              원문 보기 →
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="art-body" style={{ padding: '0 20px', margin: '32px auto' }}>
+          {article?.bodyHtml ? (
+            <div dangerouslySetInnerHTML={{ __html: article.bodyHtml }} />
+          ) : staticArt?.blocks ? (
+            staticArt.blocks.map((block, i) => <BodyBlock key={i} block={block} />)
+          ) : apiLoading ? (
+            <p style={{ color: '#7a7a84' }}>본문을 불러오는 중...</p>
+          ) : null}
+        </div>
+      )}
 
       {/* Sources & disclaimer */}
       {staticArt?.sources?.length > 0 && (
