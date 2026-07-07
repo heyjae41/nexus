@@ -3,3 +3,29 @@
 
 # OMC session state
 .omc/
+
+# Env / secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/coverage/
+
+# E2E
+test/e2e/artifacts/
+playwright-report/
+test-results/
+
+# Design exports (22MB each — keep out of git; extracted spec lives in docs/)
+NEXUS_home.html
+NEXUS_article_detail.html
