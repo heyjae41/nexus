@@ -29,3 +29,6 @@ test-results/
 # Design exports (22MB each — keep out of git; extracted spec lives in docs/)
 NEXUS_home.html
 NEXUS_article_detail.html
+
+# Vite/Vitest cache
+.vite/
