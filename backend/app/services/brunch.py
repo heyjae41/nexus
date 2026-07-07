@@ -74,22 +74,30 @@ def collect_and_pick(
     )
 
     article = None
-    if top is not None:
-        article = publish_article(
-            db, cache,
-            category_slug=BRUNCH_CATEGORY_SLUG,
-            article_type="brunch",
-            title=top.title,
-            summary=top.summary or None,
-            author_name=top.author,
-            source_type="brunch",
-            source_url=top.url,
-            likes_count=top.likes,
-            comments_count=top.comments,
-            published_at=window_end,
-        )
-        run.picked_article_id = article.id
-        logger.info("브런치 선정: %s (%d)", top.title, top.likes + top.comments)
+    try:
+        if top is not None:
+            article = publish_article(
+                db, cache,
+                category_slug=BRUNCH_CATEGORY_SLUG,
+                article_type="brunch",
+                title=top.title,
+                summary=top.summary or None,
+                author_name=top.author,
+                source_type="brunch",
+                source_url=top.url,
+                likes_count=top.likes,
+                comments_count=top.comments,
+                published_at=window_end,
+            )
+            run.picked_article_id = article.id
+            logger.info("브런치 선정: %s (%d)", top.title, top.likes + top.comments)
+    except Exception as exc:
+        db.rollback()
+        run.status = "failed"
+        run.error_message = str(exc)
+        db.add(run)
+        db.commit()
+        raise
 
     db.add(run)
     db.commit()

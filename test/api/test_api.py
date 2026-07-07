@@ -58,6 +58,16 @@ def test_like_increments(client, seed):
     assert res.json()["data"]["likesCount"] == 1
 
 
+def test_like_reflects_immediately_in_cached_list(client, seed):
+    """DB 반영사항(좋아요)은 캐시 무효화로 목록에 즉시 반영되어야 한다."""
+    a1, _ = seed(client)
+    client.get("/api/articles?category=curation")  # 목록 캐시 적재
+    client.post(f"/api/articles/{a1.id}/like")
+    listed = client.get("/api/articles?category=curation").json()
+    card = next(c for c in listed["data"] if c["id"] == a1.id)
+    assert card["likesCount"] == 1  # 캐시가 남아있으면 0 으로 실패
+
+
 def test_home_bundle_sections(client, seed):
     seed(client)
     res = client.get("/api/home")

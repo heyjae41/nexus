@@ -7,6 +7,7 @@
 """
 import json
 import logging
+import threading
 import time
 from typing import Any, Callable, Protocol
 
@@ -22,10 +23,11 @@ class CacheBackend(Protocol):
 
 
 class InMemoryCacheBackend:
-    """프로세스 로컬 캐시 (개발/테스트/Redis 폴백용)."""
+    """프로세스 로컬 캐시 (개발/테스트/Redis 폴백용 — 단일 프로세스 전제)."""
 
     def __init__(self) -> None:
         self.store: dict[str, tuple[str, float | None]] = {}
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> str | None:
         item = self.store.get(key)
@@ -42,9 +44,10 @@ class InMemoryCacheBackend:
         self.store = {**self.store, key: (value, expires_at)}
 
     def incr(self, key: str) -> int:
-        current = int(self.get(key) or 0) + 1
-        self.set(key, str(current), None)
-        return current
+        with self._lock:
+            current = int(self.get(key) or 0) + 1
+            self.set(key, str(current), None)
+            return current
 
 
 class RedisCacheBackend:
@@ -73,7 +76,7 @@ class VersionedCache:
         self.ttl_seconds = ttl_seconds
 
     def _version(self) -> int:
-        return int(self.backend.get(f"{self.prefix}{VERSION_KEY}") or 1)
+        return int(self.backend.get(f"{self.prefix}{VERSION_KEY}") or 0)
 
     def _full_key(self, key: str) -> str:
         return f"{self.prefix}v{self._version()}:{key}"
@@ -94,11 +97,12 @@ class VersionedCache:
         return value
 
     def bump_version(self) -> None:
-        """DB 반영사항 발생 시 호출 — 이전 캐시 전체를 즉시 무효화한다."""
-        version_key = f"{self.prefix}{VERSION_KEY}"
-        if self.backend.get(version_key) is None:
-            self.backend.set(version_key, "1", None)
-        self.backend.incr(version_key)
+        """DB 반영사항 발생 시 호출 — 이전 캐시 전체를 즉시 무효화한다.
+
+        INCR 은 키가 없으면 원자적으로 1을 만든다(기본 버전 0 → 1).
+        별도 초기화 가드가 없어 다중 프로세스 경합에도 안전하다.
+        """
+        self.backend.incr(f"{self.prefix}{VERSION_KEY}")
 
 
 def create_cache(redis_url: str, prefix: str, ttl_seconds: int) -> VersionedCache:

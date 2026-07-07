@@ -114,6 +114,22 @@ def test_collect_and_pick_empty_records_run(db):
     assert list_articles(db).total == 0
 
 
+def test_collect_and_pick_records_failed_run_on_error(db):
+    """발행 중 예외가 나도 수집 이력(status=failed)은 남아야 한다."""
+    import pytest
+
+    cache = make_cache()  # curation 카테고리를 시드하지 않아 publish 가 실패한다
+    with pytest.raises(ValueError):
+        collect_and_pick(
+            db, cache, candidates=[cand()],
+            window_start=WINDOW[0], window_end=WINDOW[1],
+        )
+    run = db.query(BrunchCollectRun).one()
+    assert run.status == "failed"
+    assert run.error_message
+    assert run.picked_article_id is None
+
+
 def test_collect_and_pick_bumps_cache_only_on_success(db):
     seed_curation(db)
     cache = make_cache()

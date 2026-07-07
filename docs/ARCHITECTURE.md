@@ -82,8 +82,9 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 로컬/배포 환경에 Redis가 이미 존재. Redis 미가용 시 동일 인터페이스의 InMemory 캐시로 자동 폴백(개발/테스트 용).
 
 - **패턴**: cache-aside + **네임스페이스 버전 무효화**.
-  - 버전 키 `nexus:ver:articles` 를 캐시 키에 포함: `nexus:v{N}:home`, `nexus:v{N}:articles:list:{cat}:{type}:{page}`, `nexus:v{N}:articles:detail:{id}`
-  - **쓰기 발생 시(신규 글 인제스트, 브런치 선정, 카테고리 변경) 버전 키를 INCR** → 이전 캐시는 즉시 무효(다음 조회는 DB에서 최신 반영). O(1), SCAN 불필요 — 공용 Redis에 안전.
+  - 버전 키 `nexus:ver:articles` 를 캐시 키에 포함: `nexus:v{N}:home`, `nexus:v{N}:articles:list:{cat}:{type}:{page}`, `nexus:v{N}:categories`
+  - **쓰기 발생 시(신규 글 인제스트, 브런치 선정, 좋아요) 버전 키를 INCR** → 이전 캐시는 즉시 무효(다음 조회는 DB에서 최신 반영). O(1), SCAN 불필요 — 공용 Redis에 안전.
+  - 글 상세(`/api/articles/{id}`)는 **캐시하지 않는다** — 매 조회가 view_count 를 증가시키므로(쓰기 동반) 캐시 이득이 없다.
 - **TTL**: 300초(안전망). 무효화가 주 메커니즘이므로 TTL은 잔존 키 정리용.
 - 키 프리픽스 `nexus:` 로 동일 Redis의 타 프로젝트 키와 격리.
 

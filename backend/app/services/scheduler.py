@@ -38,10 +38,11 @@ def run_brunch_job(cache: VersionedCache) -> None:
     with _session() as db:
         try:
             candidates = fetch_candidates(base_url=settings.brunch_base_url)
+            # 선정 규칙: '해당 기간(12시간) 동안' 발행된 글만 대상으로 한다
             windowed = filter_by_window(candidates, window_start, window_end)
             collect_and_pick(
                 db, cache,
-                candidates=windowed or candidates,
+                candidates=windowed,
                 window_start=window_start, window_end=window_end,
             )
         except Exception:

@@ -44,10 +44,18 @@ def test_keys_are_prefixed_and_versioned():
     cache = VersionedCache(backend, prefix="nexus:", ttl_seconds=300)
     cache.set("home", "v")
     raw_keys = list(backend.store.keys())
-    assert any(k.startswith("nexus:v1:") for k in raw_keys)
+    assert any(k.startswith("nexus:v0:") for k in raw_keys)
     cache.bump_version()
     cache.set("home", "v2")
-    assert any(k.startswith("nexus:v2:") for k in backend.store.keys())
+    assert any(k.startswith("nexus:v1:") for k in backend.store.keys())
+
+
+def test_first_bump_invalidates_initial_version():
+    """버전 키가 없는 최초 상태에서도 bump 는 반드시 무효화해야 한다 (TOCTOU 가드 불필요)."""
+    cache = make_cache()
+    cache.set("home", "initial")
+    cache.bump_version()
+    assert cache.get("home") is None
 
 
 def test_get_or_set_uses_loader_once():

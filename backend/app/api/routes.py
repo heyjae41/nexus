@@ -92,8 +92,13 @@ def article_detail(article_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/articles/{article_id}/like")
-def article_like(article_id: int, db: Session = Depends(get_db)):
+def article_like(
+    article_id: int,
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
     likes = increment_like(db, article_id)
     if likes is None:
         raise HTTPException(status_code=404, detail="글을 찾을 수 없습니다")
+    cache.bump_version()  # DB 반영사항은 목록/홈에 즉시 반영한다 (캐시 정책)
     return api_response({"id": article_id, "likesCount": likes})
