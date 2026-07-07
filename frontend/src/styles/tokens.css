@@ -1,0 +1,72 @@
+/* NEXUS Design Tokens — §1 */
+:root {
+  /* Background layers */
+  --bg-app: #08080B;
+  --bg-hotdeal: #0A0A12;
+  --surface: #15151A;
+  --surface-dark: #13131A;
+  --surface-article: #131318;
+  --surface-hotdeal: #12121C;
+  --bg-keyvis: #0B0B10;
+  --bg-footer: #0C0C10;
+  --bg-class-banner: #0E0E13;
+  --scrollbar-track: #0e0e12;
+  --scrollbar-thumb: #26262e;
+  --mobnav-icon-bg: #1d1d24;
+  --header-bg: rgba(8,8,11,.82);
+  --mobnav-bg: rgba(10,10,14,.96);
+
+  /* Accent — Brand Red */
+  --red: #E8123C;
+  --red-pink: #F4788F;
+  --red-dark: #7A0A22;
+  --red-darker: #8A0A22;
+  --red-progress: linear-gradient(90deg,#E8123C,#FF5A7A);
+
+  /* Hotdeal accent */
+  --hotdeal-chip: #3E3FD9;
+  --hotdeal-label: #6E6FF5;
+
+  /* Success */
+  --success: #1F8A5B;
+
+  /* Text layers */
+  --text-white: #fff;
+  --text-h2: #F5F5F7;
+  --text-body-em: #ECECEF;
+  --text-body: #dcdce2;
+  --text-body-mid: #d3d3db;
+  --text-prose: #c8c8d0;
+  --text-sub: #9a9aa4;
+  --text-meta: #7a7a84;
+  --text-faint: #6a6a74;
+  --text-faintest: #55555f;
+  --text-nav-inactive: #a6a6b0;
+  --text-nav-active: #E8123C;
+
+  /* Borders */
+  --border-card: 1px solid rgba(255,255,255,.06);
+  --border-surface: 1px solid rgba(255,255,255,.08);
+  --border-panel: 1px solid rgba(255,255,255,.10);
+  --border-input: 1px solid rgba(255,255,255,.12);
+  --border-chip: 1px solid rgba(255,255,255,.14);
+  --border-header: 1px solid rgba(255,255,255,.07);
+
+  /* Radius */
+  --r-badge: 5px;
+  --r-btn: 12px;
+  --r-card: 16px;
+  --r-card-sm: 14px;
+  --r-box: 18px;
+  --r-chip: 20px;
+  --r-pill: 24px;
+  --r-round: 30px;
+  --r-circle: 50%;
+
+  /* Typography */
+  --font-body: "Pretendard", -apple-system, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Shadows */
+  --shadow-float: 0 12px 40px rgba(0,0,0,.5);
+}
