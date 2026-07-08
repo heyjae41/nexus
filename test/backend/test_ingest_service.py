@@ -99,6 +99,70 @@ def test_ingest_no_bump_when_nothing_new(db, tmp_path):
     assert cache.get("home") == "warm", "변화가 없으면 캐시를 유지한다"
 
 
+def test_ingest_now_runs_scan_with_injected_engine(engine, tmp_path):
+    """글 저장 직후 즉시 반영: ingest_now 는 스케줄러와 동일 코드 경로를 1회 실행한다."""
+    from sqlalchemy.orm import Session
+
+    from app.services.ingest import ingest_now
+
+    with Session(bind=engine) as db:
+        seed_curation(db)
+    cache = make_cache()
+    write_file(tmp_path, "20260708_뉴스레터_즉시반영.html")
+
+    result = ingest_now(str(tmp_path), engine=engine, cache=cache)
+
+    assert result is not None
+    assert result.ingested == 1
+    with Session(bind=engine) as db:
+        assert list_articles(db).items[0].title == "즉시반영"
+
+
+def test_ingest_now_swallows_failures(tmp_path, monkeypatch):
+    """DB 미가용 등 실패 시 예외를 전파하지 않고 None — 1분 스케줄러가 안전망."""
+    from app.services import ingest as ingest_module
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("DB down")
+
+    monkeypatch.setattr(ingest_module, "scan_contents_dir", boom)
+    cache = make_cache()
+
+    class FakeEngine:  # Session 생성 시점엔 접속하지 않으므로 형태만 충족
+        pass
+
+    result = ingest_module.ingest_now(str(tmp_path), engine=FakeEngine(), cache=cache)
+    assert result is None
+
+
+def test_ingest_survives_concurrent_duplicate(db, tmp_path, monkeypatch):
+    """즉시 인제스트와 스케줄러가 경합해 UNIQUE 위반이 나도
+    해당 파일만 already 처리하고 나머지 파일은 계속 진행해야 한다."""
+    from sqlalchemy.exc import IntegrityError
+
+    from app.services import ingest as ingest_module
+
+    seed_curation(db)
+    cache = make_cache()
+    write_file(tmp_path, "20260708_뉴스레터_경합파일.html")
+    write_file(tmp_path, "20260708_컬럼_정상파일.html")
+
+    real_ingest_file = ingest_module._ingest_file
+
+    def racy_ingest_file(session, path):
+        if "경합파일" in path.name:
+            raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+        return real_ingest_file(session, path)
+
+    monkeypatch.setattr(ingest_module, "_ingest_file", racy_ingest_file)
+
+    result = scan_contents_dir(db, cache, str(tmp_path))
+
+    assert result.already == 1     # 경합 파일은 이미 처리된 것으로 집계
+    assert result.ingested == 1    # 뒤 파일은 중단 없이 인제스트
+    assert list_articles(db).items[0].title == "정상파일"
+
+
 def test_ingest_extracts_key_visual(db, tmp_path):
     seed_curation(db)
     cache = make_cache()

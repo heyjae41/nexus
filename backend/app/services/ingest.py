@@ -9,6 +9,7 @@ from datetime import datetime, time, timezone
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
@@ -57,11 +58,47 @@ def scan_contents_dir(db: Session, cache: VersionedCache, contents_dir: str) -> 
         except ValueError as exc:
             skipped += 1
             logger.warning("인제스트 건너뜀 (%s): %s", name, exc)
+        except IntegrityError:
+            # 즉시 인제스트와 스케줄러가 경합한 경우 — 이미 반영된 파일
+            db.rollback()
+            already += 1
+            logger.debug("동시 인제스트 감지 (%s)", name)
 
     if ingested:
         cache.bump_version()
         logger.info("인제스트 %d건 완료 → 캐시 무효화", ingested)
     return IngestResult(ingested=ingested, already=already, skipped=skipped)
+
+
+def ingest_now(
+    contents_dir: str,
+    engine=None,
+    cache: VersionedCache | None = None,
+) -> IngestResult | None:
+    """글 저장 직후 즉시 반영용 1회 인제스트 (best-effort).
+
+    스케줄러(1분 주기)와 동일한 scan_contents_dir 경로를 바로 실행한다.
+    DB/캐시 미가용 등 어떤 실패도 전파하지 않고 None 을 반환한다 —
+    파일은 이미 저장되어 있으므로 다음 스케줄 스캔이 안전망으로 반영한다.
+    """
+    try:
+        if engine is None or cache is None:
+            from app.cache import create_cache
+            from app.config import get_settings
+            from app.db import get_engine
+
+            settings = get_settings()
+            engine = engine or get_engine()
+            cache = cache or create_cache(
+                settings.redis_url, settings.cache_prefix, settings.cache_ttl_seconds
+            )
+        with Session(bind=engine, expire_on_commit=False) as db:
+            return scan_contents_dir(db, cache, contents_dir)
+    except Exception as exc:  # noqa: BLE001 - best-effort: 스케줄러가 재시도한다
+        logger.warning(
+            "즉시 인제스트 실패(스케줄러가 반영 예정): %s", exc, exc_info=True
+        )
+        return None
 
 
 def _ingest_file(db: Session, path: Path) -> None:
