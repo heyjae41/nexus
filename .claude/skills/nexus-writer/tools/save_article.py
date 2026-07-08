@@ -71,6 +71,15 @@ def main() -> int:
     target = contents_dir / filename
     target.write_text(html, encoding="utf-8")
     print(str(target))
+
+    # 저장 직후 즉시 반영 (best-effort) — 실패해도 1분 스케줄러가 안전망으로 처리
+    from app.services.ingest import ingest_now
+
+    result = ingest_now(str(contents_dir))
+    if result is not None and result.ingested:
+        print("즉시 반영 완료: 사이트에 바로 노출됩니다")
+    else:
+        print("즉시 반영 보류: 1분 내 스케줄러가 자동 반영합니다")
     return 0
 
 

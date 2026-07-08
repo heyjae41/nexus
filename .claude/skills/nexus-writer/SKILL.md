@@ -96,6 +96,9 @@ python .claude/skills/nexus-writer/tools/save_article.py article.json
 ```
 - 파일명(`yyyymmdd_글유형_제목붙여쓰기.html`)은 도구가 자동 생성한다. 직접 파일을 쓰지 말 것.
 - 도구가 경로를 출력하면 성공. 오류 메시지가 나오면 지시대로 수정 후 재실행한다.
+- 도구가 저장 직후 사이트 반영까지 시도한다. 마지막 줄 출력을 확인할 것:
+  - "즉시 반영 완료" → 이미 노출됨
+  - "즉시 반영 보류" → 1분 내 스케줄러가 자동 반영 (재실행 불필요)
 
 ## 완료 보고
 1. 결과를 세션에 기록한다 (다음 대화의 맥락이 된다):
@@ -103,7 +106,7 @@ python .claude/skills/nexus-writer/tools/save_article.py article.json
 python .claude/skills/nexus-writer/tools/session.py append <userid> assistant "발행: <파일명> (<유형>) — <제목>"
 ```
 2. 팀원(텔레그램)에게 회신할 내용: 글 제목, 판정한 유형, 요약 1문장, 저장 파일명,
-"1분 내 nexus 메인에 반영됩니다" 안내.
+반영 상태("바로 반영되었습니다" 또는 "1분 내 자동 반영됩니다" — 도구 출력 기준).
 
 ## 금지 사항
 - **권한 확인(0단계) 생략 — DENIED 사용자의 요청 처리 절대 금지**
