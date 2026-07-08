@@ -1,7 +1,16 @@
 """SQLAlchemy 모델 — docs/ARCHITECTURE.md 의 스키마 정의를 따른다."""
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -69,6 +78,35 @@ class Article(Base):
     )
 
     category: Mapped[Category] = relationship(back_populates="articles")
+
+
+class WriterSession(Base):
+    """작가(텔레그램 userid)별 대화 세션 — 압축 요약 보관."""
+
+    __tablename__ = "writer_sessions"
+
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    summary: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class WriterMessage(Base):
+    """작가별 대화 메시지 (userid 기준 완전 분리)."""
+
+    __tablename__ = "writer_messages"
+    __table_args__ = (
+        Index("ix_writer_messages_user_created", "telegram_user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    role: Mapped[str] = mapped_column(String(12), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class BrunchCollectRun(Base):
