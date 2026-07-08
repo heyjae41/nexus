@@ -12,10 +12,33 @@ BC카드 AI사업팀 팀원이 텔레그램으로 보낸 텍스트(글감)를 �
 ## 입력
 
 hermes agent 가 전달하는 것:
-1. **팀원의 글감 텍스트** (필수) — 주제, 초안, 또는 완성 글
-2. **참고 URL** (선택, 0개 이상) — 팀원이 함께 준 링크
+1. **텔레그램 userid** (필수, 숫자) — 요청 보낸 팀원의 식별자
+2. **팀원의 글감 텍스트** (필수) — 주제, 초안, 또는 완성 글
+3. **참고 URL** (선택, 0개 이상) — 팀원이 함께 준 링크
 
 ## 작업 순서
+
+### 0단계 — 권한 확인 + 대화 맥락 로드 (필수, 가장 먼저)
+
+```bash
+. .venv/bin/activate   # 프로젝트 루트의 가상환경
+python .claude/skills/nexus-writer/tools/check_writer.py <userid>
+```
+- `DENIED` 가 나오면 **즉시 중단**하고 팀원에게 회신: "등록된 작가가 아닙니다. 관리자에게 화이트리스트(.writer_whitelist) 등록을 요청하세요." 이후 단계를 절대 진행하지 않는다.
+- `ALLOWED` 면 해당 작가의 이전 대화 맥락을 로드한다:
+```bash
+python .claude/skills/nexus-writer/tools/session.py history <userid>
+```
+- 출력된 요약/대화는 **이 userid 의 것만** 참고한다. 다른 작가의 맥락과 절대 섞지 않는다.
+- 팀원이 "초기화", "새로 시작", "/reset" 을 요청하면: `session.py clear <userid>` 실행 후 새 대화로 진행.
+- 이번 요청 텍스트를 기록한다: `session.py append <userid> user "<글감 요약 또는 원문(300자 이내)>"`
+
+### 0.5단계 — 대화 압축 (history 출력에 [알림] 이 있을 때)
+대화가 길어지면 토큰 비용이 커지므로, 지금까지의 대화를 3~5문장으로 직접 요약한 뒤:
+```bash
+python .claude/skills/nexus-writer/tools/session.py compact <userid> "<요약문>"
+```
+요약에는 작가의 선호(문체/주제/자주 쓰는 유형)와 진행 중인 글 상태를 반드시 포함한다.
 
 ### 1단계 — 참고자료 수집 (URL 이 있을 때만)
 ```bash
@@ -66,10 +89,16 @@ python .claude/skills/nexus-writer/tools/save_article.py article.json
 - 도구가 경로를 출력하면 성공. 오류 메시지가 나오면 지시대로 수정 후 재실행한다.
 
 ## 완료 보고
-팀원(텔레그램)에게 회신할 내용: 글 제목, 판정한 유형, 요약 1문장, 저장 파일명,
+1. 결과를 세션에 기록한다 (다음 대화의 맥락이 된다):
+```bash
+python .claude/skills/nexus-writer/tools/session.py append <userid> assistant "발행: <파일명> (<유형>) — <제목>"
+```
+2. 팀원(텔레그램)에게 회신할 내용: 글 제목, 판정한 유형, 요약 1문장, 저장 파일명,
 "1분 내 nexus 메인에 반영됩니다" 안내.
 
 ## 금지 사항
+- **권한 확인(0단계) 생략 — DENIED 사용자의 요청 처리 절대 금지**
+- 다른 작가(userid)의 대화 맥락을 현재 작가의 답변에 사용
 - 참고 URL 원문 문장의 복사 (표절 금지 — 재작성만 허용)
 - 키비주얼 생략 (필수 요소)
 - /contents 에 도구를 거치지 않은 직접 파일 작성 (명명규칙 위반 위험)

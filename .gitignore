@@ -32,3 +32,6 @@ NEXUS_article_detail.html
 
 # Vite/Vitest cache
 .vite/
+
+# 작가 화이트리스트 (환경별 관리 - 텔레그램 userid 포함)
+.writer_whitelist
