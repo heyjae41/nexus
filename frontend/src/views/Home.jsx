@@ -5,8 +5,8 @@ import ClassCard from '../components/ClassCard'
 import EventCard from '../components/EventCard'
 import PostCard from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
-import { fetchHome } from '../api/client'
-import { CLASSES, POSTS, EVENTS } from '../data'
+import { fetchHome, fetchEvents } from '../api/client'
+import { CLASSES, POSTS } from '../data'
 import { clickableProps } from '../utils/a11y'
 
 const HOT_CLASS_IDS = ['c4', 'c1', 'c2', 'c6']
@@ -57,17 +57,20 @@ export default function Home() {
   const [homeData, setHomeData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [homeEvents, setHomeEvents] = useState([])
 
   const hotClasses = HOT_CLASS_IDS
     .map(id => CLASSES.find(c => c.id === id))
     .filter(Boolean)
   const homePosts = POSTS.slice(0, 4)
-  const homeEvents = EVENTS.slice(0, 3)
 
   useEffect(() => {
     fetchHome()
       .then(data => { setHomeData(data); setLoading(false) })
       .catch(err => { setError(err.message); setLoading(false) })
+    fetchEvents({ page: 1, size: 3 })
+      .then(json => setHomeEvents(json.data ?? []))
+      .catch(() => setHomeEvents([]))
   }, [])
 
   const curationSection = homeData?.sections?.find(s => s.category?.slug === 'curation')
@@ -217,12 +220,16 @@ export default function Home() {
           </section>
 
           {/* 4. Meet */}
-          <section style={{ marginBottom: 24 }}>
-            <SectionHeader emoji="📍" title="가야할 밋플" moreTo="/meet" />
-            <div className="rgrid-3">
-              {homeEvents.map((event, i) => <EventCard key={event.id} event={event} index={i} compact />)}
-            </div>
-          </section>
+          {homeEvents.length > 0 && (
+            <section style={{ marginBottom: 24 }}>
+              <SectionHeader emoji="📍" title="가야할 밋플" moreTo="/meet" />
+              <div className="rgrid-3">
+                {homeEvents.map((event, i) => (
+                  <EventCard key={event.id} event={event} index={i} compact external />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </main>

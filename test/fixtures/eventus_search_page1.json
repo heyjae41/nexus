@@ -1,0 +1,472 @@
+{
+ "meta": {
+  "alerts": [],
+  "warnings": [],
+  "precision": 2,
+  "engine": {
+   "name": "v1",
+   "type": "default"
+  },
+  "page": {
+   "current": 1,
+   "total_pages": 11,
+   "total_results": 123,
+   "size": 12
+  },
+  "request_id": "832071a5-ef3c-46b8-8096-c1e174f990de"
+ },
+ "results": [
+  {
+   "is_direct_place": {
+    "raw": "false"
+   },
+   "click_score": {
+    "raw": 9.0
+   },
+   "date": {
+    "raw": "2026-06-24T23:17:30+00:00"
+   },
+   "correction_value": {
+    "raw": 0.0
+   },
+   "category2": {
+    "raw": "AI"
+   },
+   "area": {
+    "raw": "서울/경기/인천"
+   },
+   "event_type": {
+    "raw": "강연/세미나"
+   },
+   "reception_type": {
+    "raw": "eventus"
+   },
+   "is_ignore": {
+    "raw": "false"
+   },
+   "payway": {
+    "raw": "false"
+   },
+   "disclosure_status": {
+    "raw": "open"
+   },
+   "fullname": {
+    "raw": "한빛앤"
+   },
+   "place": {
+    "raw": "한빛미디어 리더스홀 (B동 1층)"
+   },
+   "is_place": {
+    "raw": "false"
+   },
+   "subdomain": {
+    "raw": "FKH3nHkjmPGh"
+   },
+   "submit_score": {
+    "raw": 47.0
+   },
+   "state": {
+    "raw": "Start"
+   },
+   "event_system_type": {
+    "raw": "offline"
+   },
+   "cover_image_url": {
+    "raw": "/Image/FKH3nHkjmPGh/129202/ProjectInfo/Cover/0cfbb008f1cf4fe495644265fc63dc56.jpg"
+   },
+   "theme_color": {
+    "raw": "eventus-purple"
+   },
+   "logo_image_url": {
+    "raw": "https://eventusstorage.blob.core.windows.net/evs/UploadedFiles/FKH3nHkjmPGh/TopLogoImage/90357a43378949d895a9bfd048559718.png"
+   },
+   "full_address": {
+    "raw": "서울 서대문구 연희로2길 62"
+   },
+   "title": {
+    "raw": "월간 AX: 7월 "
+   },
+   "area_detail": {
+    "raw": "서울 서대문구"
+   },
+   "category": {
+    "raw": "IT/프로그래밍"
+   },
+   "description": {
+    "raw": "선생님을 위한 AX 활용 노하우"
+   },
+   "click_count": {
+    "raw": 47.0
+   },
+   "tags": {
+    "raw": [
+     "AI",
+     "AI에이전트",
+     "AX",
+     "교사AI활용"
+    ]
+   },
+   "address": {
+    "raw": "서울 서대문구 연희로2길 62"
+   },
+   "is_open": {
+    "raw": "false"
+   },
+   "online_event_type": {
+    "raw": null
+   },
+   "view_count": {
+    "raw": 536.0
+   },
+   "close_date": {
+    "raw": "2026-07-20T07:30:00+00:00"
+   },
+   "min_money": {
+    "raw": 0.0
+   },
+   "place_description": {
+    "raw": "주차공간 없음, 지하철 2호선/공항철도 홍대입구역"
+   },
+   "collected_at": {
+    "raw": "2026-07-09T08:10:01+00:00"
+   },
+   "popular_score": {
+    "raw": 65.0
+   },
+   "location": {
+    "raw": "37.5591768867049,126.927857333826"
+   },
+   "start_date": {
+    "raw": "2026-07-20T04:30:00+00:00"
+   },
+   "app_title": {
+    "raw": "[한빛앤 = 한빛미디어 & 한빛+]"
+   },
+   "complate_score": {
+    "raw": 85.0
+   },
+   "stream_service": {
+    "raw": ""
+   },
+   "email": {
+    "raw": "marketing@hanbit.co.kr"
+   },
+   "register_due_date": {
+    "raw": "2026-07-20T07:00:00+00:00"
+   },
+   "register_start_date": {
+    "raw": "2026-06-25T06:30:00+00:00"
+   },
+   "id": {
+    "raw": "129202"
+   },
+   "_meta": {
+    "id": "129202",
+    "engine": "v1",
+    "score": 57.98523
+   }
+  },
+  {
+   "is_direct_place": {
+    "raw": "false"
+   },
+   "click_score": {
+    "raw": 3.0
+   },
+   "date": {
+    "raw": "2026-05-14T10:14:51+00:00"
+   },
+   "correction_value": {
+    "raw": 0.0
+   },
+   "category2": {
+    "raw": "AI"
+   },
+   "area": {
+    "raw": "서울/경기/인천"
+   },
+   "event_type": {
+    "raw": "강연/세미나"
+   },
+   "reception_type": {
+    "raw": "eventus"
+   },
+   "is_ignore": {
+    "raw": "false"
+   },
+   "payway": {
+    "raw": "true"
+   },
+   "disclosure_status": {
+    "raw": "open"
+   },
+   "fullname": {
+    "raw": "서정빈"
+   },
+   "place": {
+    "raw": "서울숲AK밸리 10층 1004호, 더와이랩"
+   },
+   "is_place": {
+    "raw": "false"
+   },
+   "subdomain": {
+    "raw": "thewhhylab"
+   },
+   "submit_score": {
+    "raw": 18.0
+   },
+   "state": {
+    "raw": "Start"
+   },
+   "event_system_type": {
+    "raw": "offline"
+   },
+   "cover_image_url": {
+    "raw": "/Image/thewhhylab/126212/ProjectInfo/Cover/787158fbb17f40ae93e3390ec2e80c34.png"
+   },
+   "theme_color": {
+    "raw": "eventus-purple"
+   },
+   "logo_image_url": {
+    "raw": null
+   },
+   "full_address": {
+    "raw": "서울 성동구 성수일로 99"
+   },
+   "title": {
+    "raw": "(2기) AX Discovery l AX 전략기획 전문가 2급 자격증 과정 "
+   },
+   "area_detail": {
+    "raw": "서울 성동구"
+   },
+   "category": {
+    "raw": "IT/프로그래밍"
+   },
+   "description": {
+    "raw": "비즈니스 성과 창출을 위한 실전 AX 전략기획 자격증 과정 (2기)"
+   },
+   "click_count": {
+    "raw": 16.0
+   },
+   "tags": {
+    "raw": [
+     "AX",
+     "AI자격증",
+     "AX자격증",
+     "AXDiscovery",
+     "디지털배지"
+    ]
+   },
+   "address": {
+    "raw": "서울 성동구 성수일로 99"
+   },
+   "is_open": {
+    "raw": "false"
+   },
+   "online_event_type": {
+    "raw": null
+   },
+   "view_count": {
+    "raw": 540.0
+   },
+   "close_date": {
+    "raw": "2026-07-19T09:00:00+00:00"
+   },
+   "min_money": {
+    "raw": 1000000.0
+   },
+   "place_description": {
+    "raw": "뚝섬역 4번 출구 도보 6분, 주차 가능 (30분당 / 1,500원) ㅣ 대중교통 권장"
+   },
+   "collected_at": {
+    "raw": "2026-07-09T07:40:02+00:00"
+   },
+   "popular_score": {
+    "raw": 65.0
+   },
+   "location": {
+    "raw": "37.5494701203274,127.051187389199"
+   },
+   "start_date": {
+    "raw": "2026-07-18T01:00:00+00:00"
+   },
+   "app_title": {
+    "raw": "더와이랩"
+   },
+   "complate_score": {
+    "raw": 85.0
+   },
+   "stream_service": {
+    "raw": ""
+   },
+   "email": {
+    "raw": "jb9708915@naver.com"
+   },
+   "register_due_date": {
+    "raw": "2026-07-14T15:00:00+00:00"
+   },
+   "register_start_date": {
+    "raw": "2026-05-14T10:00:00+00:00"
+   },
+   "id": {
+    "raw": "126212"
+   },
+   "_meta": {
+    "id": "126212",
+    "engine": "v1",
+    "score": 55.77468
+   }
+  },
+  {
+   "is_direct_place": {
+    "raw": "false"
+   },
+   "click_score": {
+    "raw": 8.0
+   },
+   "date": {
+    "raw": "2026-06-18T04:43:29+00:00"
+   },
+   "correction_value": {
+    "raw": 0.0
+   },
+   "category2": {
+    "raw": "AI"
+   },
+   "area": {
+    "raw": "서울/경기/인천"
+   },
+   "event_type": {
+    "raw": "데모데이"
+   },
+   "reception_type": {
+    "raw": "eventus"
+   },
+   "is_ignore": {
+    "raw": "false"
+   },
+   "payway": {
+    "raw": "false"
+   },
+   "disclosure_status": {
+    "raw": "open"
+   },
+   "fullname": {
+    "raw": "이은파"
+   },
+   "place": {
+    "raw": "1층 컨퍼런스홀"
+   },
+   "is_place": {
+    "raw": "false"
+   },
+   "subdomain": {
+    "raw": "nextree"
+   },
+   "submit_score": {
+    "raw": 46.0
+   },
+   "state": {
+    "raw": "Start"
+   },
+   "event_system_type": {
+    "raw": "offline"
+   },
+   "cover_image_url": {
+    "raw": "/Image/nextree/128758/ProjectInfo/Cover/d3f60d56b54c4e58b3025731351ed8c2.png"
+   },
+   "theme_color": {
+    "raw": "eventus-purple"
+   },
+   "logo_image_url": {
+    "raw": "/Image/nextree/88813287707d4536acc140c15519fadc.jpg"
+   },
+   "full_address": {
+    "raw": "경기 성남시 수정구 금토로80번길 27"
+   },
+   "title": {
+    "raw": "누구나 만드는 AI 서비스 시대 | VIZEND DAY 2026"
+   },
+   "area_detail": {
+    "raw": "경기 성남시 수정구"
+   },
+   "category": {
+    "raw": "IT/프로그래밍"
+   },
+   "description": {
+    "raw": "AI 자동화와 마이크로서비스 조립을 직접 시연합니다"
+   },
+   "click_count": {
+    "raw": 61.0
+   },
+   "tags": {
+    "raw": [
+     "AI",
+     "MSA",
+     "개발자동화",
+     "디지털전환",
+     "SaaS"
+    ]
+   },
+   "address": {
+    "raw": "경기 성남시 수정구 금토로80번길 27"
+   },
+   "is_open": {
+    "raw": "false"
+   },
+   "online_event_type": {
+    "raw": null
+   },
+   "view_count": {
+    "raw": 822.0
+   },
+   "close_date": {
+    "raw": "2026-07-21T08:00:00+00:00"
+   },
+   "min_money": {
+    "raw": 0.0
+   },
+   "place_description": {
+    "raw": null
+   },
+   "collected_at": {
+    "raw": "2026-07-09T08:10:01+00:00"
+   },
+   "popular_score": {
+    "raw": 85.0
+   },
+   "location": {
+    "raw": "37.4067134067601,127.087301860142"
+   },
+   "start_date": {
+    "raw": "2026-07-21T05:00:00+00:00"
+   },
+   "app_title": {
+    "raw": "넥스트리"
+   },
+   "complate_score": {
+    "raw": 90.0
+   },
+   "stream_service": {
+    "raw": ""
+   },
+   "email": {
+    "raw": "eunpa0806@gmail.com"
+   },
+   "register_due_date": {
+    "raw": "2026-07-17T14:30:00+00:00"
+   },
+   "register_start_date": {
+    "raw": "2026-06-18T15:00:00+00:00"
+   },
+   "id": {
+    "raw": "128758"
+   },
+   "_meta": {
+    "id": "128758",
+    "engine": "v1",
+    "score": 49.950153
+   }
+  }
+ ]
+}

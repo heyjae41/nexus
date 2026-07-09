@@ -33,6 +33,16 @@ class Settings(BaseSettings):
     brunch_ref_query: str = "ref=nexus.bccard.ai"
     brunch_base_url: str = "https://brunch.co.kr"
 
+    # Meetup collector (event-us.kr)
+    meetup_collect_interval_hours: int = 12
+    meetup_query: str = "ai ax"
+    meetup_categories: str = "IT/프로그래밍,경제/금융"
+    meetup_window_days: int = 20
+
+    @property
+    def meetup_category_list(self) -> list[str]:
+        return [c.strip() for c in self.meetup_categories.split(",") if c.strip()]
+
     @property
     def database_url(self) -> str:
         return (

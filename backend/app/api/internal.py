@@ -5,6 +5,7 @@ import logging
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.routes import get_cache
@@ -30,6 +31,31 @@ def ingest_run(
     return api_response(
         {"ingested": result.ingested, "already": result.already, "skipped": result.skipped}
     )
+
+
+@router.post("/meetup/run")
+def meetup_run(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    from app.services.meetup_collector import collect_meetups
+    from app.services.meetup_fetcher import fetch_meetup_candidates
+
+    settings = get_settings()
+    try:
+        candidates = fetch_meetup_candidates(
+            query=settings.meetup_query,
+            categories=settings.meetup_category_list,
+            window_days=settings.meetup_window_days,
+        )
+        result = collect_meetups(db, cache, candidates=candidates)
+    except IntegrityError:
+        # 스케줄러와 동시 실행 경합 — 상대편이 이미 반영했으므로 정상 종료
+        logger.info("밋업 동시 수집 감지 — 스케줄러 반영분과 중복")
+        return api_response({"candidates": 0, "added": 0, "note": "동시 수집 감지"})
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.exception("밋업 수동 수집 실패")
+        raise HTTPException(status_code=502, detail="밋업 수집에 실패했습니다") from exc
+    return api_response({"candidates": result.candidates, "added": result.added})
 
 
 @router.post("/brunch/run")

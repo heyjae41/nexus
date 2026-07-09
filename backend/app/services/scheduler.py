@@ -49,6 +49,23 @@ def run_brunch_job(cache: VersionedCache) -> None:
             logger.exception("브런치 수집 작업 실패")
 
 
+def run_meetup_job(cache: VersionedCache) -> None:
+    from app.services.meetup_collector import collect_meetups
+    from app.services.meetup_fetcher import fetch_meetup_candidates
+
+    settings = get_settings()
+    with _session() as db:
+        try:
+            candidates = fetch_meetup_candidates(
+                query=settings.meetup_query,
+                categories=settings.meetup_category_list,
+                window_days=settings.meetup_window_days,
+            )
+            collect_meetups(db, cache, candidates=candidates)
+        except Exception:
+            logger.exception("밋업 수집 작업 실패")
+
+
 def build_scheduler(cache: VersionedCache) -> BackgroundScheduler:
     settings = get_settings()
     scheduler = BackgroundScheduler(timezone="UTC")
@@ -64,6 +81,13 @@ def build_scheduler(cache: VersionedCache) -> BackgroundScheduler:
         "interval",
         hours=settings.brunch_collect_interval_hours,
         id="brunch_collect",
+        args=[cache],
+    )
+    scheduler.add_job(
+        run_meetup_job,
+        "interval",
+        hours=settings.meetup_collect_interval_hours,
+        id="meetup_collect",
         args=[cache],
     )
     return scheduler
