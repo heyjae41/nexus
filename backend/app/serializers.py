@@ -58,6 +58,15 @@ def serialize_article_card(article: Article) -> dict:
     }
 
 
+def _price_text(event) -> str | None:
+    if event.is_free is None:
+        return None  # 가격 미상 소스 — 무료로 단정하지 않는다
+    if event.is_free:
+        return "무료"
+    # 유료인데 금액 미상인 데이터 불일치도 크래시 없이 처리한다
+    return f"{event.price_min:,}원~" if event.price_min is not None else None
+
+
 def serialize_event_card(event) -> dict:
     """밋업 카드. 클릭 시 원본 사이트로 이동하며 브런치와 동일하게 ref 를 부착한다."""
     return {
@@ -68,7 +77,7 @@ def serialize_event_card(event) -> dict:
         "eventEnd": event.event_end.isoformat() if event.event_end else None,
         "place": event.place,
         "area": event.area,
-        "priceText": "무료" if event.is_free else f"{event.price_min:,}원~",
+        "priceText": _price_text(event),
         "viewCount": event.view_count,
         "eventSystemType": event.event_system_type,
         "category": event.category,

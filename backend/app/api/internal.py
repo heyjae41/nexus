@@ -47,6 +47,13 @@ def meetup_run(
             categories=settings.meetup_category_list,
             window_days=settings.meetup_window_days,
         )
+        # luma (AI/TECH) 도 함께 수집한다 — 스케줄 체인과 동일 범위
+        from app.services.luma_fetcher import fetch_luma_candidates
+
+        for category_api_id, label in settings.luma_category_pairs:
+            candidates += fetch_luma_candidates(
+                category_api_id, label, window_days=settings.meetup_window_days
+            )
         result = collect_meetups(db, cache, candidates=candidates)
     except IntegrityError:
         # 스케줄러와 동시 실행 경합 — 상대편이 이미 반영했으므로 정상 종료

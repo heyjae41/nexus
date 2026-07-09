@@ -45,6 +45,25 @@ def test_events_list_card_fields(client):
     assert body["data"][1]["priceText"] == "15,000원~"
 
 
+def test_events_price_unknown_serialized_as_null(client):
+    """luma 등 가격 정보가 없는 소스는 무료로 단정하지 않고 priceText=null 로 내린다."""
+    db = client.session_factory()
+    db.add(
+        MeetupEvent(
+            source_id="luma-1", title="가격 미상 밋업",
+            source_url="https://lu.ma/abc",
+            event_start=datetime.now(timezone.utc) + timedelta(days=1),
+            is_free=None, price_min=None, category="AI",
+        )
+    )
+    db.commit()
+    db.close()
+    res = client.get("/api/events").json()
+    card = next(c for c in res["data"] if c["title"] == "가격 미상 밋업")
+    assert card["priceText"] is None
+    assert card["linkUrl"] == "https://lu.ma/abc?ref=nexus.bccard.ai"
+
+
 def test_events_list_sorted_by_start_asc(client):
     seed_events(client)
     res = client.get("/api/events").json()

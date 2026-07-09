@@ -1,7 +1,8 @@
 """event-us.kr 밋업 검색 API 클라이언트/파서.
 
 수집 조건 (요구사항): 검색어 'ai ax', 카테고리 IT/프로그래밍·경제/금융,
-참여방법/가격 전체, 기간 = 오늘 ~ 오늘+20일. 모든 페이지를 수집한다.
+참여방법/가격 전체, 기간 = 오늘 ~ 오늘+N일 (설정 meetup_window_days, 기본 14일).
+모든 페이지를 수집한다.
 """
 import logging
 from dataclasses import dataclass
@@ -36,8 +37,8 @@ class MeetupCandidate:
     place: str | None
     area: str | None
     address: str | None
-    price_min: int
-    is_free: bool
+    price_min: int | None  # None = 가격 미상 (luma 등 가격 미제공 소스)
+    is_free: bool | None
     view_count: int
     event_system_type: str | None
     category: str | None

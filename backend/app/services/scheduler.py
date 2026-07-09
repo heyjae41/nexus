@@ -63,7 +63,40 @@ def run_meetup_job(cache: VersionedCache) -> None:
             )
             collect_meetups(db, cache, candidates=candidates)
         except Exception:
-            logger.exception("밋업 수집 작업 실패")
+            logger.exception("밋업(event-us) 수집 작업 실패")
+
+
+def run_luma_job(cache: VersionedCache, category_api_id: str, label: str) -> None:
+    from app.services.luma_fetcher import fetch_luma_candidates
+    from app.services.meetup_collector import collect_meetups
+
+    settings = get_settings()
+    with _session() as db:
+        try:
+            candidates = fetch_luma_candidates(
+                category_api_id, label, window_days=settings.meetup_window_days
+            )
+            collect_meetups(db, cache, candidates=candidates)
+        except Exception:
+            logger.exception("luma(%s) 수집 작업 실패", category_api_id)
+
+
+def run_collect_chain_job(cache: VersionedCache) -> None:
+    """12시간 주기 수집 체인 — 브런치부터 순차 실행, 한 단계 실패해도 다음 단계 진행."""
+    settings = get_settings()
+    steps = [
+        ("brunch", lambda: run_brunch_job(cache)),
+        ("event-us", lambda: run_meetup_job(cache)),
+    ]
+    steps += [
+        (f"luma:{label}", lambda cid=cid, label=label: run_luma_job(cache, cid, label))
+        for cid, label in settings.luma_category_pairs
+    ]
+    for name, step in steps:
+        try:
+            step()
+        except Exception:
+            logger.exception("수집 체인 단계 실패: %s (다음 단계 계속)", name)
 
 
 def build_scheduler(cache: VersionedCache) -> BackgroundScheduler:
@@ -77,17 +110,10 @@ def build_scheduler(cache: VersionedCache) -> BackgroundScheduler:
         args=[cache],
     )
     scheduler.add_job(
-        run_brunch_job,
+        run_collect_chain_job,
         "interval",
-        hours=settings.brunch_collect_interval_hours,
-        id="brunch_collect",
-        args=[cache],
-    )
-    scheduler.add_job(
-        run_meetup_job,
-        "interval",
-        hours=settings.meetup_collect_interval_hours,
-        id="meetup_collect",
+        hours=settings.collect_chain_interval_hours,
+        id="collect_chain",
         args=[cache],
     )
     return scheduler
