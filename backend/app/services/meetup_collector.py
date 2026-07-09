@@ -44,10 +44,14 @@ def collect_meetups(
     candidates: list[MeetupCandidate],
 ) -> MeetupCollectResult:
     existing_urls, existing_ids = _existing_keys(db, candidates)
-    fresh = [
-        c for c in candidates
-        if c.source_url not in existing_urls and c.source_id not in existing_ids
-    ]
+    # 배치 내 중복(luma AI/TECH 양쪽에 잡힌 이벤트 등)도 함께 제거한다
+    fresh: list[MeetupCandidate] = []
+    for c in candidates:
+        if c.source_url in existing_urls or c.source_id in existing_ids:
+            continue
+        existing_urls.add(c.source_url)
+        existing_ids.add(c.source_id)
+        fresh.append(c)
 
     run = MeetupCollectRun(
         status="empty" if not candidates else "success",

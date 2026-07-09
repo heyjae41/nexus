@@ -86,6 +86,17 @@ def test_collect_dedups_by_source_id_even_if_url_differs(db):
     assert db.query(MeetupEvent).count() == 1
 
 
+def test_collect_dedups_within_batch(db):
+    """같은 이벤트가 배치 안에 두 번 있어도(luma AI+TECH 중복 등) 1건만 저장한다."""
+    cache = make_cache()
+    result = collect_meetups(
+        db, cache,
+        candidates=[cand("1", category="AI"), cand("1", category="TECH"), cand("2")],
+    )
+    assert result.added == 2
+    assert db.query(MeetupEvent).count() == 2
+
+
 def test_collect_records_failed_run_on_db_error(db):
     """저장 중 예외 발생 시 failed 이력을 남기고 예외를 전파한다."""
     import pytest

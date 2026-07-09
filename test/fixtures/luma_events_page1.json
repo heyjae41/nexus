@@ -1,0 +1,718 @@
+{
+ "entries": [
+  {
+   "api_id": "evt-DxWdwvbMtWw9CHI",
+   "event": {
+    "api_id": "evt-DxWdwvbMtWw9CHI",
+    "calendar_api_id": "cal-o88e7ZRGj1MOgGy",
+    "cover_url": "https://images.lumacdn.com/uploads/ik/feee885c-e3c9-4145-84d0-75c65af1a5f9.jpg",
+    "end_at": "2026-07-09T10:00:00.000Z",
+    "event_type": "independent",
+    "hide_rsvp": false,
+    "location_type": "offline",
+    "name": "NUS x Jane Street Summit on Self-Evolution of AI Agents and Multiagent Systems @ ICML 2026",
+    "one_to_one": true,
+    "recurrence_id": null,
+    "show_guest_list": false,
+    "social_image_url": "https://images.lumacdn.com/event-social/33/82472edd-6427-4c57-8c29-76dc254d9a1d.png",
+    "start_at": "2026-07-09T05:30:00.000Z",
+    "timezone": "Asia/Seoul",
+    "url": "rzkweojj",
+    "user_api_id": "usr-Svjum73IcpGL0iE",
+    "visibility": "public",
+    "virtual_info": {
+     "has_access": false
+    },
+    "geo_address_info": {
+     "mode": "obfuscated",
+     "city": null,
+     "city_state": "Seoul, South Korea",
+     "sublocality": "Teheran-ro",
+     "country": "South Korea",
+     "country_code": "KR",
+     "region": "Seoul",
+     "region_short": "Seoul"
+    },
+    "geo_address_visibility": "guests-only",
+    "coordinate": {
+     "latitude": 37.50801912043796,
+     "longitude": 127.05415911586316
+    },
+    "waitlist_enabled": true,
+    "waitlist_status": "active"
+   },
+   "cover_image": {
+    "colors": [
+     "#faf8f2",
+     "#46373b",
+     "#9ddad2",
+     "#d67a9d"
+    ],
+    "palette": {
+     "neutral": [
+      {
+       "color": "#46373b",
+       "percentage": 6.01
+      },
+      {
+       "color": "#faf8f2",
+       "percentage": 78.29
+      }
+     ],
+     "vibrant": [
+      {
+       "color": "#e0e14b",
+       "percentage": 0.99
+      },
+      {
+       "color": "#d67a9d",
+       "percentage": 1.17
+      },
+      {
+       "color": "#9ddad2",
+       "percentage": 1.2
+      },
+      {
+       "color": "#c78757",
+       "percentage": 1.12
+      }
+     ]
+    }
+   },
+   "calendar": {
+    "access_level": "public",
+    "api_id": "cal-o88e7ZRGj1MOgGy",
+    "avatar_url": "https://cdn.lu.ma/avatars-default/community_avatar_1.png",
+    "coordinate": null,
+    "cover_image_url": "https://images.lumacdn.com/calendar-defaults/patterns/stairs-100.png",
+    "description_short": null,
+    "event_submission_restriction": "open",
+    "google_measurement_id": null,
+    "instagram_handle": null,
+    "is_blocked": false,
+    "launch_status": "launched",
+    "linkedin_handle": null,
+    "location": null,
+    "luma_plan": "free",
+    "luma_plus_active": false,
+    "meta_pixel_id": null,
+    "name": "Personal",
+    "personal_user_api_id": "usr-Svjum73IcpGL0iE",
+    "refund_policy": null,
+    "slug": null,
+    "social_image_url": null,
+    "stripe_account_id": null,
+    "tax_config": null,
+    "tiktok_handle": null,
+    "tint_color": "#F31A7C",
+    "track_meta_ads_from_luma": false,
+    "twitter_handle": null,
+    "verified_at": null,
+    "website": null,
+    "youtube_handle": null,
+    "city": null,
+    "is_personal": true,
+    "personal_user": {
+     "api_id": "usr-Svjum73IcpGL0iE",
+     "avatar_url": "https://images.lumacdn.com/uploads/la/f6712320-f938-4664-9ba2-d56c35caeb2a.jpg",
+     "bio_short": null,
+     "first_name": "Zi-Yu",
+     "last_name": "Khoo",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:58:47.844Z",
+     "linkedin_handle": "/in/zi-yu-khoo",
+     "name": "Khoo Zi-Yu",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": null,
+     "username": "ziyuuuu",
+     "website": null,
+     "youtube_handle": ""
+    },
+    "geo_city": null,
+    "geo_country": null,
+    "geo_region": null,
+    "timezone": null
+   },
+   "start_at": "2026-07-09T05:30:00.000Z",
+   "hosts": [
+    {
+     "api_id": "usr-Svjum73IcpGL0iE",
+     "avatar_url": "https://images.lumacdn.com/uploads/la/f6712320-f938-4664-9ba2-d56c35caeb2a.jpg",
+     "bio_short": null,
+     "first_name": "Zi-Yu",
+     "last_name": "Khoo",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:58:47.844Z",
+     "linkedin_handle": "/in/zi-yu-khoo",
+     "name": "Khoo Zi-Yu",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": null,
+     "username": "ziyuuuu",
+     "website": null,
+     "youtube_handle": ""
+    },
+    {
+     "api_id": "usr-H8teDSwdMgdGE7C",
+     "avatar_url": "https://cdn.lu.ma/avatars-default/avatar_40.png",
+     "bio_short": "",
+     "first_name": "Lynn",
+     "last_name": "Wong",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:35:54.181Z",
+     "linkedin_handle": "/in/Lynnwongsl",
+     "name": "Lynn Wong",
+     "tiktok_handle": null,
+     "timezone": "Asia/Singapore",
+     "twitter_handle": null,
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    }
+   ],
+   "guest_count": 0,
+   "ticket_count": 0,
+   "ticket_info": {
+    "price": null,
+    "is_free": false,
+    "max_price": null,
+    "is_sold_out": true,
+    "spots_remaining": 0,
+    "is_near_capacity": false,
+    "require_approval": true
+   },
+   "registration_availability": "waitlist",
+   "featured_guests": [],
+   "manager_info": null,
+   "guest_info": null,
+   "host_info": null,
+   "waitlist_active": true,
+   "featured_city": {
+    "api_id": "discplace-eQieweHXBFCWbCj",
+    "name": "Seoul",
+    "slug": "seoul"
+   },
+   "role": null,
+   "submitted_by_user_api_id": null,
+   "score": 0.24110057094797704,
+   "query_score": 0
+  },
+  {
+   "api_id": "evt-a6NzGRy61uUZ3RR",
+   "event": {
+    "api_id": "evt-a6NzGRy61uUZ3RR",
+    "calendar_api_id": "cal-zDvxDZMtGb90izP",
+    "cover_url": "https://images.lumacdn.com/uploads/i9/0b153c69-46e6-426e-9cda-22404c74bbbd.png",
+    "end_at": "2026-07-09T10:00:00.000Z",
+    "event_type": "independent",
+    "hide_rsvp": false,
+    "location_type": "offline",
+    "name": "Research to Industry: Fireside Chat & Happy Hour, hosted by Gensyn and Optiver",
+    "one_to_one": true,
+    "recurrence_id": null,
+    "show_guest_list": false,
+    "social_image_url": "https://images.lumacdn.com/event-social/1k/65e79993-dd8f-4a1c-b67d-dc4809118ffa.png",
+    "start_at": "2026-07-09T07:30:00.000Z",
+    "timezone": "Asia/Seoul",
+    "url": "careersICML",
+    "user_api_id": "usr-fGYKgLJgWG7uP7v",
+    "visibility": "public",
+    "virtual_info": {
+     "has_access": false
+    },
+    "geo_address_info": {
+     "mode": "obfuscated",
+     "city": null,
+     "city_state": "Seoul, South Korea",
+     "sublocality": "Bongeunsa-ro",
+     "country": "South Korea",
+     "country_code": "KR",
+     "region": "Seoul",
+     "region_short": "Seoul"
+    },
+    "geo_address_visibility": "guests-only",
+    "coordinate": {
+     "latitude": 37.51425753632887,
+     "longitude": 127.0645653846934
+    },
+    "waitlist_enabled": false,
+    "waitlist_status": "disabled"
+   },
+   "cover_image": {
+    "colors": [
+     "#012550",
+     "#8c8b9b",
+     "#ffffff",
+     "#ee3d23"
+    ],
+    "palette": {
+     "neutral": [
+      {
+       "color": "#012550",
+       "percentage": 25.3
+      },
+      {
+       "color": "#ffffff",
+       "percentage": 10.12
+      },
+      {
+       "color": "#8c8b9b",
+       "percentage": 11.02
+      }
+     ],
+     "vibrant": [
+      {
+       "color": "#ee3d23",
+       "percentage": 0.12
+      }
+     ]
+    }
+   },
+   "calendar": {
+    "access_level": "public",
+    "api_id": "cal-zDvxDZMtGb90izP",
+    "avatar_url": "https://images.lumacdn.com/calendars/fv/03984522-fd13-4355-9893-f7a89856af4f.jpg",
+    "coordinate": null,
+    "cover_image_url": "https://images.lumacdn.com/calendar-cover-images/2f/b9b5bb63-d971-440a-830c-dbc4068cf893.jpg",
+    "description_short": "",
+    "event_submission_restriction": "open",
+    "google_measurement_id": null,
+    "instagram_handle": null,
+    "is_blocked": false,
+    "launch_status": "launched",
+    "linkedin_handle": "/company/gensynai",
+    "location": null,
+    "luma_plan": "plus",
+    "luma_plus_active": true,
+    "meta_pixel_id": null,
+    "name": "Gensyn Events",
+    "personal_user_api_id": null,
+    "refund_policy": null,
+    "slug": null,
+    "social_image_url": "https://images.lumacdn.com/calendar-cover-images/04/f0098113-02d3-44ea-a543-c7e9d2088cf4.jpg",
+    "stripe_account_id": null,
+    "tax_config": null,
+    "tiktok_handle": null,
+    "tint_color": "#bb2dc7",
+    "track_meta_ads_from_luma": false,
+    "twitter_handle": "gensynai",
+    "verified_at": "2025-02-23T19:30:55.777Z",
+    "website": "https://gensyn.ai",
+    "youtube_handle": null,
+    "city": null,
+    "is_personal": false,
+    "personal_user": null,
+    "geo_city": null,
+    "geo_country": null,
+    "geo_region": null,
+    "timezone": null
+   },
+   "start_at": "2026-07-09T07:30:00.000Z",
+   "hosts": [
+    {
+     "api_id": "usr-fGYKgLJgWG7uP7v",
+     "avatar_url": "https://cdn.lu.ma/avatars-default/avatar_38.png",
+     "bio_short": "",
+     "first_name": "Chloe",
+     "last_name": "Sanham",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:28:20.951Z",
+     "linkedin_handle": null,
+     "name": "Chloe Sanham | Gensyn",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "n",
+     "username": null,
+     "website": null,
+     "youtube_handle": ""
+    }
+   ],
+   "guest_count": 0,
+   "ticket_count": 0,
+   "ticket_info": {
+    "price": null,
+    "is_free": false,
+    "max_price": null,
+    "is_sold_out": false,
+    "spots_remaining": null,
+    "is_near_capacity": false,
+    "require_approval": true
+   },
+   "registration_availability": "open",
+   "featured_guests": [],
+   "manager_info": null,
+   "guest_info": null,
+   "host_info": null,
+   "waitlist_active": false,
+   "featured_city": null,
+   "role": null,
+   "submitted_by_user_api_id": null,
+   "score": 0.23944503082662863,
+   "query_score": 0
+  },
+  {
+   "api_id": "evt-2FC83WHvy2z1z56",
+   "event": {
+    "api_id": "evt-2FC83WHvy2z1z56",
+    "calendar_api_id": "cal-gPO2uYOxgEZQoNJ",
+    "cover_url": "https://images.lumacdn.com/uploads/ue/4404f4bb-5468-4dad-a033-96443ef08948.png",
+    "end_at": "2026-07-09T11:00:00.000Z",
+    "event_type": "independent",
+    "hide_rsvp": false,
+    "location_type": "offline",
+    "name": "Open AGI Builders Day at ICML",
+    "one_to_one": true,
+    "recurrence_id": null,
+    "show_guest_list": true,
+    "social_image_url": "https://images.lumacdn.com/event-social/24/c7dd1f68-f17e-4790-ab4d-fb1f664828bf.png",
+    "start_at": "2026-07-09T08:00:00.000Z",
+    "timezone": "Asia/Seoul",
+    "url": "wpttup5e",
+    "user_api_id": "usr-peFtBQx0HwcL7Yn",
+    "visibility": "public",
+    "virtual_info": {
+     "has_access": false
+    },
+    "geo_address_info": {
+     "mode": "obfuscated",
+     "city": null,
+     "city_state": "Seoul, South Korea",
+     "sublocality": "Nambusunhwan-ro 359-gil",
+     "country": "South Korea",
+     "country_code": "KR",
+     "region": "Seoul",
+     "region_short": "Seoul"
+    },
+    "geo_address_visibility": "guests-only",
+    "coordinate": {
+     "latitude": 37.48703557488981,
+     "longitude": 127.03828909444655
+    },
+    "waitlist_enabled": true,
+    "waitlist_status": "active"
+   },
+   "cover_image": {
+    "colors": [
+     "#336ba3",
+     "#5e3c34",
+     "#f9fbfb",
+     "#d17e5c"
+    ],
+    "palette": {
+     "neutral": [
+      {
+       "color": "#5e3c34",
+       "percentage": 12.63
+      },
+      {
+       "color": "#f9fbfb",
+       "percentage": 6.1
+      }
+     ],
+     "vibrant": [
+      {
+       "color": "#336ba3",
+       "percentage": 15.7
+      },
+      {
+       "color": "#d17e5c",
+       "percentage": 4.31
+      }
+     ]
+    }
+   },
+   "calendar": {
+    "access_level": "public",
+    "api_id": "cal-gPO2uYOxgEZQoNJ",
+    "avatar_url": "https://images.lumacdn.com/calendars/80/557ed1ed-ed96-4b9e-94e9-7d7cd49e6a04.png",
+    "coordinate": null,
+    "cover_image_url": "https://images.lumacdn.com/calendar-cover-images/77/0b6065b4-32fb-4b3f-b7ed-c90f14c2e8ae.png",
+    "description_short": "Open AGI is the world's leading open-source AI movement bringing together researchers, developers, and builders united by the shared conviction that AGI must remain open and accessible to everyone.",
+    "event_submission_restriction": "open",
+    "google_measurement_id": null,
+    "instagram_handle": null,
+    "is_blocked": false,
+    "launch_status": "launched",
+    "linkedin_handle": "/company/sentient-foundation",
+    "location": null,
+    "luma_plan": "plus",
+    "luma_plus_active": true,
+    "meta_pixel_id": null,
+    "name": "Open AGI",
+    "personal_user_api_id": null,
+    "refund_policy": null,
+    "slug": "openagievents",
+    "social_image_url": "https://images.lumacdn.com/calendar-cover-images/4m/5b47b5fb-1578-4e64-beb8-f05b68ba13c5.png",
+    "stripe_account_id": null,
+    "tax_config": null,
+    "tiktok_handle": null,
+    "tint_color": "#131517",
+    "track_meta_ads_from_luma": false,
+    "twitter_handle": "openagisummit",
+    "verified_at": "2024-08-23T09:52:20.016Z",
+    "website": "https://openagi.xyz",
+    "youtube_handle": "openagisummit",
+    "city": null,
+    "is_personal": false,
+    "personal_user": null,
+    "geo_city": null,
+    "geo_country": null,
+    "geo_region": null,
+    "timezone": null
+   },
+   "start_at": "2026-07-09T08:00:00.000Z",
+   "hosts": [
+    {
+     "api_id": "usr-alyw4cuD0jxrBOi",
+     "avatar_url": "https://images.lumacdn.com/avatars/44/a2c52f21-2eb9-4c1c-a33c-6b54e0eeb692.png",
+     "bio_short": "",
+     "first_name": "Sentient",
+     "last_name": "Foundation",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:26:17.351Z",
+     "linkedin_handle": "/company/sentient-foundation",
+     "name": "Sentient Foundation",
+     "tiktok_handle": null,
+     "timezone": "Asia/Singapore",
+     "twitter_handle": "sentient_found",
+     "username": "sentient_found",
+     "website": "https://sentient.foundation",
+     "youtube_handle": "openagisummit"
+    },
+    {
+     "api_id": "usr-sZ7BIDZE5EhTiBX",
+     "avatar_url": "https://images.lumacdn.com/avatars/vx/f8dcdbf9-5a28-4e9c-bee9-2a9fe1c820ec",
+     "bio_short": "CEO @ Narrative / Rocketpunch, Entrepreneur and Investor. I've invested in over 30 startups including Story, Reclaim Protocol, Playa",
+     "first_name": "Ingi",
+     "last_name": "Kim",
+     "instagram_handle": "startkim1214",
+     "is_verified": false,
+     "last_online_at": "2026-07-09T05:56:32.998Z",
+     "linkedin_handle": "/in/ingikim",
+     "name": "Ingi Kim (Narrative / Rocketpunch)",
+     "tiktok_handle": "codekim1214",
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "codekim1214",
+     "username": "ingikim",
+     "website": "https://ingikim.com",
+     "youtube_handle": "startkim"
+    }
+   ],
+   "guest_count": 259,
+   "ticket_count": 259,
+   "ticket_info": {
+    "price": null,
+    "is_free": false,
+    "max_price": null,
+    "is_sold_out": true,
+    "spots_remaining": 0,
+    "is_near_capacity": false,
+    "require_approval": true
+   },
+   "registration_availability": "waitlist",
+   "featured_guests": [
+    {
+     "api_id": "usr-8EfCmMZTMTyqLDL",
+     "avatar_url": "https://images.lumacdn.com/avatars/jm/0b9faf27-45f2-49f9-aa2e-4ffb1bd5c6a2.jpg",
+     "bio_short": "Entrepreneur | Investor | Traveler | Veteran",
+     "first_name": "Ryan",
+     "last_name": "Lee",
+     "instagram_handle": "ub3757",
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:21:39.632Z",
+     "linkedin_handle": "/in/ryan-y-lee",
+     "name": "Ryan Lee",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": null,
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-UqVOabAhH8WHSMT",
+     "avatar_url": "https://images.lumacdn.com/avatars/v3/61bad6aa-e653-42e1-806e-2dfb50809524.jpg",
+     "bio_short": "",
+     "first_name": "Shaheer",
+     "last_name": "Sandhu",
+     "instagram_handle": "shaheer.sandhu",
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:16:15.300Z",
+     "linkedin_handle": "/in/shaheer-sandhu",
+     "name": "Shaheer",
+     "tiktok_handle": null,
+     "timezone": "America/Chicago",
+     "twitter_handle": "shaheersan",
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-JH3jwHznJTLnRNr",
+     "avatar_url": "https://images.lumacdn.com/avatars/1x/732243f6-4493-49b0-bb9a-66b227397715",
+     "bio_short": "TUNA.GG, Co-founder",
+     "first_name": "성연",
+     "last_name": "TAEMIN YOO",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:32:41.965Z",
+     "linkedin_handle": "/in/dblming",
+     "name": "성연(TAEMIN YOO)",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "mingmingbbs",
+     "username": null,
+     "website": "https://tuna.gg",
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-nkz4JkXJu2JTRFb",
+     "avatar_url": "https://images.lumacdn.com/avatars/gf/8c7e7ca7-f31d-4c44-ab8f-f86f0a531841",
+     "bio_short": "",
+     "first_name": "Miguel",
+     "last_name": "Saavedra",
+     "instagram_handle": "msaavedra1026",
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:27:12.732Z",
+     "linkedin_handle": "/in/msaavedra1026",
+     "name": "Miguel Saavedra",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "miguelsaavedra",
+     "username": "msaavedra1026",
+     "website": null,
+     "youtube_handle": ""
+    },
+    {
+     "api_id": "usr-RWrogdJPJXqGhEB",
+     "avatar_url": "https://images.lumacdn.com/uploads/nm/78c6ad32-6a74-49ab-ac4d-319c5859a3f0.jpg",
+     "bio_short": "Scientific lead & co-founder LAION. Open foundation models and datasets",
+     "first_name": "Jenia",
+     "last_name": "Jitsev",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:40:27.252Z",
+     "linkedin_handle": "/in/jenia-jitsev-11654427",
+     "name": "Jenia Jitsev",
+     "tiktok_handle": null,
+     "timezone": "Asia/Singapore",
+     "twitter_handle": "JeniaJitsev",
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-DVFyunWUEj2aHBm",
+     "avatar_url": "https://images.lumacdn.com/uploads/3k/5d09bd36-d456-4c57-b200-d38ddd73105d.jpg",
+     "bio_short": null,
+     "first_name": "Jay",
+     "last_name": "Lim",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T04:18:33.292Z",
+     "linkedin_handle": "/in/jay-l-194a5a2",
+     "name": "Jay Lim",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "0xev3",
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-Y8rJTTCoDwFDpdd",
+     "avatar_url": "https://images.lumacdn.com/avatars/l3/6cad9309-a8c6-4c3b-be0e-c322d1df797e.jpg",
+     "bio_short": "tech/game startup founder. solo backpacker. gardener",
+     "first_name": "Zang",
+     "last_name": "immortal",
+     "instagram_handle": "zbz_151",
+     "is_verified": false,
+     "last_online_at": "2026-07-08T17:16:18.625Z",
+     "linkedin_handle": "/in/giangdang0115",
+     "name": "zang",
+     "tiktok_handle": null,
+     "timezone": "Asia/Ho_Chi_Minh",
+     "twitter_handle": "zangimmortal",
+     "username": null,
+     "website": null,
+     "youtube_handle": ""
+    },
+    {
+     "api_id": "usr-it2YkTrRoceZwrU",
+     "avatar_url": "https://images.lumacdn.com/avatars/vr/19e4cdf7-5703-4db0-a55a-f6bda02f7cd4.jpg",
+     "bio_short": "",
+     "first_name": "Betty",
+     "last_name": "Zhang",
+     "instagram_handle": "bettyzhang99",
+     "is_verified": false,
+     "last_online_at": "2026-07-09T08:28:41.016Z",
+     "linkedin_handle": "/in/shuyunzhang",
+     "name": "Betty Zhang",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "bettyzhang99",
+     "username": "shuyunzhang",
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-LMQNZe7Va8A1X4X",
+     "avatar_url": "https://images.lumacdn.com/uploads/ql/08209366-4c46-4efa-9c13-61ae256cb9e5.jpg",
+     "bio_short": "I’m Adar, an AI Security Researcher at the Technion’s ATLAS Lab specializing in LLM and agentic safety.",
+     "first_name": "adar",
+     "last_name": "peleg",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-09T07:41:55.953Z",
+     "linkedin_handle": "/in/adarpeleg",
+     "name": "adar peleg",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": null,
+     "username": null,
+     "website": null,
+     "youtube_handle": null
+    },
+    {
+     "api_id": "usr-Q8zj0iAlzxF7wSa",
+     "avatar_url": "https://images.lumacdn.com/avatars/9t/c3df0094-bda0-4011-8cb6-b9ea015160e0.jpg",
+     "bio_short": "Market research analyst at Alphanonce",
+     "first_name": "Ozark",
+     "last_name": "alphanonce",
+     "instagram_handle": null,
+     "is_verified": false,
+     "last_online_at": "2026-07-08T10:35:26.821Z",
+     "linkedin_handle": "/in/sanghoon-cha-56a2a4190",
+     "name": "Ozark alphanonce",
+     "tiktok_handle": null,
+     "timezone": "Asia/Seoul",
+     "twitter_handle": "cryptobyrde",
+     "username": "cryptobyrde",
+     "website": null,
+     "youtube_handle": ""
+    }
+   ],
+   "manager_info": null,
+   "guest_info": null,
+   "host_info": null,
+   "waitlist_active": true,
+   "featured_city": {
+    "api_id": "discplace-eQieweHXBFCWbCj",
+    "name": "Seoul",
+    "slug": "seoul"
+   },
+   "role": null,
+   "submitted_by_user_api_id": null,
+   "score": 0.23840161652425923,
+   "query_score": 0
+  }
+ ],
+ "has_more": true,
+ "next_cursor": "CURSOR1"
+}
