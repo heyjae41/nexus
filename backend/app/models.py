@@ -80,6 +80,49 @@ class Article(Base):
     category: Mapped[Category] = relationship(back_populates="articles")
 
 
+class MeetupEvent(Base):
+    """meet.pl 밋업 이벤트 (event-us.kr 수집)."""
+
+    __tablename__ = "meetup_events"
+    __table_args__ = (Index("ix_meetup_events_start", "event_start"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    host_name: Mapped[str | None] = mapped_column(String(100))
+    source_url: Mapped[str] = mapped_column(String(1000), unique=True, nullable=False)
+    event_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    event_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    place: Mapped[str | None] = mapped_column(String(300))
+    area: Mapped[str | None] = mapped_column(String(100))
+    address: Mapped[str | None] = mapped_column(String(300))
+    price_min: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_free: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    event_system_type: Mapped[str | None] = mapped_column(String(20))
+    category: Mapped[str | None] = mapped_column(String(100))
+    cover_image_url: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="published")
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class MeetupCollectRun(Base):
+    """밋업 수집 이력."""
+
+    __tablename__ = "meetup_collect_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    candidates_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    added_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
 class WriterSession(Base):
     """작가(텔레그램 userid)별 대화 세션 — 압축 요약 보관."""
 

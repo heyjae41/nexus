@@ -29,3 +29,9 @@ export async function likeArticle(id) {
   const json = await request(`/api/articles/${id}/like`, { method: 'POST' })
   return json.data ?? json
 }
+
+export async function fetchEvents({ page = 1, size = 20 } = {}) {
+  const params = new URLSearchParams({ page, size })
+  const json = await request(`/api/events?${params}`)
+  return json
+}

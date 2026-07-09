@@ -58,6 +58,26 @@ def serialize_article_card(article: Article) -> dict:
     }
 
 
+def serialize_event_card(event) -> dict:
+    """밋업 카드. 클릭 시 원본 사이트로 이동하며 브런치와 동일하게 ref 를 부착한다."""
+    return {
+        "id": event.id,
+        "title": event.title,
+        "hostName": event.host_name,
+        "eventStart": event.event_start.isoformat() if event.event_start else None,
+        "eventEnd": event.event_end.isoformat() if event.event_end else None,
+        "place": event.place,
+        "area": event.area,
+        "priceText": "무료" if event.is_free else f"{event.price_min:,}원~",
+        "viewCount": event.view_count,
+        "eventSystemType": event.event_system_type,
+        "category": event.category,
+        "coverImageUrl": event.cover_image_url,
+        "linkUrl": with_ref(event.source_url),
+        "isExternal": True,
+    }
+
+
 def serialize_article_detail(article: Article) -> dict:
     return {
         **serialize_article_card(article),

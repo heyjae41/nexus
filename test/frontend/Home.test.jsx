@@ -1,5 +1,6 @@
 /**
- * Tests for Home view — curation section rendered from mocked /api/home
+ * Tests for Home view — curation section rendered from mocked /api/home,
+ * meet section rendered from mocked /api/events
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -9,9 +10,10 @@ import Home from '@/views/Home'
 // Mock the API client
 vi.mock('@/api/client', () => ({
   fetchHome: vi.fn(),
+  fetchEvents: vi.fn(),
 }))
 
-import { fetchHome } from '@/api/client'
+import { fetchHome, fetchEvents } from '@/api/client'
 
 const mockHomeData = {
   sections: [
@@ -66,11 +68,34 @@ const mockHomeData = {
   ],
 }
 
+const mockEventsData = {
+  data: [
+    {
+      id: 'ev-1',
+      title: '홈 화면 이벤트 1',
+      hostName: '호스트',
+      eventStart: '2026-07-21T18:30:00',
+      eventEnd: '2026-07-21T21:00:00',
+      place: 'MARU180, 강남',
+      area: '서울',
+      priceText: '무료',
+      viewCount: 142,
+      eventSystemType: 'offline',
+      category: 'AI',
+      coverImageUrl: null,
+      linkUrl: 'https://event-us.kr/event/1?ref=nexus.bccard.ai',
+      isExternal: true,
+    },
+  ],
+  meta: { total: 1, page: 1, limit: 3 },
+}
+
 const wrap = (ui) => render(<BrowserRouter>{ui}</BrowserRouter>)
 
 describe('Home view — curation section from API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    fetchEvents.mockResolvedValue(mockEventsData)
   })
 
   it('shows loading skeletons initially', () => {
@@ -121,13 +146,45 @@ describe('Home view — curation section from API', () => {
     })
   })
 
-  it('always renders static sections (클래스, 커뮤니티, 밋플)', async () => {
+  it('always renders static sections (클래스, 커뮤니티)', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
     wrap(<Home user={null} enrolled={[]} />)
     await waitFor(() => {
       expect(screen.getByText(/지금 뜨는 클래스/)).toBeInTheDocument()
     })
     expect(screen.getByText(/이번 주 커뮤니티/)).toBeInTheDocument()
-    expect(screen.getByText(/가야할 밋플/)).toBeInTheDocument()
+  })
+
+  it('renders meet section with API events when events are returned', async () => {
+    fetchHome.mockResolvedValue(mockHomeData)
+    fetchEvents.mockResolvedValue(mockEventsData)
+    wrap(<Home user={null} enrolled={[]} />)
+    await waitFor(() => {
+      expect(screen.getByText(/가야할 밋플/)).toBeInTheDocument()
+    })
+    expect(screen.getByText('홈 화면 이벤트 1')).toBeInTheDocument()
+  })
+
+  it('hides meet section when API returns no events', async () => {
+    fetchHome.mockResolvedValue(mockHomeData)
+    fetchEvents.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 3 } })
+    wrap(<Home user={null} enrolled={[]} />)
+    await waitFor(() => {
+      expect(screen.getByText('테스트 뉴스레터 아티클')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/가야할 밋플/)).not.toBeInTheDocument()
+  })
+
+  it('meet section event cards are external <a> links', async () => {
+    fetchHome.mockResolvedValue(mockHomeData)
+    fetchEvents.mockResolvedValue(mockEventsData)
+    wrap(<Home user={null} enrolled={[]} />)
+    await waitFor(() => {
+      expect(screen.getByText('홈 화면 이벤트 1')).toBeInTheDocument()
+    })
+    const card = screen.getByTestId('event-card-external')
+    expect(card.tagName).toBe('A')
+    expect(card).toHaveAttribute('target', '_blank')
+    expect(card).toHaveAttribute('href', 'https://event-us.kr/event/1?ref=nexus.bccard.ai')
   })
 })

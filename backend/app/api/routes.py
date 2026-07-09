@@ -16,6 +16,7 @@ from app.serializers import (
     serialize_article_card,
     serialize_article_detail,
     serialize_category,
+    serialize_event_card,
 )
 
 router = APIRouter(prefix="/api")
@@ -74,6 +75,28 @@ def articles(
         result = list_articles(db, category_slug=category, article_type=type, page=page, size=size)
         return {
             "items": [serialize_article_card(a) for a in result.items],
+            "meta": {"total": result.total, "page": result.page, "limit": result.size},
+        }
+
+    loaded = cache.get_or_set(key, load)
+    return api_response(loaded["items"], meta=loaded["meta"])
+
+
+@router.get("/events")
+def events(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=12, ge=1, le=50),
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    key = f"events:list:{page}:{size}"
+
+    def load():
+        from app.repositories.events import list_upcoming_events
+
+        result = list_upcoming_events(db, page=page, size=size)
+        return {
+            "items": [serialize_event_card(e) for e in result.items],
             "meta": {"total": result.total, "page": result.page, "limit": result.size},
         }
 
