@@ -1,9 +1,52 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { POSTS } from '../data'
 import PostCard from '../components/PostCard'
+import Skeleton from '../components/Skeleton'
+import { fetchPosts } from '../api/client'
+import { timeAgo } from '../utils/timeAgo'
 
-export default function Community() {
+const PAGE_SIZE = 20
+
+function toCardShape(post, index) {
+  return {
+    id: post.id,
+    tag: post.tag,
+    title: post.title,
+    author: post.authorName,
+    time: timeAgo(post.createdAt),
+    likes: post.likesCount,
+    commentCount: post.commentsCount,
+    _index: index,
+  }
+}
+
+export default function Community({ user }) {
   const navigate = useNavigate()
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetchPosts({ page: 1, size: PAGE_SIZE })
+      .then(json => {
+        setPosts(json.data ?? [])
+        setLoading(false)
+      })
+      .catch(err => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [])
+
+  const handleWrite = () => {
+    if (user) {
+      navigate('/community/write')
+    } else {
+      navigate('/onboarding')
+    }
+  }
 
   return (
     <main style={{ padding: '40px 40px 64px', maxWidth: 820, margin: '0 auto' }}>
@@ -23,7 +66,7 @@ export default function Community() {
         </div>
         <button
           className="btn"
-          onClick={() => alert('로그인 후 이용 가능합니다.')}
+          onClick={handleWrite}
           style={{
             background: '#E8123C', color: '#fff',
             fontSize: 14, fontWeight: 700,
@@ -39,16 +82,26 @@ export default function Community() {
       </p>
 
       {/* Post list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {POSTS.map((post, i) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            index={i}
-            onClick={() => navigate(`/community/${post.id}`)}
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Skeleton count={5} variant="post" />
+        </div>
+      ) : error ? (
+        <p style={{ color: '#9a9aa4', fontSize: 14 }}>글을 불러오지 못했습니다. — {error}</p>
+      ) : posts.length === 0 ? (
+        <p style={{ color: '#9a9aa4', fontSize: 14 }}>아직 글이 없어요.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {posts.map((post, i) => (
+            <PostCard
+              key={post.id}
+              post={toCardShape(post, i)}
+              index={i}
+              onClick={() => navigate(`/community/${post.id}`)}
+            />
+          ))}
+        </div>
+      )}
     </main>
   )
 }

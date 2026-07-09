@@ -1,5 +1,6 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { clickableProps } from '../utils/a11y'
+import { displayName } from '../utils/user'
 
 const NAV_LINKS = [
   { label: '홈', path: '/', match: ['/'] },
@@ -92,7 +93,7 @@ export default function Nav({ user }) {
               transition: 'color .15s',
             }}
           >
-            {user || '로그인'}
+            {displayName(user) || '로그인'}
           </span>
           <button
             onClick={goOnboarding}

@@ -5,9 +5,10 @@ import ClassCard from '../components/ClassCard'
 import EventCard from '../components/EventCard'
 import PostCard from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
-import { fetchHome, fetchEvents } from '../api/client'
-import { CLASSES, POSTS } from '../data'
+import { fetchHome, fetchEvents, fetchPosts } from '../api/client'
+import { CLASSES } from '../data'
 import { clickableProps } from '../utils/a11y'
+import { timeAgo } from '../utils/timeAgo'
 
 const HOT_CLASS_IDS = ['c4', 'c1', 'c2', 'c6']
 
@@ -62,7 +63,7 @@ export default function Home() {
   const hotClasses = HOT_CLASS_IDS
     .map(id => CLASSES.find(c => c.id === id))
     .filter(Boolean)
-  const homePosts = POSTS.slice(0, 4)
+  const [homePosts, setHomePosts] = useState([])
 
   useEffect(() => {
     fetchHome()
@@ -71,6 +72,9 @@ export default function Home() {
     fetchEvents({ page: 1, size: 3 })
       .then(json => setHomeEvents(json.data ?? []))
       .catch(() => setHomeEvents([]))
+    fetchPosts({ page: 1, size: 4 })
+      .then(json => setHomePosts(json.data ?? []))
+      .catch(() => setHomePosts([]))
   }, [])
 
   const curationSection = homeData?.sections?.find(s => s.category?.slug === 'curation')
@@ -210,7 +214,15 @@ export default function Home() {
               {homePosts.map((post, i) => (
                 <PostCard
                   key={post.id}
-                  post={post}
+                  post={{
+                    id: post.id,
+                    tag: post.tag,
+                    title: post.title,
+                    author: post.authorName,
+                    time: timeAgo(post.createdAt),
+                    likes: post.likesCount,
+                    commentCount: post.commentsCount,
+                  }}
                   index={i}
                   onClick={() => navigate(`/community/${post.id}`)}
                   compact

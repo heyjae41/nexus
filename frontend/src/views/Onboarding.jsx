@@ -33,7 +33,7 @@ export default function Onboarding({ onFinish }) {
 
   const finish = () => {
     const name = nameRef.current?.value?.trim() || '김크레딧'
-    onFinish(name)
+    onFinish({ name, role, interests })
     setStep(1)
     navigate('/dashboard')
   }

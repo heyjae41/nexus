@@ -58,6 +58,41 @@ def serialize_article_card(article: Article) -> dict:
     }
 
 
+def serialize_member(member) -> dict:
+    return {"id": member.id, "nickname": member.nickname, "role": member.role}
+
+
+def serialize_post_card(post) -> dict:
+    return {
+        "id": post.id,
+        "tag": post.tag,
+        "title": post.title,
+        "authorName": post.author_name,
+        "likesCount": post.likes_count,
+        "commentsCount": post.comments_count,
+        "createdAt": post.created_at.isoformat() if post.created_at else None,
+    }
+
+
+def serialize_comment(comment) -> dict:
+    return {
+        "id": comment.id,
+        "authorName": comment.author_name,
+        "body": comment.body,
+        "createdAt": comment.created_at.isoformat() if comment.created_at else None,
+    }
+
+
+def serialize_post_detail(post, comments) -> dict:
+    return {
+        **serialize_post_card(post),
+        # 커뮤니티 본문은 사용자 입력 plain text — 절대 HTML 로 렌더링하지 않도록
+        # bodyHtml 컨벤션(아티클 전용)과 키를 분리한다 (XSS 방지)
+        "body": post.body,
+        "comments": [serialize_comment(c) for c in comments],
+    }
+
+
 def _price_text(event) -> str | None:
     if event.is_free is None:
         return None  # 가격 미상 소스 — 무료로 단정하지 않는다

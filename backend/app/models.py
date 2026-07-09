@@ -80,6 +80,75 @@ class Article(Base):
     category: Mapped[Category] = relationship(back_populates="articles")
 
 
+class Member(Base):
+    """경량 회원 — 닉네임 기반 식별 (비밀번호 없는 프로토타입 정책)."""
+
+    __tablename__ = "members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nickname: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    role: Mapped[str | None] = mapped_column(String(20))
+    interests: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class CommunityPost(Base):
+    """커뮤니티 글."""
+
+    __tablename__ = "community_posts"
+    __table_args__ = (
+        Index("ix_community_posts_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id"))
+    author_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    tag: Mapped[str] = mapped_column(String(20), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    likes_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    comments_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="published")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class CommunityPostLike(Base):
+    """커뮤니티 글 좋아요 — 회원당 글 1개 (토글, 어뷰징 방지)."""
+
+    __tablename__ = "community_post_likes"
+
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("community_posts.id"), primary_key=True
+    )
+    member_id: Mapped[int] = mapped_column(
+        ForeignKey("members.id"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
+class CommunityComment(Base):
+    """커뮤니티 댓글."""
+
+    __tablename__ = "community_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("community_posts.id"), nullable=False
+    )
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id"))
+    author_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
 class MeetupEvent(Base):
     """meet.pl 밋업 이벤트 (event-us.kr 수집)."""
 
