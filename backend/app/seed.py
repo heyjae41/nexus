@@ -92,9 +92,56 @@ def seed_sample_articles(db: Session, curation: Category) -> int:
     return created
 
 
+SAMPLE_POSTS = [
+    ("데브워커", "노하우", "사내에서 RAG 도입한 후기 (삽질 포함)", 218,
+     "규정 문서가 수천 페이지라 검색이 지옥이었는데, RAG 붙이고 나서 문의량이 절반으로 줄었습니다. 다만 청킹 전략을 잘못 잡아서 처음엔 엉뚱한 답이 많이 나왔어요. 결국 문서 구조 기반으로 청크를 나누니 정확도가 확 올랐습니다.",
+     [("러너A", "청킹 전략 좀 더 자세히 알 수 있을까요?"),
+      ("데브워커", "문서 H2 헤딩 단위로 잘랐어요. 곧 글로 정리할게요!"),
+      ("호기심", "문의량 절반 ㄷㄷ 사내 설득 자료로 써도 될까요")]),
+    ("GPU장인", "기술자료", "gemma 27B 로컬 구동 스펙 정리해봤어요", 312,
+     "질문이 많아서 정리합니다. 양자화(4bit) 기준 VRAM 20GB 정도면 무난하게 돌아갑니다. 3090/4090 한 장으로 충분하고, 추론 속도는 토큰당 대략...",
+     [("초보", "4bit면 품질 손해 많이 보나요?"),
+      ("GPU장인", "체감상 거의 없습니다. 일반 업무용은 충분해요.")]),
+    ("입문러", "노하우", "비전공자도 파인튜닝 해봤습니다", 156,
+     "문과 출신 기획자입니다. NEXUS LLM 클래스 듣고 처음으로 LoRA 파인튜닝까지 해봤는데, 생각보다 진입장벽이 낮았어요. 데이터셋 만드는 게 제일 오래 걸렸습니다.",
+     [("NEXUS", "좋은 글 감사합니다 👏")]),
+    ("직장인K", "팁", "엑셀 대신 파이썬으로 월말 정산 자동화한 썰", 421,
+     "매달 3일씩 걸리던 정산을 pandas로 자동화했더니 10분이면 끝납니다. 처음엔 무서웠는데 클래스에서 배운 대로 차근차근 하니 됐어요. 코드 공유합니다.",
+     [("정산러", "코드 감사합니다 ㅠㅠ 바로 적용했어요"),
+      ("직장인K", "도움 됐다니 다행입니다!")]),
+    ("프롬프트수집가", "자료", "프롬프트 템플릿 모음 공유합니다", 689,
+     "업무별로 자주 쓰는 프롬프트를 정리했습니다. 회의록 요약, 이메일 초안, 데이터 해석 요청 등 바로 복붙해서 쓰세요.",
+     [("NEXUS", "좋은 글 감사합니다 👏")]),
+]
+
+
+def seed_sample_posts(db: Session) -> int:
+    """디자인 시안(§3.4)의 커뮤니티 샘플 글/댓글 시드 (멱등)."""
+    from app.models import CommunityComment, CommunityPost
+
+    existing_titles = set(db.scalars(select(CommunityPost.title)))
+    created = 0
+    for index, (author, tag, title, likes, body, comments) in enumerate(SAMPLE_POSTS):
+        if title in existing_titles:
+            continue
+        post = CommunityPost(
+            author_name=author, tag=tag, title=title, body=body,
+            likes_count=likes, comments_count=len(comments),
+            created_at=datetime(2026, 7, 1 + index, 12, 0, tzinfo=timezone.utc),
+        )
+        db.add(post)
+        db.flush()
+        for c_author, c_body in comments:
+            db.add(CommunityComment(post_id=post.id, author_name=c_author, body=c_body))
+        created += 1
+    db.commit()
+    return created
+
+
 def seed_all(db: Session) -> None:
     categories = seed_categories(db)
     seed_sample_articles(db, categories["curation"])
+    seed_sample_posts(db)
 
 
 def main() -> None:

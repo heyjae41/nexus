@@ -16,6 +16,9 @@
 
 ## 빠른 시작 (로컬 개발)
 
+> 신규 서버/개발자 온보딩 상세 절차는 **[docs/SETUP.md](docs/SETUP.md)** 를,
+> Claude Code 작업 규칙은 **[CLAUDE.md](CLAUDE.md)** 를 참고하세요.
+
 사전 요구: Python 3.11+, Node 22+, PostgreSQL, Redis(선택 — 없으면 InMemory 캐시로 폴백)
 
 ```bash

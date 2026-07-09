@@ -11,9 +11,10 @@ import Home from '@/views/Home'
 vi.mock('@/api/client', () => ({
   fetchHome: vi.fn(),
   fetchEvents: vi.fn(),
+  fetchPosts: vi.fn(),
 }))
 
-import { fetchHome, fetchEvents } from '@/api/client'
+import { fetchHome, fetchEvents, fetchPosts } from '@/api/client'
 
 const mockHomeData = {
   sections: [
@@ -96,6 +97,7 @@ describe('Home view — curation section from API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fetchEvents.mockResolvedValue(mockEventsData)
+    fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
   })
 
   it('shows loading skeletons initially', () => {

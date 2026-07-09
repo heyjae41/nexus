@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.community import router as community_router
 from app.api.internal import router as internal_router
 from app.api.routes import router
 from app.cache import VersionedCache, create_cache
@@ -42,6 +43,7 @@ def create_app(
         allow_headers=["*"],
     )
     app.include_router(router)
+    app.include_router(community_router)
     app.include_router(internal_router)
 
     @app.exception_handler(HTTPException)

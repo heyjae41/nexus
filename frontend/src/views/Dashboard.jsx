@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { CLASSES } from '../data'
 import { classGrad, articleGrad, initial } from '../utils/grads'
+import { displayName } from '../utils/user'
 
 const CURATION_RECS = [
   { id: 'a1', title: 'GPT-5 시대, 금융권은 LLM을 어떻게 도입하고 있나', readTime: '7분' },
@@ -22,7 +23,7 @@ function StatCard({ num, label }) {
 
 export default function Dashboard({ user, enrolled }) {
   const navigate = useNavigate()
-  const userName = user || '김크레딧'
+  const userName = displayName(user) || '김크레딧'
 
   const myClasses = (enrolled || [])
     .map(e => {
