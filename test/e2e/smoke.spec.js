@@ -5,7 +5,8 @@ test('홈: 히어로와 큐레이션 섹션이 렌더링된다', async ({ page }
   await page.goto('/')
   await expect(page.locator('h1')).toContainText('금융 AI 한 스푼')
   await expect(page.getByRole('heading', { name: /나를 위한 큐레이션/ })).toBeVisible()
-  const cards = page.locator('a[href^="/articles/"]')
+  // 카드가 내부 글(/articles/N)일 수도, 브런치 수집 글(외부 링크)일 수도 있다 — 데이터 비의존 셀렉터
+  const cards = page.locator('a[href^="/articles/"], a[href*="brunch.co.kr"]')
   await expect(cards.first()).toBeVisible()
 })
 
