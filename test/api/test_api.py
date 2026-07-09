@@ -30,6 +30,7 @@ def test_articles_list_card_fields(client, seed):
     # 브런치 글 링크에는 항상 ref 파라미터가 붙는다
     assert card["linkUrl"] == "https://brunch.co.kr/@writer/1?ref=nexus.bccard.ai"
     assert card["isExternal"] is True
+    assert card["thumbnailUrl"] == "https://t1.kakaocdn.net/brunch/cover.png"
     internal = body["data"][1]
     assert internal["linkUrl"] == f"/articles/{internal['id']}"
     assert internal["isExternal"] is False

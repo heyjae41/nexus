@@ -21,6 +21,31 @@ def test_parse_keyword_page_extracts_candidates():
     assert first.published_at.tzinfo is not None
 
 
+def test_parse_extracts_thumbnail_cover_first_and_https():
+    """대표 이미지: cover 타입 우선, http → https 변환. 이미지 없으면 None."""
+    html = FIXTURE.read_text(encoding="utf-8")
+    candidates = parse_keyword_page(html)
+    first = candidates[0]  # 거품이라며... — cover 있음
+    assert first.thumbnail_url is not None
+    assert first.thumbnail_url.startswith("https://t1.kakaocdn.net/")
+    no_image = next(c for c in candidates if c.title.startswith("Ai를 이해하기"))
+    assert no_image.thumbnail_url is None
+
+
+def test_thumbnail_rejects_unknown_domains_and_bad_types():
+    """썸네일은 kakaocdn 도메인만 허용 (추적픽셀/부적절 이미지 차단), 비문자열 방어."""
+    from app.services.brunch_fetcher import _thumbnail_from
+
+    assert _thumbnail_from(
+        {"articleImageList": [{"type": "cover", "url": "http://t1.kakaocdn.net/a.png"}]}
+    ) == "https://t1.kakaocdn.net/a.png"
+    assert _thumbnail_from(
+        {"articleImageList": [{"type": "cover", "url": "https://evil.example.com/track.gif"}]}
+    ) is None
+    assert _thumbnail_from({"articleImageList": [{"type": "cover", "url": 12345}]}) is None
+    assert _thumbnail_from({"articleImageList": []}) is None
+
+
 def test_parse_keyword_page_handles_page_without_data():
     assert parse_keyword_page("<html><body>없음</body></html>") == []
 

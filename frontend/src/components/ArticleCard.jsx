@@ -26,7 +26,16 @@ function GridCard({ article, index }) {
       overflow: 'hidden',
     }}>
       {/* Thumbnail */}
-      <div style={{ height: 124, background: grad, position: 'relative' }}>
+      <div style={{ height: 124, background: grad, position: 'relative', overflow: 'hidden' }}>
+        {article.thumbnailUrl && (
+          <img
+            src={article.thumbnailUrl}
+            alt=""
+            loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
         {badge && (
           <span style={{
             position: 'absolute', top: 10, left: 12,
@@ -76,8 +85,18 @@ function ListCard({ article, index }) {
       {/* Thumbnail — hidden on mobile */}
       <div
         className="hidemob"
-        style={{ width: 200, flexShrink: 0, background: grad, minHeight: 120 }}
-      />
+        style={{ width: 200, flexShrink: 0, background: grad, minHeight: 120, position: 'relative', overflow: 'hidden' }}
+      >
+        {article.thumbnailUrl && (
+          <img
+            src={article.thumbnailUrl}
+            alt=""
+            loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
+      </div>
       {/* Content */}
       <div style={{ padding: '18px 20px 18px 0', flex: 1, minWidth: 0 }}>
         {badge && (

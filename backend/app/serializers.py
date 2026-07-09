@@ -53,6 +53,7 @@ def serialize_article_card(article: Article) -> dict:
         "commentsCount": article.comments_count,
         "viewCount": article.view_count,
         "publishedAt": article.published_at.isoformat() if article.published_at else None,
+        "thumbnailUrl": article.thumbnail_url,
         "linkUrl": link,
         "isExternal": external,
     }

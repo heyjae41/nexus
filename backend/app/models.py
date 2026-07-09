@@ -61,6 +61,7 @@ class Article(Base):
     author_name: Mapped[str | None] = mapped_column(String(100))
     source_type: Mapped[str] = mapped_column(String(20), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(1000))
+    thumbnail_url: Mapped[str | None] = mapped_column(String(1000))  # 목록 카드 대표 이미지
     content_filename: Mapped[str | None] = mapped_column(String(300), unique=True)
     read_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
     likes_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

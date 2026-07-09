@@ -32,6 +32,7 @@ class BrunchCandidate:
     comments: int
     summary: str = ""
     published_at: datetime | None = None
+    thumbnail_url: str | None = None
 
 
 def is_ai_related(candidate: BrunchCandidate) -> bool:
@@ -85,6 +86,7 @@ def collect_and_pick(
                 author_name=top.author,
                 source_type="brunch",
                 source_url=top.url,
+                thumbnail_url=top.thumbnail_url,
                 likes_count=top.likes,
                 comments_count=top.comments,
                 published_at=window_end,
