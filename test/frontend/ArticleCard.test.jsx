@@ -25,6 +25,38 @@ const baseArticle = {
   isExternal: false,
 }
 
+describe('ArticleCard — 썸네일', () => {
+  it('thumbnailUrl 이 있으면 대표 이미지를 렌더링한다', () => {
+    const { container } = wrap(
+      <ArticleCard
+        article={{ ...baseArticle, thumbnailUrl: 'https://t1.kakaocdn.net/brunch/cover.png' }}
+        index={0}
+      />,
+    )
+    const img = container.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img).toHaveAttribute('src', 'https://t1.kakaocdn.net/brunch/cover.png')
+  })
+
+  it('thumbnailUrl 이 없으면 이미지를 렌더링하지 않는다 (그라디언트 유지)', () => {
+    const { container } = wrap(<ArticleCard article={baseArticle} index={0} />)
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('list variant 에서도 썸네일을 렌더링한다', () => {
+    const { container } = wrap(
+      <ArticleCard
+        article={{ ...baseArticle, thumbnailUrl: 'https://t1.kakaocdn.net/brunch/cover.png' }}
+        index={0}
+        variant="list"
+      />,
+    )
+    const img = container.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img).toHaveAttribute('src', 'https://t1.kakaocdn.net/brunch/cover.png')
+  })
+})
+
 describe('ArticleCard — CRITICAL LINK RULE', () => {
   it('renders an internal Link for isExternal=false', () => {
     wrap(<ArticleCard article={{ ...baseArticle, isExternal: false }} index={0} />)

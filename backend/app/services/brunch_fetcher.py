@@ -7,6 +7,7 @@ import json
 import logging
 import re
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -31,6 +32,30 @@ def parse_keyword_page(html: str) -> list[BrunchCandidate]:
     return [c for c in (_to_candidate(item) for item in raw) if c is not None]
 
 
+def _safe_image_url(url) -> str | None:
+    """kakaocdn 도메인 이미지 URL 만 허용 (http → https 변환).
+
+    응답 오염 시 추적픽셀/외부 이미지 로드를 차단한다.
+    """
+    if not url or not isinstance(url, str):
+        return None
+    if url.startswith("http://"):
+        url = url.replace("http://", "https://", 1)
+    hostname = urlsplit(url).hostname or ""
+    if hostname != "kakaocdn.net" and not hostname.endswith(".kakaocdn.net"):
+        return None
+    return url
+
+
+def _thumbnail_from(article: dict) -> str | None:
+    """대표 이미지: cover 타입 우선, 없으면 첫 이미지."""
+    images = article.get("articleImageList") or []
+    chosen = next((i for i in images if i.get("type") == "cover"), None) or (
+        images[0] if images else None
+    )
+    return _safe_image_url((chosen or {}).get("url"))
+
+
 def _to_candidate(item: dict) -> BrunchCandidate | None:
     article = item.get("article") or {}
     profile = article.get("profileId")
@@ -52,6 +77,7 @@ def _to_candidate(item: dict) -> BrunchCandidate | None:
         comments=int(article.get("commentCount") or 0),
         summary=article.get("contentSummary") or "",
         published_at=published_at,
+        thumbnail_url=_thumbnail_from(article),
     )
 
 

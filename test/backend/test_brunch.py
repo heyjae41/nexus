@@ -58,6 +58,17 @@ def test_pick_top_by_likes_plus_comments():
     assert pick_top([a, b, c]).url == b.url
 
 
+def test_collect_and_pick_saves_thumbnail(db):
+    seed_curation(db)
+    cache = make_cache()
+    picked = collect_and_pick(
+        db, cache,
+        candidates=[cand(thumbnail_url="https://t1.kakaocdn.net/brunch/cover.png")],
+        window_start=WINDOW[0], window_end=WINDOW[1],
+    )
+    assert picked.thumbnail_url == "https://t1.kakaocdn.net/brunch/cover.png"
+
+
 def test_collect_and_pick_saves_brunch_article(db):
     seed_curation(db)
     cache = make_cache()
