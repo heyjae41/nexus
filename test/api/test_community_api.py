@@ -93,6 +93,62 @@ def test_comment_requires_member(client):
     assert res.status_code == 403
 
 
+def test_member_profile_get_patch_delete(client):
+    m = client.post(
+        "/api/members",
+        json={"nickname": "김크레딧", "role": "직장인", "email": "heyjae@bccard.com"},
+    ).json()["data"]
+
+    profile = client.get(f"/api/members/{m['id']}").json()["data"]
+    assert profile["nickname"] == "김크레딧"
+    assert profile["email"] == "heyjae@bccard.com"
+    assert profile["role"] == "직장인"
+
+    # 수정: 닉네임/역할/관심사 가능
+    res = client.patch(
+        f"/api/members/{m['id']}",
+        json={"nickname": "새닉네임", "role": "개발자", "interests": "LLM, 커리어"},
+    )
+    assert res.status_code == 200
+    assert res.json()["data"]["nickname"] == "새닉네임"
+
+    # 이메일 변경은 거부
+    res = client.patch(f"/api/members/{m['id']}", json={"email": "other@x.com"})
+    assert res.status_code == 400
+    assert "이메일" in res.json()["error"]
+
+    # 탈회
+    assert client.delete(f"/api/members/{m['id']}").status_code == 200
+    assert client.get(f"/api/members/{m['id']}").status_code == 404
+
+
+def test_member_patch_rejects_taken_nickname(client):
+    client.post("/api/members", json={"nickname": "선점"})
+    m = client.post("/api/members", json={"nickname": "나"}).json()["data"]
+    res = client.patch(f"/api/members/{m['id']}", json={"nickname": "선점"})
+    assert res.status_code == 400
+
+
+def test_member_email_set_once_via_patch(client):
+    m = client.post("/api/members", json={"nickname": "이메일없음"}).json()["data"]
+    res = client.patch(f"/api/members/{m['id']}", json={"email": "first@bccard.com"})
+    assert res.status_code == 200
+    assert res.json()["data"]["email"] == "first@bccard.com"
+    res = client.patch(f"/api/members/{m['id']}", json={"email": "second@bccard.com"})
+    assert res.status_code == 400
+
+
+def test_member_delete_unknown_returns_404(client):
+    assert client.delete("/api/members/9999").status_code == 404
+
+
+def test_member_duplicate_email_returns_400(client):
+    client.post("/api/members", json={"nickname": "회원A", "email": "dup@bccard.com"})
+    res = client.post("/api/members", json={"nickname": "회원B", "email": "dup@bccard.com"})
+    assert res.status_code == 400
+    assert "이메일" in res.json()["error"]
+
+
 def test_member_nickname_length_consistent_with_db(client):
     """pydantic 검증 상한이 DB 컬럼(50자)과 일치해야 한다."""
     res = client.post("/api/members", json={"nickname": "가" * 51})

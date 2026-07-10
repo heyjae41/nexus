@@ -16,6 +16,7 @@ import Hotdeal from './views/Hotdeal'
 import Onboarding from './views/Onboarding'
 import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
+import Profile from './views/Profile'
 import { useLocalStorageState } from './utils/useLocalStorageState'
 import { registerMember } from './api/client'
 
@@ -31,10 +32,11 @@ function AppInner() {
       ? (nameOrData || '김크레딧')
       : (nameOrData?.name || '김크레딧')
     const role = typeof nameOrData === 'object' ? nameOrData?.role : undefined
+    const email = typeof nameOrData === 'object' ? nameOrData?.email : undefined
     const rawInterests = typeof nameOrData === 'object' ? nameOrData?.interests : undefined
     const interests = Array.isArray(rawInterests) ? rawInterests.join(', ') : rawInterests
     try {
-      const member = await registerMember({ nickname, role, interests })
+      const member = await registerMember({ nickname, email, role, interests })
       setUser({ id: member.id, nickname: member.nickname, role: member.role })
     } catch {
       setUser({ id: null, nickname, role: role || null })
@@ -67,6 +69,7 @@ function AppInner() {
         <Route path="/onboarding" element={<Onboarding onFinish={finishOnboarding} />} />
         <Route path="/checkout/:classId" element={<Checkout onPay={finishOnboarding} />} />
         <Route path="/dashboard" element={<Dashboard user={user} enrolled={enrolled} />} />
+        <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
       </Routes>
       {!isArticle && <Footer />}
       <MobileNav user={user} />

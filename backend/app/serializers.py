@@ -60,7 +60,14 @@ def serialize_article_card(article: Article) -> dict:
 
 
 def serialize_member(member) -> dict:
-    return {"id": member.id, "nickname": member.nickname, "role": member.role}
+    return {
+        "id": member.id,
+        "nickname": member.nickname,
+        "email": member.email,
+        "role": member.role,
+        "interests": member.interests,
+        "createdAt": member.created_at.isoformat() if member.created_at else None,
+    }
 
 
 def serialize_post_card(post) -> dict:

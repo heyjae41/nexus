@@ -41,12 +41,31 @@ export async function fetchEvents({ page = 1, size = 20 } = {}) {
   return json
 }
 
-export async function registerMember({ nickname, role, interests } = {}) {
+export async function registerMember({ nickname, email, role, interests } = {}) {
   const json = await request('/api/members', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname, role, interests }),
+    body: JSON.stringify({ nickname, email, role, interests }),
   })
+  return json.data ?? json
+}
+
+export async function fetchMember(id) {
+  const json = await request(`/api/members/${id}`)
+  return json.data ?? json
+}
+
+export async function updateMember(id, patch) {
+  const json = await request(`/api/members/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  return json.data ?? json
+}
+
+export async function deleteMember(id) {
+  const json = await request(`/api/members/${id}`, { method: 'DELETE' })
   return json.data ?? json
 }
 
