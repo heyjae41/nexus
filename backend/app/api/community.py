@@ -29,6 +29,14 @@ router = APIRouter(prefix="/api")
 
 class MemberIn(BaseModel):
     nickname: str = Field(min_length=1, max_length=50)  # DB 컬럼(String(50))과 일치
+    email: str | None = Field(default=None, max_length=200)
+    role: str | None = Field(default=None, max_length=20)
+    interests: str | None = Field(default=None, max_length=300)
+
+
+class MemberPatch(BaseModel):
+    nickname: str | None = Field(default=None, min_length=1, max_length=50)
+    email: str | None = Field(default=None, max_length=200)  # 최초 1회 등록만 허용
     role: str | None = Field(default=None, max_length=20)
     interests: str | None = Field(default=None, max_length=300)
 
@@ -60,11 +68,54 @@ def _raise_http(exc: Exception) -> "NoReturn":
 def member_register(payload: MemberIn, db: Session = Depends(get_db)):
     try:
         member = register_member(
-            db, nickname=payload.nickname, role=payload.role, interests=payload.interests
+            db, nickname=payload.nickname, email=payload.email,
+            role=payload.role, interests=payload.interests,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return api_response(serialize_member(member))
+
+
+@router.get("/members/{member_id}")
+def member_profile(member_id: int, db: Session = Depends(get_db)):
+    from app.repositories.members import get_member
+
+    member = get_member(db, member_id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="회원 정보를 찾을 수 없습니다")
+    return api_response(serialize_member(member))
+
+
+@router.patch("/members/{member_id}")
+def member_update(member_id: int, payload: MemberPatch, db: Session = Depends(get_db)):
+    from app.repositories.members import update_member
+
+    try:
+        member = update_member(
+            db, member_id, nickname=payload.nickname, email=payload.email,
+            role=payload.role, interests=payload.interests,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return api_response(serialize_member(member))
+
+
+@router.delete("/members/{member_id}")
+def member_delete(
+    member_id: int,
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    from app.repositories.members import delete_member
+
+    try:
+        delete_member(db, member_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    cache.bump_version()  # 좋아요 회수가 목록 카드에 반영되도록
+    return api_response({"deleted": True})
 
 
 @router.get("/community/posts")

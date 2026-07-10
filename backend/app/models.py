@@ -88,6 +88,7 @@ class Member(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     nickname: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(200), unique=True)  # 최초 1회만 등록, 수정 불가
     role: Mapped[str | None] = mapped_column(String(20))
     interests: Mapped[str | None] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(

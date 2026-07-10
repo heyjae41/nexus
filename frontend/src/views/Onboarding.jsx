@@ -21,6 +21,7 @@ export default function Onboarding({ onFinish }) {
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('직장인')
   const [interests, setInterests] = useState([])
+  const [email, setEmail] = useState('')
 
   const obNext = () => setStep(s => Math.min(3, s + 1))
   const obPrev = () => setStep(s => Math.max(1, s - 1))
@@ -33,7 +34,7 @@ export default function Onboarding({ onFinish }) {
 
   const finish = () => {
     const name = nameRef.current?.value?.trim() || '김크레딧'
-    onFinish({ name, role, interests })
+    onFinish({ name, email: email.trim() || undefined, role, interests })
     setStep(1)
     navigate('/dashboard')
   }
@@ -67,6 +68,21 @@ export default function Onboarding({ onFinish }) {
           <input
             ref={nameRef}
             placeholder="예) 김크레딧"
+            style={{
+              width: '100%', background: '#15151A',
+              border: '1px solid rgba(255,255,255,.12)', borderRadius: 10,
+              padding: '12px 14px', fontSize: 15, color: '#ECECEF',
+              fontFamily: 'inherit', outline: 'none', marginBottom: 16,
+              boxSizing: 'border-box',
+            }}
+          />
+
+          <label style={{ display: 'block', fontSize: 14, color: '#9a9aa4', marginBottom: 8 }}>이메일 (선택)</label>
+          <input
+            type="email"
+            placeholder="이메일 (선택)"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             style={{
               width: '100%', background: '#15151A',
               border: '1px solid rgba(255,255,255,.12)', borderRadius: 10,

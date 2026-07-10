@@ -20,7 +20,8 @@ export default function Nav({ user }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  const goOnboarding = () => navigate(user ? '/dashboard' : '/onboarding')
+  const goProfile = () => navigate(user ? '/profile' : '/onboarding')
+  const goDashboard = () => navigate(user ? '/dashboard' : '/onboarding')
 
   return (
     <header style={{
@@ -86,7 +87,7 @@ export default function Nav({ user }) {
         {/* Login / CTA */}
         <div className="topnav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span
-            onClick={goOnboarding}
+            onClick={goProfile}
             style={{
               fontSize: 14, fontWeight: 500, cursor: 'pointer',
               color: user ? '#fff' : '#d2d2da',
@@ -96,7 +97,7 @@ export default function Nav({ user }) {
             {displayName(user) || '로그인'}
           </span>
           <button
-            onClick={goOnboarding}
+            onClick={goDashboard}
             className="btn"
             style={{
               background: '#fff', color: '#E8123C',
