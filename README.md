@@ -31,7 +31,7 @@ pip install -r backend/requirements-dev.txt
 PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 
 # 프론트엔드 (새 터미널)
-cd frontend && npm install && npm run dev   # http://localhost:5173
+cd frontend && npm install && npm run dev   # http://localhost:80
 ```
 
 ## 테스트
@@ -42,7 +42,7 @@ python -m pytest test                          # 단위 + API (SQLite in-memory,
 python -m pytest test --cov=backend/app        # 커버리지 (기준 80%+)
 cd frontend && npm test                        # 프론트엔드 컴포넌트 테스트
 
-# E2E (옵션): backend(8000) + frontend dev(5173) 실행 상태에서
+# E2E (옵션): backend(8000) + frontend dev(80) 실행 상태에서
 cd frontend && npm run e2e                     # Playwright 스모크 (test/e2e)
 ```
 

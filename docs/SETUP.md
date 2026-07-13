@@ -58,7 +58,7 @@ curl -X POST localhost:8000/api/internal/meetup/run   # event-us + luma 전체
 ## 4. 프론트엔드
 
 ```bash
-cd frontend && npm install && npm run dev    # http://localhost:5173 (API 는 8000 으로 프록시)
+cd frontend && npm install && npm run dev    # http://localhost:80 (API 는 8000 으로 프록시)
 ```
 
 ## 5. 텔레그램 발행 스킬 (hermes agent)
@@ -80,7 +80,7 @@ cd .. && ruff check backend test               # 파이썬 린트
 radon cc backend/app -n C -s                   # 복잡도 (출력 없어야 정상)
 npx jscpd backend/app frontend/src --min-tokens 40   # 중복 코드
 
-# E2E (옵션): backend(8000) + frontend dev(5173) 실행 상태에서
+# E2E (옵션): backend(8000) + frontend dev(80) 실행 상태에서
 cd frontend && npx playwright install chromium && npm run e2e
 ```
 
