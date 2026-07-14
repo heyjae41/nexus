@@ -7,6 +7,9 @@
 # Env / secrets
 .env
 
+# DB migration artifacts (may contain member/community/writer data)
+migration/artifacts/
+
 # Python
 __pycache__/
 *.pyc
