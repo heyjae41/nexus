@@ -1,0 +1,12 @@
+# NEXUS 소유 테이블만 나열한다. 공유 DB의 타 프로젝트 테이블은 추가하지 않는다.
+categories
+articles
+members
+community_posts
+community_post_likes
+community_comments
+meetup_events
+meetup_collect_runs
+writer_sessions
+writer_messages
+brunch_collect_runs
