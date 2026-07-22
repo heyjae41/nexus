@@ -109,7 +109,10 @@ jobs:
           for i in $(seq 1 30); do curl -sf localhost:5173 > /dev/null && break; sleep 1; done
           curl -sf localhost:8000/api/health && curl -sf -o /dev/null localhost:5173
       - name: Playwright E2E
-        run: (cd frontend && E2E_BASE_URL=http://localhost:5173 npx playwright test)
+        # 스펙이 frontend 밖(test/e2e)에 있어 모듈 해석이 리포 루트 node_modules 를 탄다 — 심링크로 연결
+        run: |
+          ln -sfn "$PWD/frontend/node_modules" node_modules
+          (cd frontend && E2E_BASE_URL=http://localhost:5173 npx playwright test)
       - name: 실패 시 로그·스크린샷 수집
         if: failure()
         uses: actions/upload-artifact@v4
