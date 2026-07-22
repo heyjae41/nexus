@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
 from app.models import Course, FastCampusCollectRun
+from app.services.course_candidate import course_values
 from app.services.course_collection_lock import course_collection_lock
 from app.services.fastcampus_fetcher import FastCampusCandidate
 
@@ -26,25 +27,7 @@ class FastCampusCollectResult:
 
 
 def _values(candidate: FastCampusCandidate) -> dict:
-    return {
-        "source_type": "fastcampus",
-        "source_category_code": candidate.source_category_code,
-        "source_category_name": candidate.source_category_name,
-        "source_category_url": candidate.source_category_url,
-        "source_rank": candidate.source_rank,
-        "title": candidate.title,
-        "summary": candidate.summary,
-        "source_url": candidate.source_url,
-        "thumbnail_url": candidate.thumbnail_url,
-        "sub_category_name": candidate.sub_category_name,
-        "format_name": candidate.format_name,
-        "qualification": candidate.qualification,
-        "running_time_minutes": candidate.running_time_minutes,
-        "sale_price": candidate.sale_price,
-        "list_price": candidate.list_price,
-        "badges": "|".join(candidate.badges),
-        "status": "published",
-    }
+    return course_values(candidate, source_type="fastcampus")
 
 
 def _upsert_courses(db: Session, existing: dict[str, Course], candidates) -> tuple[int, int]:

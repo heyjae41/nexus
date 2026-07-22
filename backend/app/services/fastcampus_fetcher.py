@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.services.course_candidate import CourseCandidate
+
 logger = logging.getLogger(__name__)
 BASE_URL = "https://fastcampus.co.kr"
 TARGET_BADGES = ("얼리버드", "인기 급상승", "BEST", "NEW")
@@ -29,24 +31,7 @@ DEFAULT_SOURCES = (
 )
 
 
-@dataclass(frozen=True)
-class FastCampusCandidate:
-    source_id: str
-    source_category_code: str
-    source_category_name: str
-    source_category_url: str
-    source_rank: int
-    title: str
-    summary: str | None
-    source_url: str
-    thumbnail_url: str | None
-    sub_category_name: str | None
-    format_name: str | None
-    qualification: str | None
-    running_time_minutes: int | None
-    sale_price: int | None
-    list_price: int | None
-    badges: tuple[str, ...]
+FastCampusCandidate = CourseCandidate
 
 
 @dataclass(frozen=True)

@@ -12,6 +12,15 @@ def cache():
     return VersionedCache(InMemoryCacheBackend(), prefix="nexus:", ttl_seconds=300)
 
 
+def collect_daker(db, *candidates, using_cache=None):
+    return collect_class_opportunities(
+        db,
+        using_cache or cache(),
+        source_type="daker",
+        candidates=list(candidates),
+    )
+
+
 def candidate(source_type="daker", source_id="1", **over):
     category = "DAKER" if source_type == "daker" else "DACON"
     values = dict(
@@ -71,15 +80,9 @@ def test_collect_skips_duplicate_title_across_existing_sources(db):
 
 def test_collect_skips_duplicate_when_existing_item_changes_title(db):
     existing_fastcampus(db)
-    collect_class_opportunities(
-        db, cache(), source_type="daker",
-        candidates=[candidate(title="원래 해커톤 제목")],
-    )
+    collect_daker(db, candidate(title="원래 해커톤 제목"))
 
-    result = collect_class_opportunities(
-        db, cache(), source_type="daker",
-        candidates=[candidate(title="AI 데이터 경진 대회")],
-    )
+    result = collect_daker(db, candidate(title="AI 데이터 경진 대회"))
 
     assert (result.updated, result.hidden, result.skipped) == (0, 1, 1)
     stored = db.query(Course).filter_by(source_id="daker:1").one()
@@ -89,15 +92,23 @@ def test_collect_skips_duplicate_when_existing_item_changes_title(db):
 
 def test_collect_upserts_and_hides_items_no_longer_eligible(db):
     c = cache()
-    collect_class_opportunities(
-        db, c, source_type="daker",
-        candidates=[candidate(source_id="1"), candidate(source_id="2", title="두 번째")],
+    collect_daker(
+        db,
+        candidate(source_id="1"),
+        candidate(source_id="2", title="두 번째"),
+        using_cache=c,
     )
     c.set("classes", "warm")
 
-    result = collect_class_opportunities(
-        db, c, source_type="daker",
-        candidates=[candidate(source_id="1", title="변경된 제목", format_name="진행중", badges=("진행중",))],
+    result = collect_daker(
+        db,
+        candidate(
+            source_id="1",
+            title="변경된 제목",
+            format_name="진행중",
+            badges=("진행중",),
+        ),
+        using_cache=c,
     )
 
     assert (result.added, result.updated, result.hidden, result.skipped) == (0, 1, 1, 0)
@@ -123,23 +134,14 @@ def test_collect_skips_duplicate_source_id_within_batch(db):
 
 
 def test_collect_restores_hidden_item_after_duplicate_disappears(db):
-    collect_class_opportunities(
-        db, cache(), source_type="daker",
-        candidates=[candidate(title="원래 제목")],
-    )
+    collect_daker(db, candidate(title="원래 제목"))
     existing_fastcampus(db)
-    collect_class_opportunities(
-        db, cache(), source_type="daker",
-        candidates=[candidate(title="AI 데이터 경진 대회")],
-    )
+    collect_daker(db, candidate(title="AI 데이터 경진 대회"))
     fastcampus = db.query(Course).filter_by(source_type="fastcampus").one()
     fastcampus.status = "hidden"
     db.commit()
 
-    result = collect_class_opportunities(
-        db, cache(), source_type="daker",
-        candidates=[candidate(title="AI 데이터 경진 대회")],
-    )
+    result = collect_daker(db, candidate(title="AI 데이터 경진 대회"))
 
     assert (result.updated, result.hidden, result.skipped) == (1, 0, 0)
     assert db.query(Course).filter_by(source_id="daker:1").one().status == "published"

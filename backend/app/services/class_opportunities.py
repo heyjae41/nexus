@@ -10,30 +10,15 @@ from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
 from app.models import Course
+from app.services.course_candidate import CourseCandidate, course_values
 from app.services.course_collection_lock import course_collection_lock
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ClassOpportunityCandidate:
+class ClassOpportunityCandidate(CourseCandidate):
     source_type: str
-    source_id: str
-    source_category_code: str
-    source_category_name: str
-    source_category_url: str
-    source_rank: int
-    title: str
-    summary: str | None
-    source_url: str
-    thumbnail_url: str | None
-    sub_category_name: str | None
-    format_name: str | None
-    qualification: str | None
-    running_time_minutes: int | None
-    sale_price: int | None
-    list_price: int | None
-    badges: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -57,25 +42,7 @@ def _url_key(value: str) -> str:
 
 
 def _values(candidate: ClassOpportunityCandidate) -> dict:
-    return {
-        "source_type": candidate.source_type,
-        "source_category_code": candidate.source_category_code,
-        "source_category_name": candidate.source_category_name,
-        "source_category_url": candidate.source_category_url,
-        "source_rank": candidate.source_rank,
-        "title": candidate.title,
-        "summary": candidate.summary,
-        "source_url": candidate.source_url,
-        "thumbnail_url": candidate.thumbnail_url,
-        "sub_category_name": candidate.sub_category_name,
-        "format_name": candidate.format_name,
-        "qualification": candidate.qualification,
-        "running_time_minutes": candidate.running_time_minutes,
-        "sale_price": candidate.sale_price,
-        "list_price": candidate.list_price,
-        "badges": "|".join(candidate.badges),
-        "status": "published",
-    }
+    return course_values(candidate, source_type=candidate.source_type)
 
 
 def _duplicate_keys(all_courses: list[Course]) -> tuple[Counter, Counter]:

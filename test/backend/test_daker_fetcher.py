@@ -4,27 +4,9 @@ from datetime import datetime, timezone
 import pytest
 
 from app.services.daker_fetcher import fetch_daker_candidates
+from shared import StaticJsonClient
 
-
-class Response:
-    def __init__(self, data):
-        self.data = data
-
-    def raise_for_status(self):
-        return None
-
-    def json(self):
-        return self.data
-
-
-class Client:
-    def __init__(self, data):
-        self.data = data
-        self.calls = []
-
-    def get(self, url):
-        self.calls.append(url)
-        return Response(self.data)
+Client = StaticJsonClient
 
 
 def item(source_id, title, *, status="published", deadline, end, practice=False):

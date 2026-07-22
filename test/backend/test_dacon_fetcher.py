@@ -4,28 +4,9 @@ from datetime import datetime, timezone
 import pytest
 
 from app.services.dacon_fetcher import fetch_dacon_candidates
+from shared import PaginatedJsonClient
 
-
-class Response:
-    def __init__(self, data):
-        self.data = data
-
-    def raise_for_status(self):
-        return None
-
-    def json(self):
-        return self.data
-
-
-class Client:
-    def __init__(self, pages):
-        self.pages = pages
-        self.calls = []
-
-    def get(self, url, params):
-        page = params["offset"]
-        self.calls.append((url, params))
-        return Response({"status": 1, "data": self.pages.get(page, [])})
+Client = PaginatedJsonClient
 
 
 def item(

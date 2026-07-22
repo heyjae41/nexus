@@ -5,6 +5,7 @@ import logging
 import httpx
 
 from app.services.class_opportunities import ClassOpportunityCandidate
+from app.services.external_payload import optional_integer, optional_text
 
 API_URL = "https://app.dacon.io/api/v1/competition/list"
 BASE_URL = "https://dacon.io"
@@ -14,18 +15,6 @@ PAGE_SIZE = 15
 FETCH_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; NexusBot/1.0)"}
 logger = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
-
-
-def _integer(value, *, multiplier: int = 1) -> int | None:
-    try:
-        return int(value) * multiplier if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _text(item: dict, key: str) -> str | None:
-    value = str(item.get(key) or "").strip()
-    return value or None
 
 
 def _period_start(value) -> datetime:
@@ -39,7 +28,7 @@ def _period_start(value) -> datetime:
 
 
 def _registration_open(item: dict, now: datetime) -> bool:
-    dday = _integer(item.get("period_dday"))
+    dday = optional_integer(item.get("period_dday"))
     return (
         item.get("practice") == 1
         and dday is not None
@@ -52,7 +41,7 @@ def _competition_identity(item: dict) -> tuple[int, str]:
         competition_id = int(item["cpt_id"])
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("DACON 경진대회 필수 필드 누락") from exc
-    title = _text(item, "name")
+    title = optional_text(item, "name")
     if competition_id <= 0 or title is None:
         raise ValueError("DACON 경진대회 필수 필드 누락")
     return competition_id, title
@@ -74,14 +63,14 @@ def _candidate(item: dict, rank: int) -> ClassOpportunityCandidate:
         source_category_url=CATEGORY_URL,
         source_rank=rank,
         title=title,
-        summary=_text(item, "keyword"),
+        summary=optional_text(item, "keyword"),
         source_url=f"{CATEGORY_URL}/official/{competition_id}/overview/",
         thumbnail_url=_logo_url(item, competition_id),
         sub_category_name="DACON",
         format_name="참가신청중",
         qualification=None,
         running_time_minutes=None,
-        sale_price=_integer(item.get("prize"), multiplier=10_000),
+        sale_price=optional_integer(item.get("prize"), multiplier=10_000),
         list_price=None,
         badges=("참가신청중",),
     )
@@ -96,7 +85,10 @@ def _validate_items(payload) -> list[dict]:
             raise ValueError("DACON 경진대회 항목 형식 오류")
         if not {"practice", "period_dday", "period_start"}.issubset(item):
             raise ValueError("DACON 경진대회 상태 필드 누락")
-        if item["practice"] not in (0, 1) or _integer(item["period_dday"]) is None:
+        if (
+            item["practice"] not in (0, 1)
+            or optional_integer(item["period_dday"]) is None
+        ):
             raise ValueError("DACON 경진대회 상태 값 형식 오류")
         _period_start(item["period_start"])
     return items

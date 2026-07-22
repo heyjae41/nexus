@@ -10,3 +10,34 @@ def make_cache():
 def seed_curation(db):
     db.add(Category(slug="curation", name="큐레이션", display_order=1))
     db.commit()
+
+
+class JsonResponse:
+    def __init__(self, data):
+        self.data = data
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.data
+
+
+class StaticJsonClient:
+    def __init__(self, data):
+        self.data = data
+        self.calls = []
+
+    def get(self, url):
+        self.calls.append(url)
+        return JsonResponse(self.data)
+
+
+class PaginatedJsonClient:
+    def __init__(self, pages):
+        self.pages = pages
+        self.calls = []
+
+    def get(self, url, params):
+        self.calls.append((url, params))
+        return JsonResponse({"status": 1, "data": self.pages.get(params["offset"], [])})

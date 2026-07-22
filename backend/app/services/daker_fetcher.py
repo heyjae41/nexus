@@ -5,6 +5,7 @@ import logging
 import httpx
 
 from app.services.class_opportunities import ClassOpportunityCandidate
+from app.services.external_payload import optional_integer, optional_text
 
 BASE_URL = "https://daker.ai"
 LIST_URL = f"{BASE_URL}/api/hackathons/public-list"
@@ -25,20 +26,8 @@ def _datetime(value: str | None) -> datetime | None:
     return parsed
 
 
-def _integer(value) -> int | None:
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _text(item: dict, key: str) -> str | None:
-    value = str(item.get(key) or "").strip()
-    return value or None
-
-
 def _required_text(item: dict, key: str) -> str:
-    value = _text(item, key)
+    value = optional_text(item, key)
     if value is None:
         raise ValueError("DAKER 해커톤 필수 필드 누락")
     return value
@@ -78,14 +67,14 @@ def _candidate(item: dict, rank: int, now: datetime) -> ClassOpportunityCandidat
         source_category_url=CATEGORY_URL,
         source_rank=rank,
         title=title,
-        summary=_text(item, "tagline"),
+        summary=optional_text(item, "tagline"),
         source_url=f"{CATEGORY_URL}/{slug}",
         thumbnail_url=_absolute_image(item.get("headerImageUrl")),
-        sub_category_name=_text(item, "organizerName"),
+        sub_category_name=optional_text(item, "organizerName"),
         format_name=label,
         qualification=None,
         running_time_minutes=None,
-        sale_price=_integer(item.get("totalPrize")),
+        sale_price=optional_integer(item.get("totalPrize")),
         list_price=None,
         badges=(label,),
     )
