@@ -639,9 +639,10 @@ Daker/DACON 후보는 다음 순서로 중복을 판정한다.
 응답에는 전체 합계와 `sources.fastcampus`, `sources.daker`, `sources.dacon`별
 `candidates`, `added`, `updated`, `hidden`, `skipped` 수가 포함된다.
 
-외부 포트 80의 Nginx는 `/api/internal/` 요청에 HTTP 403을 반환한다.
-
-주의: FastAPI 자체의 내부 API에는 인증 의존성이 없다. 현재 백엔드가 Hermes Agent 서버의 `0.0.0.0:8000`에 직접 바인딩되어 있으므로 네트워크/방화벽에서 8000 포트를 허용하면 Nginx 차단을 우회할 수 있다.
+외부 포트 80의 Nginx는 `/api/internal/` 요청에 HTTP 403을 반환한다. FastAPI
+자체의 내부 API에는 인증 의존성이 없으므로 운영 Uvicorn은 Hermes Agent 서버의
+`127.0.0.1:8000`에만 바인딩한다. host network를 사용하는 Nginx 컨테이너만
+`127.0.0.1:8000`으로 일반 API를 프록시하며, 8000 포트를 외부에 열지 않는다.
 
 ## 8. 캐시 무효화
 
@@ -670,10 +671,11 @@ Redis 장애 처리:
 nexus-frontend-production 컨테이너
 ├─ 외부 포트 80
 ├─ Nginx + 정적 프런트엔드
-└─ /api 요청 → host.docker.internal:8000
+├─ host network
+└─ /api 요청 → 127.0.0.1:8000
 
 Hermes Agent 서버 호스트
-└─ Uvicorn 0.0.0.0:8000
+└─ Uvicorn 127.0.0.1:8000
    ├─ FastAPI
    └─ APScheduler
 
@@ -746,7 +748,8 @@ picked_article_id=27
 9. Brunch `empty` 상태만으로 빈 결과의 원인을 구분할 수 없다.
 10. Brunch Article이 원본 게시 시각 대신 수집 시각을 사용한다.
 11. 수동 Meetup과 정기 Meetup의 수집 이력 단위가 다르다.
-12. 백엔드 8000 포트 직접 접근 시 내부 API의 Nginx 차단을 우회할 수 있다.
+12. Uvicorn을 다시 `0.0.0.0:8000`에 바인딩하면 내부 API의 Nginx 차단을
+    우회할 수 있으므로 루프백 바인딩을 유지해야 한다.
 13. `scheduler.py` 상단 설명과 일부 기존 아키텍처 문서가 현재의 Meetup/Luma/FastCampus 체인을 완전히 반영하지 못한다.
 
 ## 11. 검증
