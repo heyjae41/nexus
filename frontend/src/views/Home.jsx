@@ -5,12 +5,10 @@ import ClassCard from '../components/ClassCard'
 import EventCard from '../components/EventCard'
 import PostCard from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
-import { fetchHome, fetchEvents, fetchPosts } from '../api/client'
-import { CLASSES } from '../data'
+import { fetchClasses, fetchHome, fetchEvents, fetchPosts } from '../api/client'
 import { clickableProps } from '../utils/a11y'
 import { timeAgo } from '../utils/timeAgo'
 
-const HOT_CLASS_IDS = ['c4', 'c1', 'c2', 'c6']
 
 function HeroCard({ title, tag, meta, onClick }) {
   return (
@@ -42,6 +40,39 @@ function HeroCard({ title, tag, meta, onClick }) {
   )
 }
 
+const HERO_SERVICES = [
+  { emoji: '✦', name: '큐레이션', desc: '매일 골라 읽는 AI 글', to: '/curation' },
+  { emoji: '▶', name: '클래스', desc: '검증된 명강의 소개', to: '/classes' },
+  { emoji: '📍', name: 'meet.pl', desc: '밋업·해커톤 소식', to: '/meet' },
+  { emoji: '💬', name: '커뮤니티', desc: '현직자 팁·Q&A', to: '/community' },
+  { emoji: '⚡', name: 'AI핫딜', desc: '오늘의 특가 수집', to: '/hotdeal' },
+  { emoji: '🍜', name: 'eat.pl', desc: '회사 근처 맛집 검색', href: 'https://web.paybooc.ai/place/what-to-eat' },
+]
+
+function ServiceChip({ service }) {
+  const style = {
+    display: 'inline-flex', alignItems: 'center', gap: 7,
+    padding: '8px 14px', borderRadius: 22,
+    background: 'rgba(255,255,255,.10)',
+    border: '1px solid rgba(255,255,255,.16)',
+    backdropFilter: 'blur(6px)',
+    textDecoration: 'none', cursor: 'pointer',
+    transition: 'background .15s, border-color .15s',
+  }
+  const inner = (
+    <>
+      <span aria-hidden="true" style={{ fontSize: 12 }}>{service.emoji}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{service.name}</span>
+      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.68)' }}>{service.desc}</span>
+    </>
+  )
+  return service.href ? (
+    <a href={service.href} target="_blank" rel="noopener noreferrer" className="lk" style={style}>{inner}</a>
+  ) : (
+    <Link to={service.to} className="lk" style={style}>{inner}</Link>
+  )
+}
+
 function SectionHeader({ emoji, title, moreLabel, moreTo }) {
   return (
     <div className="sec-header">
@@ -59,10 +90,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [homeEvents, setHomeEvents] = useState([])
-
-  const hotClasses = HOT_CLASS_IDS
-    .map(id => CLASSES.find(c => c.id === id))
-    .filter(Boolean)
+  const [hotClasses, setHotClasses] = useState([])
+  const [classesLoading, setClassesLoading] = useState(true)
   const [homePosts, setHomePosts] = useState([])
 
   useEffect(() => {
@@ -72,6 +101,10 @@ export default function Home() {
     fetchEvents({ page: 1, size: 3 })
       .then(json => setHomeEvents(json.data ?? []))
       .catch(() => setHomeEvents([]))
+    fetchClasses({ page: 1, size: 4 })
+      .then(json => setHotClasses(json.data ?? []))
+      .catch(() => setHotClasses([]))
+      .finally(() => setClassesLoading(false))
     fetchPosts({ page: 1, size: 4 })
       .then(json => setHomePosts(json.data ?? []))
       .catch(() => setHomePosts([]))
@@ -114,66 +147,47 @@ export default function Home() {
               fontSize: 16.5, fontWeight: 400, lineHeight: 1.6,
               color: 'rgba(255,255,255,.88)', margin: '0 0 28px', maxWidth: 480,
             }}>
-              BC카드 실거래 데이터로 배우고, 현직자와 토론하고, 사내 프로젝트로 연결돼요. 직장인과 개발자를 위한 가장 실무적인 금융 AI 학습 채널.
+              쏟아지는 AI 소식을 다 쫓을 필요는 없어요. 읽을만한 글, 들을만한 강의, 가볼만한 밋업과 오늘의 핫딜까지 — BC카드 AI사업팀이 매일 직접 골라 담아요.
             </p>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 36, flexWrap: 'wrap' }}>
-              <button
-                className="btn"
-                onClick={() => navigate('/onboarding')}
-                style={{
-                  background: '#fff', color: '#E8123C',
-                  fontSize: 15, fontWeight: 700,
-                  padding: '13px 26px', borderRadius: 30,
-                }}
-              >
-                무료로 시작하기
-              </button>
-              <button
-                className="btn ghost"
-                onClick={() => navigate('/classes')}
-                style={{
-                  background: 'transparent', color: '#fff',
-                  fontSize: 15, fontWeight: 600,
-                  padding: '12px 24px', borderRadius: 30,
-                  border: '1.5px solid rgba(255,255,255,.4)',
-                }}
-              >
-                클래스 둘러보기
-              </button>
-            </div>
-            {/* Stats */}
-            <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
-              {[
-                { num: '38만 건', label: '실습용 익명 거래 데이터' },
-                { num: '120+', label: '금융·AI 실무 클래스' },
-                { num: '9,400+', label: '수강생·현직자 커뮤니티' },
-              ].map(s => (
-                <div key={s.num}>
-                  <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', marginBottom: 3 }}>{s.num}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)' }}>{s.label}</div>
-                </div>
-              ))}
+            {/* Service chips — 매일 골라 담는 여섯 채널 */}
+            <div>
+              <div style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: 10.5, fontWeight: 600, letterSpacing: '.08em',
+                color: 'rgba(255,255,255,.55)', marginBottom: 10,
+              }}>
+                WHAT&apos;S INSIDE
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {HERO_SERVICES.map(s => <ServiceChip key={s.name} service={s} />)}
+              </div>
             </div>
           </div>
 
-          {/* Right — floating hero cards */}
-          <div className="herocards" style={{
-            position: 'absolute', right: 0, top: 0,
-            width: 300, display: 'flex', flexDirection: 'column', gap: 12,
-          }}>
-            <HeroCard
-              tag="LIVE 커뮤니티"
-              title="사내에서 RAG 도입한 후기 (삽질 포함)"
-              meta="지금 23명 보는 중"
-              onClick={() => navigate('/community')}
-            />
-            <HeroCard
-              tag="인기 클래스"
-              title="이상거래 탐지(FDS) 모델 만들기"
-              meta="수강생 1,580명 · 4.9★"
-              onClick={() => navigate('/classes')}
-            />
-          </div>
+          {/* Right — floating hero cards (실데이터: 최신 큐레이션 글 + 다가오는 밋업) */}
+          {(homeArticles.length > 0 || homeEvents.length > 0) && (
+            <div className="herocards" style={{
+              position: 'absolute', right: 0, top: 0,
+              width: 300, display: 'flex', flexDirection: 'column', gap: 12,
+            }}>
+              {homeArticles.length > 0 && (
+                <HeroCard
+                  tag="오늘의 큐레이션"
+                  title={homeArticles[0].title}
+                  meta={`${homeArticles[0].authorName} · ${homeArticles[0].readMinutes}분 읽기`}
+                  onClick={() => navigate('/curation')}
+                />
+              )}
+              {homeEvents.length > 0 && (
+                <HeroCard
+                  tag="다가오는 밋업"
+                  title={homeEvents[0].title}
+                  meta={homeEvents[0].place || homeEvents[0].area || 'meet.pl에서 확인'}
+                  onClick={() => navigate('/meet')}
+                />
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -202,9 +216,15 @@ export default function Home() {
           {/* 2. Hot Classes */}
           <section style={{ marginBottom: 56 }}>
             <SectionHeader emoji="🔥" title="지금 뜨는 클래스" moreTo="/classes" />
-            <div className="rgrid-4">
-              {hotClasses.map((cls, i) => <ClassCard key={cls.id} cls={cls} index={i} compact />)}
-            </div>
+            {classesLoading ? (
+              <div className="rgrid-4"><Skeleton count={4} variant="article-grid" /></div>
+            ) : hotClasses.length === 0 ? (
+              <p style={{ color: '#9a9aa4', fontSize: 14 }}>수집된 클래스가 아직 없어요.</p>
+            ) : (
+              <div className="rgrid-4">
+                {hotClasses.map((cls, i) => <ClassCard key={cls.id} cls={cls} index={i} compact />)}
+              </div>
+            )}
           </section>
 
           {/* 3. Community */}
