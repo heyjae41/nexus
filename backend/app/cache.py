@@ -27,21 +27,23 @@ class InMemoryCacheBackend:
 
     def __init__(self) -> None:
         self.store: dict[str, tuple[str, float | None]] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # incr → get/set 재진입 허용
 
     def get(self, key: str) -> str | None:
-        item = self.store.get(key)
-        if item is None:
-            return None
-        value, expires_at = item
-        if expires_at is not None and time.monotonic() > expires_at:
-            self.store = {k: v for k, v in self.store.items() if k != key}
-            return None
-        return value
+        with self._lock:
+            item = self.store.get(key)
+            if item is None:
+                return None
+            value, expires_at = item
+            if expires_at is not None and time.monotonic() > expires_at:
+                del self.store[key]
+                return None
+            return value
 
     def set(self, key: str, value: str, ttl_seconds: int | None) -> None:
         expires_at = time.monotonic() + ttl_seconds if ttl_seconds else None
-        self.store = {**self.store, key: (value, expires_at)}
+        with self._lock:
+            self.store[key] = (value, expires_at)
 
     def incr(self, key: str) -> int:
         with self._lock:
@@ -51,6 +53,12 @@ class InMemoryCacheBackend:
 
 
 class RedisCacheBackend:
+    """기동 후 Redis 런타임 장애 시 예외를 전파하지 않고 캐시 미스처럼 동작한다.
+
+    get 실패 → None(미스, 로더가 DB 직접 조회) / set·incr 실패 → 무시.
+    캐시가 가용성을 낮추는 단일 장애점이 되지 않도록 하는 방어선이다.
+    """
+
     def __init__(self, redis_url: str) -> None:
         import redis
 
@@ -59,14 +67,31 @@ class RedisCacheBackend:
         )
         self.client.ping()
 
+    @staticmethod
+    def _errors() -> type[Exception]:
+        import redis
+
+        return redis.exceptions.RedisError
+
     def get(self, key: str) -> str | None:
-        return self.client.get(key)
+        try:
+            return self.client.get(key)
+        except self._errors() as exc:
+            logger.warning("Redis GET 실패(%s) → 캐시 미스로 처리", exc)
+            return None
 
     def set(self, key: str, value: str, ttl_seconds: int | None) -> None:
-        self.client.set(key, value, ex=ttl_seconds)
+        try:
+            self.client.set(key, value, ex=ttl_seconds)
+        except self._errors() as exc:
+            logger.warning("Redis SET 실패(%s) → 캐시 저장 생략", exc)
 
     def incr(self, key: str) -> int:
-        return int(self.client.incr(key))
+        try:
+            return int(self.client.incr(key))
+        except self._errors() as exc:
+            logger.warning("Redis INCR 실패(%s) → 버전 bump 생략", exc)
+            return 0
 
 
 class VersionedCache:
@@ -74,27 +99,57 @@ class VersionedCache:
         self.backend = backend
         self.prefix = prefix
         self.ttl_seconds = ttl_seconds
+        # single-flight: 동시 미스 시 로더를 프로세스 내 1회만 실행 (스탬피드 방지)
+        self._flight_lock = threading.Lock()
+        self._in_flight: dict[str, threading.Event] = {}
 
     def _version(self) -> int:
         return int(self.backend.get(f"{self.prefix}{VERSION_KEY}") or 0)
 
+    def _full_key_for(self, version: int, key: str) -> str:
+        return f"{self.prefix}v{version}:{key}"
+
     def _full_key(self, key: str) -> str:
-        return f"{self.prefix}v{self._version()}:{key}"
+        return self._full_key_for(self._version(), key)
 
     def get(self, key: str) -> Any | None:
-        raw = self.backend.get(self._full_key(key))
-        return json.loads(raw) if raw is not None else None
+        for _ in range(2):
+            version = self._version()
+            raw = self.backend.get(self._full_key_for(version, key))
+            if self._version() == version:
+                return json.loads(raw) if raw is not None else None
+        return None
 
     def set(self, key: str, value: Any) -> None:
         self.backend.set(self._full_key(key), json.dumps(value), self.ttl_seconds)
 
     def get_or_set(self, key: str, loader: Callable[[], Any]) -> Any:
-        cached = self.get(key)
-        if cached is not None:
-            return cached
-        value = loader()
-        self.set(key, value)
-        return value
+        version = self._version()
+        full_key = self._full_key_for(version, key)
+        raw = self.backend.get(full_key)
+        if self._version() != version:
+            return self.get_or_set(key, loader)
+        if raw is not None:
+            return json.loads(raw)
+        with self._flight_lock:
+            waiter = self._in_flight.get(full_key)
+            if waiter is None:
+                self._in_flight[full_key] = threading.Event()
+        if waiter is not None:
+            # 다른 요청이 같은 키를 로드 중 — 완료를 기다렸다 캐시를 재사용
+            waiter.wait(timeout=5)
+            return self.get_or_set(key, loader)
+        try:
+            value = loader()
+            # 로드 중 DB 쓰기가 commit되어 버전이 바뀌었다면 구 스냅샷은 저장하지 않는다.
+            if self._version() == version:
+                self.backend.set(full_key, json.dumps(value), self.ttl_seconds)
+            return value
+        finally:
+            with self._flight_lock:
+                event = self._in_flight.pop(full_key, None)
+            if event is not None:
+                event.set()
 
     def bump_version(self) -> None:
         """DB 반영사항 발생 시 호출 — 이전 캐시 전체를 즉시 무효화한다.

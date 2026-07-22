@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { CLASSES, getCurriculum } from '../data'
 import { classGrad, fmtKo } from '../utils/grads'
 
-export default function ClassDetail({ enrolled, onEnroll }) {
+export default function ClassDetail({ user, enrolled, onEnroll }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const cls = CLASSES.find(c => c.id === id)
@@ -17,6 +17,11 @@ export default function ClassDetail({ enrolled, onEnroll }) {
     : fmtKo(cls.price) + '원'
 
   const handleEnroll = () => {
+    if (!user) {
+      // 결제는 회원(닉네임+비밀번호) 전제 — 게스트 자동가입 대신 온보딩으로 유도
+      navigate('/onboarding')
+      return
+    }
     if (!isEnrolled) onEnroll(id)
     navigate(`/checkout/${id}`)
   }

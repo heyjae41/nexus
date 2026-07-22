@@ -1,4 +1,6 @@
 """공개 API 라우터."""
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,7 @@ from app.repositories.articles import (
     increment_like,
     increment_view,
     list_articles,
+    list_articles_by_category,
 )
 from app.repositories.categories import list_active_categories
 from app.serializers import (
@@ -16,12 +19,15 @@ from app.serializers import (
     serialize_article_card,
     serialize_article_detail,
     serialize_category,
+    serialize_course_card,
     serialize_event_card,
 )
 
 router = APIRouter(prefix="/api")
 
 HOME_SECTION_SIZE = 6
+EventCategory = Literal["IT/프로그래밍", "AI", "경제/금융"]
+ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ"]
 
 
 def get_cache(request: Request) -> VersionedCache:
@@ -45,14 +51,17 @@ def categories(db: Session = Depends(get_db), cache: VersionedCache = Depends(ge
 @router.get("/home")
 def home(db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)):
     def load():
+        # 카테고리 수와 무관하게 2쿼리(카테고리 + 윈도우 함수)로 로드 — N+1형 방지
+        cats = list_active_categories(db)
+        by_cat = list_articles_by_category(db, [c.id for c in cats], HOME_SECTION_SIZE)
         sections = []
-        for cat in list_active_categories(db):
-            page = list_articles(db, category_slug=cat.slug, page=1, size=HOME_SECTION_SIZE)
+        for cat in cats:
+            items, total = by_cat.get(cat.id, ([], 0))
             sections.append(
                 {
                     "category": serialize_category(cat),
-                    "articles": [serialize_article_card(a) for a in page.items],
-                    "total": page.total,
+                    "articles": [serialize_article_card(a) for a in items],
+                    "total": total,
                 }
             )
         return {"sections": sections}
@@ -82,19 +91,43 @@ def articles(
     return api_response(loaded["items"], meta=loaded["meta"])
 
 
+@router.get("/classes")
+def classes(
+    category: ClassCategory | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    key = f"classes:list:{category or 'all'}:{page}:{size}"
+
+    def load():
+        from app.repositories.courses import list_courses
+
+        result = list_courses(db, category=category, page=page, size=size)
+        return {
+            "items": [serialize_course_card(course) for course in result.items],
+            "meta": {"total": result.total, "page": result.page, "limit": result.size},
+        }
+
+    loaded = cache.get_or_set(key, load)
+    return api_response(loaded["items"], meta=loaded["meta"])
+
+
 @router.get("/events")
 def events(
+    category: EventCategory | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     size: int = Query(default=12, ge=1, le=50),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    key = f"events:list:{page}:{size}"
+    key = f"events:list:{category or 'all'}:{page}:{size}"
 
     def load():
         from app.repositories.events import list_upcoming_events
 
-        result = list_upcoming_events(db, page=page, size=size)
+        result = list_upcoming_events(db, category=category, page=page, size=size)
         return {
             "items": [serialize_event_card(e) for e in result.items],
             "meta": {"total": result.total, "page": result.page, "limit": result.size},

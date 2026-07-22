@@ -37,11 +37,12 @@ describe('CommunityWrite', () => {
     expect(screen.getByText('등록')).toBeInTheDocument()
   })
 
-  it('renders all 5 allowed tag chips', () => {
+  it('renders only the 4 defined community badge chips', () => {
     wrap(<CommunityWrite user={{ id: 1, nickname: '테스트유저' }} setUser={vi.fn()} />)
-    for (const tag of ['노하우', '기술자료', '팁', '자료', '질문']) {
+    for (const tag of ['자료', '노하우', '팁', '기술자료']) {
       expect(screen.getByText(tag)).toBeInTheDocument()
     }
+    expect(screen.queryByText('질문')).not.toBeInTheDocument()
   })
 
   it('submits post with correct payload and navigates to the new post', async () => {
@@ -82,22 +83,16 @@ describe('CommunityWrite', () => {
     alertSpy.mockRestore()
   })
 
-  it('auto-migrates legacy string user before submitting', async () => {
-    registerMember.mockResolvedValue({ id: 99, nickname: '김크레딧', role: null })
-    createPost.mockResolvedValue({ id: 'post-legacy', title: '글' })
+  it('redirects legacy string users to password onboarding before writing', async () => {
     const setUser = vi.fn()
-    const ue = userEvent.setup()
     wrap(<CommunityWrite user="김크레딧" setUser={setUser} />)
 
-    await ue.type(screen.getByPlaceholderText('제목을 입력해주세요'), '글 제목')
-    await ue.type(screen.getByPlaceholderText('본문을 입력해주세요'), '글 본문')
-    await ue.click(screen.getByText('등록'))
-
     await waitFor(() => {
-      expect(registerMember).toHaveBeenCalledWith({ nickname: '김크레딧' })
+      expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true })
     })
-    expect(setUser).toHaveBeenCalledWith({ id: 99, nickname: '김크레딧', role: null })
-    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ memberId: 99 }))
-    expect(mockNavigate).toHaveBeenCalledWith('/community/post-legacy')
+    expect(screen.queryByRole('heading', { name: '글쓰기' })).not.toBeInTheDocument()
+    expect(registerMember).not.toHaveBeenCalled()
+    expect(createPost).not.toHaveBeenCalled()
+    expect(setUser).not.toHaveBeenCalled()
   })
 })

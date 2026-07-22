@@ -1,15 +1,29 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 const ITEMS = [
   { label: '홈', icon: '⌂', path: '/' },
   { label: '클래스', icon: '▦', path: '/classes' },
   { label: '커뮤니티', icon: '✎', path: '/community' },
   { label: 'meet.pl', icon: '◎', path: '/meet' },
-  { label: 'MY', icon: '☰', path: '/dashboard' },
 ]
 
-export default function MobileNav({ user: _user }) {
-  const navigate = useNavigate()
+const itemStyle = active => ({
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+  background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'none',
+  color: active ? '#E8123C' : '#7a7a84',
+  minWidth: 54, minHeight: 48, padding: '4px 8px', transition: 'color .15s',
+})
+
+function ItemContent({ icon, label }) {
+  return (
+    <>
+      <span aria-hidden="true" style={{ fontSize: 20 }}>{icon}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 600 }}>{label}</span>
+    </>
+  )
+}
+
+export default function MobileNav({ user, onLogin }) {
   const { pathname } = useLocation()
 
   return (
@@ -25,28 +39,26 @@ export default function MobileNav({ user: _user }) {
         borderTop: '1px solid rgba(255,255,255,.08)',
         justifyContent: 'space-around',
         alignItems: 'center',
-        padding: '8px 0 12px',
+        padding: '6px max(4px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left))',
       }}
     >
       {ITEMS.map(item => {
         const active = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path)
         return (
-          <button
-            key={item.path}
-            onClick={() => navigate(item.path)}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: active ? '#E8123C' : '#7a7a84',
-              padding: '4px 12px',
-              transition: 'color .15s',
-            }}
-          >
-            <span style={{ fontSize: 20 }}>{item.icon}</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{item.label}</span>
-          </button>
+          <Link key={item.path} to={item.path} aria-label={item.label} aria-current={active ? 'page' : undefined} style={itemStyle(active)}>
+            <ItemContent icon={item.icon} label={item.label} />
+          </Link>
         )
       })}
+      {user ? (
+        <Link to="/profile" aria-label="MY 내 정보" aria-current={pathname.startsWith('/profile') ? 'page' : undefined} style={itemStyle(pathname.startsWith('/profile'))}>
+          <ItemContent icon="◉" label="MY" />
+        </Link>
+      ) : (
+        <button type="button" aria-label="MY 로그인" onClick={onLogin} style={itemStyle(false)}>
+          <ItemContent icon="◉" label="MY" />
+        </button>
+      )}
     </nav>
   )
 }

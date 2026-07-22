@@ -108,3 +108,24 @@ def test_collect_records_failed_run_on_db_error(db):
     run = db.query(MeetupCollectRun).one()
     assert run.status == "failed"
     assert run.error_message
+
+
+def test_collect_partial_conflict_keeps_rest_of_batch(db, monkeypatch):
+    """동시 수집 레이스로 배치 중 1건이 UNIQUE 충돌해도
+    나머지 신규 이벤트는 유실 없이 저장된다 (all-or-nothing 방지)."""
+    from app.services import meetup_collector as collector_mod
+
+    cache = make_cache()
+    collect_meetups(db, cache, candidates=[cand("1")])  # "1" 은 이미 저장됨
+
+    # 레이스 재현: 사전 중복 체크가 아무것도 못 본 것처럼 만든다
+    monkeypatch.setattr(
+        collector_mod, "_existing_keys", lambda db_, cands: (set(), set())
+    )
+    result = collect_meetups(db, cache, candidates=[cand("1"), cand("2"), cand("3")])
+
+    assert result.added == 2  # "1" 충돌 건너뜀, "2"/"3" 보존
+    assert db.query(MeetupEvent).count() == 3
+    runs = db.query(MeetupCollectRun).order_by(MeetupCollectRun.id).all()
+    assert runs[-1].status == "success"
+    assert runs[-1].added_count == 2

@@ -26,7 +26,7 @@ def test_articles_list_card_fields(client, seed):
     assert body["meta"]["total"] == 2
     card = body["data"][0]  # 최신순 → 브런치 글
     assert card["title"] == "브런치 인기글"
-    assert card["articleType"] == "brunch"
+    assert card["articleType"] == "column"
     # 브런치 글 링크에는 항상 ref 파라미터가 붙는다
     assert card["linkUrl"] == "https://brunch.co.kr/@writer/1?ref=nexus.bccard.ai"
     assert card["isExternal"] is True
@@ -34,6 +34,18 @@ def test_articles_list_card_fields(client, seed):
     internal = body["data"][1]
     assert internal["linkUrl"] == f"/articles/{internal['id']}"
     assert internal["isExternal"] is False
+
+
+def test_articles_type_filter_returns_only_requested_format(client, seed):
+    seed(client)
+
+    res = client.get("/api/articles?category=curation&type=column")
+
+    body = res.json()
+    assert body["success"] is True
+    assert body["meta"]["total"] == 1
+    assert [article["articleType"] for article in body["data"]] == ["column"]
+    assert body["data"][0]["title"] == "브런치 인기글"
 
 
 def test_article_detail_increments_view(client, seed):

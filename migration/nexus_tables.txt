@@ -2,11 +2,14 @@
 categories
 articles
 members
+auth_sessions
 community_posts
 community_post_likes
 community_comments
 meetup_events
 meetup_collect_runs
+courses
+fastcampus_collect_runs
 writer_sessions
 writer_messages
 brunch_collect_runs

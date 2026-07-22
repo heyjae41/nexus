@@ -45,6 +45,50 @@ def seed_curation(db):
     db.commit()
 
 
+def test_article_source_url_unique_constraint(db):
+    """동일 source_url 은 DB 유니크 제약으로 차단된다 — 동시 수집 중복의 최후 방어선."""
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from app.services.publish import publish_article
+
+    seed_curation(db)
+    cache = make_cache()
+    common = dict(
+        category_slug="curation",
+        article_type="brunch",
+        source_type="brunch",
+        source_url="https://brunch.co.kr/@w/dup",
+        published_at=WINDOW[1],
+    )
+    publish_article(db, cache, title="원본", **common)
+    with pytest.raises(IntegrityError):
+        publish_article(db, cache, title="중복", **common)
+    db.rollback()
+
+
+def test_collect_and_pick_concurrent_duplicate_is_graceful(db, monkeypatch):
+    """사전 중복 체크 직후 다른 실행이 같은 글을 먼저 저장(레이스)해도
+    예외 전파 없이 run 이력('duplicate')만 남기고 중복 저장하지 않는다."""
+    from app.services import brunch as brunch_mod
+
+    seed_curation(db)
+    cache = make_cache()
+    c = cand()
+    collect_and_pick(db, cache, candidates=[c], window_start=WINDOW[0], window_end=WINDOW[1])
+
+    # 레이스 재현: 중복 체크가 "미저장" 으로 답하는 창(window) 을 흉내낸다
+    monkeypatch.setattr(brunch_mod, "_saved_urls", lambda db_, urls: set())
+    picked = collect_and_pick(
+        db, cache, candidates=[c], window_start=WINDOW[0], window_end=WINDOW[1]
+    )
+
+    assert picked is None
+    assert list_articles(db).total == 1  # 중복 저장 없음
+    runs = db.query(BrunchCollectRun).order_by(BrunchCollectRun.id).all()
+    assert [r.status for r in runs] == ["success", "duplicate"]
+
+
 def test_is_ai_related_filters_by_keywords():
     assert is_ai_related(cand(title="LLM 프롬프트 잘 쓰는 법", summary=""))
     assert is_ai_related(cand(title="일상", summary="머신러닝 공부 후기"))
@@ -88,7 +132,8 @@ def test_collect_and_pick_saves_brunch_article(db):
     assert arts.total == 1
     art = arts.items[0]
     assert art.source_type == "brunch"
-    assert art.article_type == "brunch"
+    # 수집 사이트는 source_type, 사용자에게 보이는 글 포맷은 article_type 으로 분리한다.
+    assert art.article_type == "column"
     assert art.likes_count == 9
     assert art.comments_count == 9
 

@@ -96,10 +96,11 @@ describe('ArticleCard — CRITICAL LINK RULE', () => {
     expect(screen.getByText('뉴스레터')).toBeInTheDocument()
   })
 
-  it('renders brunch badge label as 브런치', () => {
+  it('legacy brunch article uses its content format badge 컬럼, not its source site', () => {
     const article = { ...baseArticle, articleType: 'brunch', isExternal: true }
     wrap(<ArticleCard article={article} index={0} />)
-    expect(screen.getByText('브런치')).toBeInTheDocument()
+    expect(screen.getByText('컬럼')).toBeInTheDocument()
+    expect(screen.queryByText('브런치')).not.toBeInTheDocument()
   })
 
   it('renders list variant without crashing', () => {

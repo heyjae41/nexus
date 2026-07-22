@@ -65,6 +65,27 @@ def meetup_run(
     return api_response({"candidates": result.candidates, "added": result.added})
 
 
+@router.post("/classes/run")
+def classes_run(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    from app.services.fastcampus_collector import collect_fastcampus_courses
+    from app.services.fastcampus_fetcher import fetch_fastcampus_candidates
+
+    try:
+        candidates = fetch_fastcampus_candidates()
+        result = collect_fastcampus_courses(db, cache, candidates=candidates)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.exception("패스트캠퍼스 클래스 수동 수집 실패")
+        raise HTTPException(status_code=502, detail="클래스 수집에 실패했습니다") from exc
+    return api_response({
+        "candidates": result.candidates,
+        "added": result.added,
+        "updated": result.updated,
+        "hidden": result.hidden,
+    })
+
+
 @router.post("/brunch/run")
 def brunch_run(
     db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)

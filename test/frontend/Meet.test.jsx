@@ -2,7 +2,7 @@
  * Tests for Meet view — events rendered from mocked /api/events
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import Meet from '@/views/Meet'
 
@@ -47,6 +47,85 @@ describe('Meet view — events from API', () => {
     })
     expect(screen.getByText('테스트 이벤트 2')).toBeInTheDocument()
     expect(screen.getByText('테스트 이벤트 3')).toBeInTheDocument()
+  })
+
+  it('5페이지에서 수집한 이벤트 배지를 표시하고 선택한 배지로 서버 필터링한다', async () => {
+    fetchEvents.mockResolvedValue({
+      data: [makeEvent(1)],
+      meta: { total: 1, page: 1, limit: 20 },
+    })
+    wrap(<Meet />)
+    await waitFor(() => expect(screen.getByText('테스트 이벤트 1')).toBeInTheDocument())
+
+    for (const badge of ['전체', 'IT/프로그래밍', 'AI', '경제/금융']) {
+      expect(screen.getByRole('button', { name: badge })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: '전체' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: '경제/금융' }))
+    await waitFor(() => {
+      expect(fetchEvents).toHaveBeenLastCalledWith({
+        category: '경제/금융', page: 1, size: 20,
+      })
+    })
+    expect(screen.getByRole('button', { name: '경제/금융' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '전체' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('group', { name: '이벤트 배지 필터' })).toBeInTheDocument()
+  })
+
+  it('선택한 배지를 페이지 2에서도 유지하고 현재 페이지를 보조기술에 알린다', async () => {
+    fetchEvents.mockResolvedValue({
+      data: [makeEvent(1)],
+      meta: { total: 25, page: 1, limit: 20 },
+    })
+    wrap(<Meet />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'AI' })).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }))
+    await waitFor(() => expect(fetchEvents).toHaveBeenLastCalledWith({ category: 'AI', page: 1, size: 20 }))
+
+    const pagination = screen.getByRole('navigation', { name: '이벤트 페이지' })
+    expect(pagination).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1' })).toHaveAttribute('aria-current', 'page')
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+    await waitFor(() => expect(fetchEvents).toHaveBeenLastCalledWith({ category: 'AI', page: 2, size: 20 }))
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('느린 이전 응답이 최신 이벤트 배지 결과를 덮어쓰지 않는다', async () => {
+    const deferred = () => {
+      let resolve
+      const promise = new Promise(done => { resolve = done })
+      return { promise, resolve }
+    }
+    const allRequest = deferred()
+    const aiRequest = deferred()
+    fetchEvents
+      .mockImplementationOnce(() => allRequest.promise)
+      .mockImplementationOnce(() => aiRequest.promise)
+
+    wrap(<Meet />)
+    await waitFor(() => expect(fetchEvents).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }))
+    await waitFor(() => expect(fetchEvents).toHaveBeenCalledTimes(2))
+
+    await act(async () => {
+      aiRequest.resolve({
+        data: [{ ...makeEvent(2), title: '최신 AI 이벤트', category: 'AI' }],
+        meta: { total: 1, page: 1, limit: 20 },
+      })
+    })
+    expect(await screen.findByText('최신 AI 이벤트')).toBeInTheDocument()
+
+    await act(async () => {
+      allRequest.resolve({
+        data: [{ ...makeEvent(1), title: '늦은 전체 이벤트' }],
+        meta: { total: 1, page: 1, limit: 20 },
+      })
+    })
+    expect(screen.getByText('최신 AI 이벤트')).toBeInTheDocument()
+    expect(screen.queryByText('늦은 전체 이벤트')).not.toBeInTheDocument()
   })
 
   it('each card is an <a> with target="_blank" and the linkUrl', async () => {

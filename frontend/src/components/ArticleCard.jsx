@@ -6,7 +6,9 @@ const BADGE_LABELS = {
   newsletter: '뉴스레터',
   column: '컬럼',
   guide: '가이드',
-  brunch: '브런치',
+  // Legacy rows used the collection site as articleType. Treat them as columns;
+  // source/external-link behavior remains controlled separately by isExternal.
+  brunch: '컬럼',
 }
 
 function badgeLabel(articleType) {
@@ -168,5 +170,3 @@ export default function ArticleCard({ article, index = 0, variant = 'grid' }) {
     </Link>
   )
 }
-
-export { badgeLabel }

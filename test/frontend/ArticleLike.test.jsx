@@ -81,22 +81,52 @@ describe('ArticleDetail — like button optimistic update', () => {
     expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
   })
 
-  it('decrements like count on second click (toggle off)', async () => {
+  it('server-confirmed count is not double-added (no 328 phantom)', async () => {
     wrap()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
     })
-    // Like — optimistic +1 (326→327), then API confirms likeCount=327 so display becomes 327+1=328
+    // Like — optimistic +1 (326→327), 서버 확정값도 327 → 그대로 327 (328 아님)
     fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
-    // Wait for in-flight guard to clear: API sets likeCount=327, liked=true → display 328
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 328/i })).toBeInTheDocument()
+      expect(likeArticle).toHaveBeenCalledTimes(1)
     })
-    // Unlike — optimistic -1 (328→327)
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 328/i }))
+    expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /좋아요 328/i })).not.toBeInTheDocument()
+  })
+
+  it('decrements like count on second click (toggle off) without re-calling API', async () => {
+    wrap()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
     })
+    // 취소 — 백엔드에 감소 API 가 없으므로 로컬 표시만 되돌리고 추가 POST 는 보내지 않는다
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 327/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
+    })
+    expect(likeArticle).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-like after cancel does not send another increment (abuse guard)', async () => {
+    wrap()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i })) // like → POST
+    await waitFor(() => {
+      expect(likeArticle).toHaveBeenCalledTimes(1)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 327/i })) // 취소 (POST 없음)
+    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i })) // 재좋아요 (POST 없음)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    })
+    expect(likeArticle).toHaveBeenCalledTimes(1) // 세션당 증가 1회
   })
 
   it('calls likeArticle API on like click', async () => {
@@ -123,6 +153,30 @@ describe('ArticleDetail — like button optimistic update', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
     })
+  })
+
+  it('related list excludes the current article even when API ids are numbers', async () => {
+    fetchArticle.mockResolvedValue({ ...mockArticle, id: 1 })
+    fetchArticles.mockResolvedValue({
+      data: [
+        { id: 1, title: '현재 글 자신', articleType: 'guide' },
+        { id: 2, title: '다른 글', articleType: 'guide' },
+      ],
+    })
+    wrap('1') // useParams 의 id 는 문자열 '1' — 숫자 id 와 타입이 달라도 걸러야 한다
+    await waitFor(() => {
+      expect(screen.getByText('다른 글')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('현재 글 자신')).not.toBeInTheDocument()
+  })
+
+  it('shows error UI with retry when fetch fails and no static fallback exists', async () => {
+    fetchArticle.mockRejectedValue(new Error('500'))
+    wrap('999') // EDITORIAL_ARTICLES 에 없는 id → 빈 화면 대신 에러 안내
+    await waitFor(() => {
+      expect(screen.getByText(/글을 불러오지 못했습니다/)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /다시 시도/ })).toBeInTheDocument()
   })
 
   it('renders the article title from static data for a1', async () => {

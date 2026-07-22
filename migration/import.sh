@@ -98,10 +98,13 @@ pg_restore --exit-on-error --no-owner --no-privileges \
 cat > "$RESTORE_SQL" <<'SQL'
 SET lock_timeout = '10s';
 DROP TABLE IF EXISTS
+  public.fastcampus_collect_runs,
+  public.courses,
   public.brunch_collect_runs,
   public.community_comments,
   public.community_post_likes,
   public.community_posts,
+  public.auth_sessions,
   public.writer_messages,
   public.writer_sessions,
   public.meetup_collect_runs,
@@ -128,8 +131,8 @@ while IFS=$'\t' read -r table expected; do
   printf '\nDO $$ BEGIN IF (SELECT count(*) FROM public."%s") <> %s THEN RAISE EXCEPTION '\''row count mismatch: %s'\''; END IF; END $$;\n' \
     "$table" "$expected" "$table" >> "$RESTORE_SQL"
 done < "$COUNTS_FILE"
-if [[ "$MANIFEST_ROWS" -ne 11 ]]; then
-  echo "건수 매니페스트의 NEXUS 테이블 수가 11개가 아닙니다: $MANIFEST_ROWS" >&2
+if [[ "$MANIFEST_ROWS" -ne 14 ]]; then
+  echo "건수 매니페스트의 NEXUS 테이블 수가 14개가 아닙니다: $MANIFEST_ROWS" >&2
   exit 1
 fi
 
@@ -151,15 +154,17 @@ BEGIN
      SELECT table_name, ordinal_position, column_name, data_type, is_nullable, coalesce(column_default, '')
      FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name IN (
-       'categories','articles','members','community_posts','community_post_likes','community_comments',
-       'meetup_events','meetup_collect_runs','writer_sessions','writer_messages','brunch_collect_runs'
+       'categories','articles','members','auth_sessions','community_posts','community_post_likes','community_comments',
+       'meetup_events','meetup_collect_runs','courses','fastcampus_collect_runs',
+       'writer_sessions','writer_messages','brunch_collect_runs'
      ))
     UNION ALL
     (SELECT table_name, ordinal_position, column_name, data_type, is_nullable, coalesce(column_default, '')
      FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name IN (
-       'categories','articles','members','community_posts','community_post_likes','community_comments',
-       'meetup_events','meetup_collect_runs','writer_sessions','writer_messages','brunch_collect_runs'
+       'categories','articles','members','auth_sessions','community_posts','community_post_likes','community_comments',
+       'meetup_events','meetup_collect_runs','courses','fastcampus_collect_runs',
+       'writer_sessions','writer_messages','brunch_collect_runs'
      )
      EXCEPT SELECT * FROM nexus_expected_columns)
   ) THEN

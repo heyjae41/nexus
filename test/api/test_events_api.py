@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from app.models import MeetupEvent
 
 
-def seed_events(client, count=3):
+def seed_events(client, count=3, categories=None):
     db = client.session_factory()
     now = datetime.now(timezone.utc)
     for i in range(count):
@@ -21,7 +21,7 @@ def seed_events(client, count=3):
                 is_free=(i == 0),
                 view_count=10 * i,
                 event_system_type="offline" if i else "online",
-                category="IT/프로그래밍",
+                category=categories[i] if categories else "IT/프로그래밍",
             )
         )
     db.commit()
@@ -69,6 +69,40 @@ def test_events_list_sorted_by_start_asc(client):
     res = client.get("/api/events").json()
     starts = [c["eventStart"] for c in res["data"]]
     assert starts == sorted(starts)
+
+
+def test_events_filter_by_category_badge(client):
+    seed_events(
+        client,
+        categories=["IT/프로그래밍", "AI", "경제/금융"],
+    )
+
+    res = client.get("/api/events?category=AI").json()
+
+    assert res["meta"]["total"] == 1
+    assert [event["category"] for event in res["data"]] == ["AI"]
+    assert [event["title"] for event in res["data"]] == ["AI 밋업 1"]
+
+
+def test_events_category_cache_and_pagination_are_isolated(client):
+    categories = ["AI"] * 22 + ["IT/프로그래밍"] * 3
+    seed_events(client, count=25, categories=categories)
+
+    assert client.get("/api/events?page=1&size=10").json()["meta"]["total"] == 25
+    first = client.get("/api/events?category=AI&page=1&size=10").json()
+    second = client.get("/api/events?category=AI&page=2&size=10").json()
+    it = client.get("/api/events?category=IT%2F%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%98%EB%B0%8D&page=1&size=10").json()
+
+    assert first["meta"] == {"total": 22, "page": 1, "limit": 10}
+    assert second["meta"] == {"total": 22, "page": 2, "limit": 10}
+    assert len(first["data"]) == len(second["data"]) == 10
+    assert set(event["category"] for event in first["data"] + second["data"]) == {"AI"}
+    assert it["meta"]["total"] == 3
+    assert set(event["category"] for event in it["data"]) == {"IT/프로그래밍"}
+
+
+def test_events_rejects_unknown_category_badge(client):
+    assert client.get("/api/events?category=unknown").status_code == 422
 
 
 def test_events_excludes_past(client):

@@ -48,6 +48,8 @@ services:
       dockerfile: docker/frontend.Dockerfile
     ports:
       - "8080:80"
+    environment:
+      BACKEND_UPSTREAM: backend:8000
     depends_on:
       - backend
 

@@ -10,11 +10,12 @@ import Home from '@/views/Home'
 // Mock the API client
 vi.mock('@/api/client', () => ({
   fetchHome: vi.fn(),
+  fetchClasses: vi.fn(),
   fetchEvents: vi.fn(),
   fetchPosts: vi.fn(),
 }))
 
-import { fetchHome, fetchEvents, fetchPosts } from '@/api/client'
+import { fetchClasses, fetchHome, fetchEvents, fetchPosts } from '@/api/client'
 
 const mockHomeData = {
   sections: [
@@ -97,11 +98,16 @@ describe('Home view — curation section from API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fetchEvents.mockResolvedValue(mockEventsData)
+    fetchClasses.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
     fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
   })
 
   it('shows loading skeletons initially', () => {
-    fetchHome.mockReturnValue(new Promise(() => {})) // never resolves
+    const pending = new Promise(() => {})
+    fetchHome.mockReturnValue(pending)
+    fetchEvents.mockReturnValue(pending)
+    fetchClasses.mockReturnValue(pending)
+    fetchPosts.mockReturnValue(pending)
     wrap(<Home user={null} enrolled={[]} />)
     // Skeletons use the .sk class — check for animated skeleton boxes
     const skeletons = document.querySelectorAll('.sk')
@@ -112,7 +118,7 @@ describe('Home view — curation section from API', () => {
     fetchHome.mockResolvedValue(mockHomeData)
     wrap(<Home user={null} enrolled={[]} />)
     await waitFor(() => {
-      expect(screen.getByText('테스트 뉴스레터 아티클')).toBeInTheDocument()
+      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
     })
     expect(screen.getByText('브런치 외부 아티클 테스트')).toBeInTheDocument()
     expect(screen.getByText('가이드 아티클')).toBeInTheDocument()
@@ -133,7 +139,7 @@ describe('Home view — curation section from API', () => {
     fetchHome.mockResolvedValue(mockHomeData)
     wrap(<Home user={null} enrolled={[]} />)
     await waitFor(() => {
-      expect(screen.getByText('테스트 뉴스레터 아티클')).toBeInTheDocument()
+      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
     })
     const internalLinks = screen.getAllByTestId('article-card-internal')
     expect(internalLinks.length).toBeGreaterThanOrEqual(1)
@@ -157,6 +163,23 @@ describe('Home view — curation section from API', () => {
     expect(screen.getByText(/이번 주 커뮤니티/)).toBeInTheDocument()
   })
 
+  it('메인 인기 클래스도 수집 API 결과를 외부 링크로 표시한다', async () => {
+    fetchHome.mockResolvedValue(mockHomeData)
+    fetchClasses.mockResolvedValue({
+      data: [{
+        id: 1, title: '홈 수집 클래스', sourceCategoryName: 'AI TECH', category: 'AI Agent',
+        badges: ['BEST'], price: 200000, original: 400000, formatName: '올인원',
+        linkUrl: 'https://fastcampus.co.kr/test?ref=nexus.bccard.ai', isExternal: true,
+      }],
+      meta: { total: 1, page: 1, limit: 4 },
+    })
+    wrap(<Home user={null} enrolled={[]} />)
+    expect(await screen.findByText('홈 수집 클래스')).toBeInTheDocument()
+    expect(screen.getByTestId('class-card-external')).toHaveAttribute(
+      'href', 'https://fastcampus.co.kr/test?ref=nexus.bccard.ai',
+    )
+  })
+
   it('renders meet section with API events when events are returned', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
     fetchEvents.mockResolvedValue(mockEventsData)
@@ -164,7 +187,7 @@ describe('Home view — curation section from API', () => {
     await waitFor(() => {
       expect(screen.getByText(/가야할 밋플/)).toBeInTheDocument()
     })
-    expect(screen.getByText('홈 화면 이벤트 1')).toBeInTheDocument()
+    expect(screen.getAllByText('홈 화면 이벤트 1').length).toBeGreaterThan(0)
   })
 
   it('hides meet section when API returns no events', async () => {
@@ -172,7 +195,7 @@ describe('Home view — curation section from API', () => {
     fetchEvents.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 3 } })
     wrap(<Home user={null} enrolled={[]} />)
     await waitFor(() => {
-      expect(screen.getByText('테스트 뉴스레터 아티클')).toBeInTheDocument()
+      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
     })
     expect(screen.queryByText(/가야할 밋플/)).not.toBeInTheDocument()
   })
@@ -182,11 +205,73 @@ describe('Home view — curation section from API', () => {
     fetchEvents.mockResolvedValue(mockEventsData)
     wrap(<Home user={null} enrolled={[]} />)
     await waitFor(() => {
-      expect(screen.getByText('홈 화면 이벤트 1')).toBeInTheDocument()
+      expect(screen.getAllByText('홈 화면 이벤트 1').length).toBeGreaterThan(0)
     })
     const card = screen.getByTestId('event-card-external')
     expect(card.tagName).toBe('A')
     expect(card).toHaveAttribute('target', '_blank')
     expect(card).toHaveAttribute('href', 'https://event-us.kr/event/1?ref=nexus.bccard.ai')
+  })
+})
+
+describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    fetchHome.mockResolvedValue(mockHomeData)
+    fetchEvents.mockResolvedValue(mockEventsData)
+    fetchClasses.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
+    fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
+  })
+
+  it('메인 슬로건은 유지하고 허위 통계·허위 카드 문구는 노출하지 않는다', async () => {
+    wrap(<Home user={null} enrolled={[]} />)
+    expect(screen.getByText('AFTER WORK, LEVEL UP')).toBeInTheDocument()
+    expect(screen.getByText(/퇴근 후 30분/)).toBeInTheDocument()
+    // 자체 클래스·실거래 데이터가 없는 현재 단계에서 거짓이 되는 문구들
+    expect(screen.queryByText(/38만 건/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/9,400\+/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/사내 프로젝트로 연결/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/수강생 1,580명/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/지금 23명 보는 중/)).not.toBeInTheDocument()
+    // 히어로 CTA 버튼 없음 — 서비스 칩이 진입점 역할
+    expect(screen.queryByRole('button', { name: '무료로 시작하기' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '오늘의 큐레이션 보기' })).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('여섯 서비스를 소개하는 칩을 각 섹션 링크와 함께 표시한다', () => {
+    wrap(<Home user={null} enrolled={[]} />)
+    expect(screen.getByRole('link', { name: /매일 골라 읽는 AI 글/ })).toHaveAttribute('href', '/curation')
+    expect(screen.getByRole('link', { name: /검증된 명강의 소개/ })).toHaveAttribute('href', '/classes')
+    expect(screen.getByRole('link', { name: /밋업·해커톤 소식/ })).toHaveAttribute('href', '/meet')
+    expect(screen.getByRole('link', { name: /현직자 팁·Q&A/ })).toHaveAttribute('href', '/community')
+    expect(screen.getByRole('link', { name: /오늘의 특가 수집/ })).toHaveAttribute('href', '/hotdeal')
+    expect(screen.getByRole('link', { name: /회사 근처 맛집 검색/ })).toHaveAttribute(
+      'href', 'https://web.paybooc.ai/place/what-to-eat',
+    )
+  })
+
+  it('우측 히어로 카드는 실제 최신 큐레이션 글과 다가오는 밋업을 보여준다', async () => {
+    wrap(<Home user={null} enrolled={[]} />)
+    await waitFor(() => {
+      expect(screen.getByText('오늘의 큐레이션')).toBeInTheDocument()
+    })
+    expect(screen.getByText('다가오는 밋업')).toBeInTheDocument()
+    // 최신 글(art-1)과 첫 이벤트(ev-1)가 히어로 카드 + 하단 섹션 두 곳에 나타난다
+    expect(screen.getAllByText('테스트 뉴스레터 아티클')).toHaveLength(2)
+    expect(screen.getAllByText('홈 화면 이벤트 1')).toHaveLength(2)
+  })
+
+  it('데이터가 없으면 히어로 카드를 렌더링하지 않는다', async () => {
+    fetchHome.mockResolvedValue({ sections: [] })
+    fetchEvents.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 3 } })
+    wrap(<Home user={null} enrolled={[]} />)
+    await waitFor(() => {
+      expect(screen.getByText(/아직 글이 없어요/)).toBeInTheDocument()
+    })
+    expect(screen.queryByText('오늘의 큐레이션')).not.toBeInTheDocument()
+    expect(screen.queryByText('다가오는 밋업')).not.toBeInTheDocument()
   })
 })

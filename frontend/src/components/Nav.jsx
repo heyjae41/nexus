@@ -1,5 +1,5 @@
-import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { clickableProps } from '../utils/a11y'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, Link } from 'react-router-dom'
 import { displayName } from '../utils/user'
 
 const NAV_LINKS = [
@@ -16,15 +16,66 @@ function isActive(pathname, match) {
   return match.some(m => pathname.startsWith(m))
 }
 
-export default function Nav({ user }) {
-  const navigate = useNavigate()
+export default function Nav({ user, onLogin, onLogout }) {
   const { pathname } = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
+  const burgerRef = useRef(null)
+  const menuPanelRef = useRef(null)
+  const closeButtonRef = useRef(null)
 
-  const goProfile = () => navigate(user ? '/profile' : '/onboarding')
-  const goDashboard = () => navigate(user ? '/dashboard' : '/onboarding')
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const trigger = burgerRef.current
+    const handleKeyboard = event => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = [...(menuPanelRef.current?.querySelectorAll('a[href], button:not([disabled])') ?? [])]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyboard)
+    closeButtonRef.current?.focus()
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleKeyboard)
+      document.body.style.overflow = previous
+      trigger?.focus()
+    }
+  }, [menuOpen])
+
+  const logout = async () => {
+    setLoggingOut(true)
+    setLogoutError('')
+    try {
+      await onLogout?.()
+      setMenuOpen(false)
+    } catch {
+      setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setLoggingOut(false)
+    }
+  }
+
 
   return (
-    <header style={{
+    <>
+    <header className="site-header" style={{
       position: 'sticky', top: 0, zIndex: 50,
       background: 'rgba(8,8,11,.82)',
       backdropFilter: 'blur(14px)',
@@ -45,6 +96,7 @@ export default function Nav({ user }) {
             <Link
               key={link.path}
               to={link.path}
+              aria-current={isActive(pathname, link.match) ? 'page' : undefined}
               style={{
                 fontSize: 14.5, fontWeight: 600, letterSpacing: '-.01em',
                 color: isActive(pathname, link.match) ? '#E8123C' : '#a6a6b0',
@@ -67,52 +119,31 @@ export default function Nav({ user }) {
 
         <div style={{ flex: 1 }} />
 
-        {/* Search — hidden on mobile */}
-        <div
-          className="hidemob"
-          onClick={() => navigate('/classes')}
-          {...clickableProps(() => navigate('/classes'))}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            width: 210, padding: '8px 14px',
-            background: '#141419', borderRadius: 10,
-            border: '1px solid rgba(255,255,255,.08)',
-            cursor: 'pointer', marginRight: 16,
-          }}
-        >
-          <span style={{ fontSize: 14, color: '#6a6a74' }}>⌕</span>
-          <span style={{ fontSize: 13.5, color: '#6a6a74' }}>무엇을 배워볼까요?</span>
-        </div>
-
-        {/* Login / CTA */}
-        <div className="topnav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span
-            onClick={goProfile}
-            style={{
-              fontSize: 14, fontWeight: 500, cursor: 'pointer',
-              color: user ? '#fff' : '#d2d2da',
-              transition: 'color .15s',
-            }}
-          >
-            {displayName(user) || '로그인'}
-          </span>
-          <button
-            onClick={goDashboard}
-            className="btn"
-            style={{
-              background: '#fff', color: '#E8123C',
-              fontSize: 14, fontWeight: 700,
+        {/* Login — 중복 CTA 없이 로그인 또는 닉네임 하나만 표시 */}
+        <div className="topnav-cta">
+          {user ? (
+            <Link to="/profile" style={{ color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+              {displayName(user)}
+            </Link>
+          ) : (
+            <button className="btn" onClick={onLogin} style={{
+              background: '#fff', color: '#E8123C', fontSize: 14, fontWeight: 700,
               padding: '8px 18px', borderRadius: 24,
-            }}
-          >
-            {user ? '내 학습' : '시작하기'}
-          </button>
+            }}>
+              로그인
+            </button>
+          )}
         </div>
 
         {/* Burger — mobile only */}
         <button
+          ref={burgerRef}
           className="burger btn"
-          onClick={() => navigate('/classes')}
+          type="button"
+          aria-label={menuOpen ? '전체 메뉴 닫기' : '전체 메뉴 열기'}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu-dialog"
+          onClick={() => { setLogoutError(''); setMenuOpen(open => !open) }}
           style={{
             width: 40, height: 40, display: 'none',
             alignItems: 'center', justifyContent: 'center',
@@ -125,5 +156,41 @@ export default function Nav({ user }) {
         </button>
       </div>
     </header>
+    {menuOpen && (
+      <div id="mobile-menu-dialog" className="mobile-menu-layer" role="dialog" aria-modal="true" aria-label="모바일 메뉴">
+        <button type="button" tabIndex={-1} className="mobile-menu-backdrop" aria-label="모바일 메뉴 닫기" onClick={() => setMenuOpen(false)} />
+        <aside ref={menuPanelRef} className="mobile-menu-panel">
+          <div className="mobile-menu-head">
+            <strong>전체 메뉴</strong>
+            <button ref={closeButtonRef} type="button" className="btn mobile-menu-close" aria-label="모바일 메뉴 닫기" onClick={() => setMenuOpen(false)}>×</button>
+          </div>
+          <nav aria-label="모바일 전체 메뉴" className="mobile-menu-links">
+            {NAV_LINKS.map(link => (
+              <Link key={link.path} to={link.path} onClick={() => setMenuOpen(false)} aria-current={isActive(pathname, link.match) ? 'page' : undefined} className={isActive(pathname, link.match) ? 'active' : ''}>
+                <span>{link.label}</span><span aria-hidden="true">›</span>
+              </Link>
+            ))}
+            <a href="https://web.paybooc.ai/place/what-to-eat" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+              <span>eat.pl</span><span aria-hidden="true">↗</span>
+            </a>
+          </nav>
+          <div className="mobile-menu-account">
+            {user ? (
+              <>
+                <Link to="/profile" onClick={() => setMenuOpen(false)} aria-label={`${displayName(user)} 내 정보`} className="mobile-profile-link">
+                  <span className="mobile-profile-avatar">{displayName(user).slice(0, 1)}</span>
+                  <span><small>로그인 중</small><strong>{displayName(user)}</strong></span>
+                </Link>
+                <button type="button" className="btn mobile-logout" disabled={loggingOut} onClick={logout}>{loggingOut ? '로그아웃 중...' : '로그아웃'}</button>
+                {logoutError && <p role="alert" className="mobile-logout-error">{logoutError}</p>}
+              </>
+            ) : (
+              <button type="button" className="btn mobile-login" onClick={() => { setMenuOpen(false); onLogin?.() }}>로그인하기</button>
+            )}
+          </div>
+        </aside>
+      </div>
+    )}
+    </>
   )
 }

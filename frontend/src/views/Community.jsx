@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PostCard from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
@@ -6,6 +6,13 @@ import { fetchPosts } from '../api/client'
 import { timeAgo } from '../utils/timeAgo'
 
 const PAGE_SIZE = 20
+const BADGE_FILTERS = [
+  { value: null, label: '전체' },
+  { value: '자료', label: '자료' },
+  { value: '노하우', label: '노하우' },
+  { value: '팁', label: '팁' },
+  { value: '기술자료', label: '기술자료' },
+]
 
 function toCardShape(post, index) {
   return {
@@ -25,20 +32,25 @@ export default function Community({ user }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [tag, setTag] = useState(null)
+  const latestRequest = useRef(0)
 
-  useEffect(() => {
+  const load = useCallback(async (selectedTag = tag) => {
+    const requestId = ++latestRequest.current
     setLoading(true)
     setError(null)
-    fetchPosts({ page: 1, size: PAGE_SIZE })
-      .then(json => {
-        setPosts(json.data ?? [])
-        setLoading(false)
-      })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
-  }, [])
+    try {
+      const json = await fetchPosts({ tag: selectedTag, page: 1, size: PAGE_SIZE })
+      if (requestId !== latestRequest.current) return
+      setPosts(json.data ?? [])
+    } catch (err) {
+      if (requestId === latestRequest.current) setError(err.message)
+    } finally {
+      if (requestId === latestRequest.current) setLoading(false)
+    }
+  }, [tag])
+
+  useEffect(() => { load() }, [load])
 
   const handleWrite = () => {
     if (user) {
@@ -77,9 +89,36 @@ export default function Community({ user }) {
           ✎ 글쓰기
         </button>
       </div>
-      <p style={{ fontSize: 15, color: '#9a9aa4', margin: '0 0 28px' }}>
+      <p style={{ fontSize: 15, color: '#9a9aa4', margin: '0 0 18px' }}>
         팁·기술자료·삽질 후기까지. 현직자들이 직접 등록하고 댓글로 나눕니다.
       </p>
+
+      <div
+        aria-label="커뮤니티 배지 필터"
+        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 28 }}
+      >
+        {BADGE_FILTERS.map(({ value, label }) => {
+          const active = tag === value
+          return (
+            <button
+              key={label}
+              type="button"
+              className="btn chip"
+              aria-pressed={active}
+              onClick={() => setTag(value)}
+              style={{
+                padding: '8px 16px', borderRadius: 20,
+                border: active ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
+                background: active ? '#E8123C' : '#15151A',
+                color: active ? '#fff' : '#b4b4be',
+                fontSize: 13, fontWeight: 700,
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
 
       {/* Post list */}
       {loading ? (

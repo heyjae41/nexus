@@ -1,83 +1,108 @@
-"""회원(경량 닉네임 기반) 등록/식별 테스트.
+"""회원(닉네임 + 비밀번호) 등록/로그인 테스트.
 
-정책: 비밀번호 없는 프로토타입 회원 — 닉네임이 식별자다.
-- 신규 닉네임 → 회원 생성
-- 기존 닉네임 → 기존 회원 반환 (재온보딩 = 로그인)
+정책: 닉네임이 식별자, 비밀번호는 영문·숫자를 각 1자 이상 포함한 8자 이상.
+(특수문자·대소문자 조합은 선택 — 개인정보를 다루지 않는 서비스라 최소 조건만 강제)
+- 신규 닉네임 → 회원 생성 (비밀번호 정책 검증 + 해시 저장)
+- 기존 닉네임 → 비밀번호 검증 후 로그인 (불일치 시 AuthError)
 """
-from app.repositories.members import get_member, register_member
+import pytest
+
+from app.repositories.members import AuthError, get_member, register_member
+
+PW = "Nexus1!pw"  # 정책을 만족하는 테스트 비밀번호
+
+
+def reg(db, nickname, **kw):
+    return register_member(db, nickname=nickname, password=PW, **kw)
 
 
 def test_register_creates_member(db):
-    member = register_member(db, nickname="김크레딧", role="직장인", interests="LLM,커리어")
+    member = reg(db, "김크레딧", role="직장인", interests="LLM,커리어")
     assert member.id is not None
     assert member.nickname == "김크레딧"
     assert get_member(db, member.id).nickname == "김크레딧"
 
 
-def test_register_existing_nickname_returns_same_member(db):
-    first = register_member(db, nickname="김크레딧", role="직장인")
-    second = register_member(db, nickname="김크레딧", role="개발자")
+def test_password_is_hashed_never_plaintext(db):
+    member = reg(db, "김크레딧")
+    assert member.password_hash != PW
+    assert member.password_hash.startswith("pbkdf2_sha256$")
+
+
+def test_password_policy_rejects_weak_with_reason(db):
+    """조건 불만족 시 부족한 항목이 에러메시지에 담긴다."""
+    cases = [
+        ("Ab1!", "8자"),
+        ("12345678!", "영문"),
+        ("abcdefgh!", "숫자"),
+        ("", "8자"),
+    ]
+    for bad, keyword in cases:
+        with pytest.raises(ValueError, match=keyword):
+            register_member(db, nickname=f"검증{keyword}", password=bad)
+
+
+def test_password_policy_accepts_letters_and_digits_only(db):
+    """영문+숫자 최소 조건만 채워도 가입되고, 특수문자·대문자는 선택이다."""
+    minimal = register_member(db, nickname="최소조건", password="abcdef12")
+    assert minimal.password_hash.startswith("pbkdf2_sha256$")
+    assert register_member(db, nickname="강화조건", password="Abcdef1!")
+
+
+def test_relogin_with_correct_password_returns_same_member(db):
+    first = reg(db, "김크레딧", role="직장인")
+    second = reg(db, "김크레딧", role="개발자")
     assert second.id == first.id
-    # 재온보딩 시 프로필(역할/관심사)은 최신 값으로 갱신된다
+    # 재로그인 시 프로필(역할/관심사)은 최신 값으로 갱신된다
     assert second.role == "개발자"
 
 
-def test_register_rejects_blank_or_long_nickname(db):
-    import pytest
+def test_relogin_with_wrong_password_raises(db):
+    reg(db, "김크레딧")
+    with pytest.raises(AuthError):
+        register_member(db, nickname="김크레딧", password="Wrong1!pw")
 
+
+def test_login_does_not_revalidate_password_policy(db):
+    """로그인(기존 닉네임)은 정책 검증이 아니라 일치 여부만 본다 —
+    정책 강화 이전 가입자도 로그인 가능해야 한다."""
+    reg(db, "김크레딧")
+    with pytest.raises(AuthError):  # 정책 위반 문자열이라도 ValueError 가 아닌 인증 실패
+        register_member(db, nickname="김크레딧", password="weak")
+
+
+def test_register_rejects_blank_or_long_nickname(db):
     with pytest.raises(ValueError):
-        register_member(db, nickname="   ")
+        reg(db, "   ")
     with pytest.raises(ValueError):
-        register_member(db, nickname="가" * 51)
+        reg(db, "가" * 51)
 
 
 def test_register_trims_nickname(db):
-    member = register_member(db, nickname="  김크레딧  ")
+    member = reg(db, "  김크레딧  ")
     assert member.nickname == "김크레딧"
-
-
-def test_register_with_email(db):
-    member = register_member(db, nickname="김크레딧", email="heyjae@bccard.com")
-    assert member.email == "heyjae@bccard.com"
 
 
 def test_update_member_profile_fields(db):
     from app.repositories.members import update_member
 
-    m = register_member(db, nickname="김크레딧", role="직장인")
+    m = reg(db, "김크레딧", role="직장인")
     updated = update_member(db, m.id, nickname="새닉네임", role="개발자", interests="LLM")
     assert updated.nickname == "새닉네임"
     assert updated.role == "개발자"
     assert updated.interests == "LLM"
 
 
-def test_update_member_email_set_once_only(db):
-    """이메일은 수정 불가 — 비어 있을 때 최초 1회만 등록할 수 있다."""
-    import pytest
-
-    from app.repositories.members import update_member
-
-    m = register_member(db, nickname="김크레딧")
-    updated = update_member(db, m.id, email="heyjae@bccard.com")  # 최초 등록 허용
-    assert updated.email == "heyjae@bccard.com"
-    with pytest.raises(ValueError):
-        update_member(db, m.id, email="other@bccard.com")  # 변경은 거부
-
-
 def test_update_member_rejects_taken_nickname(db):
-    import pytest
-
     from app.repositories.members import update_member
 
-    register_member(db, nickname="선점된닉네임")
-    m = register_member(db, nickname="김크레딧")
+    reg(db, "선점된닉네임")
+    m = reg(db, "김크레딧")
     with pytest.raises(ValueError):
         update_member(db, m.id, nickname="선점된닉네임")
 
 
 def test_update_member_unknown_id(db):
-    import pytest
-
     from app.repositories.members import update_member
 
     with pytest.raises(LookupError):
@@ -89,8 +114,8 @@ def test_delete_member_keeps_posts_but_detaches_and_reclaims_likes(db):
     from app.repositories.community import create_post, toggle_post_like
     from app.repositories.members import delete_member, get_member
 
-    author = register_member(db, nickname="작성자")
-    liker = register_member(db, nickname="탈회할사람")
+    author = reg(db, "작성자")
+    liker = reg(db, "탈회할사람")
     post = create_post(db, member_id=author.id, tag="팁", title="t", body="b")
     toggle_post_like(db, post_id=post.id, member_id=liker.id)
     assert post.likes_count == 1
@@ -102,49 +127,14 @@ def test_delete_member_keeps_posts_but_detaches_and_reclaims_likes(db):
     assert post.likes_count == 0  # 탈회자의 좋아요 회수
 
 
-def test_email_unique_conflict_raises_value_error(db):
-    """같은 이메일 중복 등록은 500 이 아니라 명확한 ValueError 여야 한다."""
-    import pytest
-
-    register_member(db, nickname="첫회원", email="dup@bccard.com")
-    with pytest.raises(ValueError):
-        register_member(db, nickname="둘째회원", email="dup@bccard.com")
-
-
-def test_register_existing_member_with_different_email_raises(db):
-    """재온보딩 시 다른 이메일 전달은 조용히 무시하지 않고 거부한다 (set-once 일관성)."""
-    import pytest
-
-    register_member(db, nickname="김크레딧", email="first@bccard.com")
-    with pytest.raises(ValueError):
-        register_member(db, nickname="김크레딧", email="second@bccard.com")
-
-
-def test_update_email_same_value_with_whitespace_ok(db):
-    """공백만 다른 동일 이메일은 수정 거부 대상이 아니다."""
-    from app.repositories.members import update_member
-
-    m = register_member(db, nickname="김크레딧", email="a@bccard.com")
-    updated = update_member(db, m.id, email="  a@bccard.com  ")
-    assert updated.email == "a@bccard.com"
-
-
-def test_email_format_validation(db):
-    import pytest
-
-    for bad in ["@", "a@", "@b.com", "a@b", "no-at-sign"]:
-        with pytest.raises(ValueError):
-            register_member(db, nickname=f"이메일검증{bad[:2]}", email=bad)
-
-
 def test_delete_member_like_reclaim_never_negative(db):
     """좋아요 회수는 어떤 경우에도 카운트를 음수로 만들지 않는다."""
     from app.models import CommunityPost
     from app.repositories.community import create_post, toggle_post_like
     from app.repositories.members import delete_member
 
-    author = register_member(db, nickname="글쓴이")
-    liker = register_member(db, nickname="좋아요회원")
+    author = reg(db, "글쓴이")
+    liker = reg(db, "좋아요회원")
     post = create_post(db, member_id=author.id, tag="팁", title="t", body="b")
     toggle_post_like(db, post_id=post.id, member_id=liker.id)
     # 레이스 재현: 카운트가 이미 앞질러 감소한 비정상 상태
@@ -160,10 +150,25 @@ def test_delete_member_detaches_own_posts(db):
     from app.repositories.community import create_post, get_post_with_comments
     from app.repositories.members import delete_member
 
-    m = register_member(db, nickname="탈회작성자")
+    m = reg(db, "탈회작성자")
     post = create_post(db, member_id=m.id, tag="팁", title="남는 글", body="b")
     delete_member(db, m.id)
     found, _ = get_post_with_comments(db, post.id)
     assert found is not None            # 글은 남는다
     assert found.author_name == "탈회작성자"
     assert found.member_id is None      # 연결만 해제
+
+
+def test_update_member_nickname_race_reports_nickname_conflict(db, monkeypatch):
+    """닉네임 사전 체크 통과 후 커밋에서 UNIQUE 충돌(레이스)이 나도
+    명확한 '닉네임 중복' 오류로 안내한다."""
+    from app.repositories import members as members_mod
+    from app.repositories.members import update_member
+
+    a = reg(db, "가나다")
+    reg(db, "라마바")
+
+    # 레이스 재현: 사전 중복 체크가 통과된 것처럼 만들어 커밋 충돌 경로로 유도
+    monkeypatch.setattr(members_mod, "_nickname_taken", lambda *args, **kw: False)
+    with pytest.raises(ValueError, match="닉네임"):
+        update_member(db, a.id, nickname="라마바")

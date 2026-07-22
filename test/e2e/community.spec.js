@@ -11,30 +11,42 @@ test('비로그인: 글쓰기 버튼은 온보딩으로 유도한다 (알럿 없
 test('로그인 회원: 글쓰기 → 상세 이동 → 목록 즉시 반영', async ({ page, request }) => {
   // 회원 등록 후 로그인 상태 구성 (온보딩 완료와 동일한 저장 형태)
   const res = await request.post('http://localhost:8000/api/members', {
-    data: { nickname: 'E2E테스터', role: '개발자' },
+    data: { nickname: 'E2E테스터', password: 'E2e!pass99', role: '개발자' },
   })
   const member = (await res.json()).data
-  await page.goto('/')
-  await page.evaluate(
-    (u) => localStorage.setItem('nexus.user', JSON.stringify(u)),
-    { id: member.id, nickname: member.nickname, role: member.role },
-  )
+  let postId = null
+  try {
+    await page.goto('/')
+    await page.evaluate(
+      (u) => localStorage.setItem('nexus.user', JSON.stringify(u)),
+      { id: member.id, nickname: member.nickname, role: member.role },
+    )
 
-  const title = `E2E 글쓰기 검증 ${Date.now()}`
-  await page.goto('/community')
-  await page.getByRole('button', { name: /글쓰기/ }).click()
-  await expect(page).toHaveURL(/\/community\/write/)
+    const title = `E2E 글쓰기 검증 ${Date.now()}`
+    await page.goto('/community')
+    await page.getByRole('button', { name: /글쓰기/ }).click()
+    await expect(page).toHaveURL(/\/community\/write/)
 
-  await page.getByRole('button', { name: '질문' }).click()
-  await page.getByPlaceholder(/제목/).fill(title)
-  await page.locator('textarea').fill('플레이라이트로 작성한 본문입니다.')
-  await page.getByRole('button', { name: /등록/ }).click()
+    await page.getByRole('button', { name: '자료' }).click()
+    await page.getByPlaceholder(/제목/).fill(title)
+    await page.locator('textarea').fill('플레이라이트로 작성한 본문입니다.')
+    await page.getByRole('button', { name: /등록/ }).click()
 
-  // 상세 페이지로 이동되고 본문이 보인다
-  await expect(page).toHaveURL(/\/community\/\d+/)
-  await expect(page.getByText(title)).toBeVisible()
+    // 상세 페이지로 이동되고 본문이 보인다
+    await expect(page).toHaveURL(/\/community\/\d+/)
+    postId = page.url().match(/\/community\/(\d+)/)?.[1] ?? null
+    await expect(page.getByText(title)).toBeVisible()
 
-  // 목록에 즉시 반영된다 (캐시 무효화 검증)
-  await page.goto('/community')
-  await expect(page.getByText(title)).toBeVisible()
+    // 목록에 즉시 반영된다 (캐시 무효화 검증)
+    await page.goto('/community')
+    await expect(page.getByText(title)).toBeVisible()
+  } finally {
+    // 정리: 생성한 글/회원을 제거해 dev DB 에 테스트 데이터가 누적되지 않게 한다
+    if (postId) {
+      await request.delete(`http://localhost:8000/api/community/posts/${postId}`, {
+        data: { memberId: member.id, password: 'E2e!pass99' },
+      })
+    }
+    await request.delete(`http://localhost:8000/api/members/${member.id}`)
+  }
 })

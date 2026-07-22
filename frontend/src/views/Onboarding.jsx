@@ -1,204 +1,214 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { checkNickname } from '../api/client'
+import { INTEREST_OPTIONS, ROLE_OPTIONS } from '../data/authOptions'
+import { passwordMissing } from '../utils/password'
 
-const INTERESTS = ['데이터 분석', 'LLM·생성형 AI', '금융 도메인', '생산성', '커리어', 'MLOps']
+const inputStyle = {
+  width: '100%', boxSizing: 'border-box', background: '#15151A',
+  border: '1px solid rgba(255,255,255,.12)', borderRadius: 10,
+  padding: '12px 14px', fontSize: 15, color: '#ECECEF', fontFamily: 'inherit',
+}
 
 function ProgressBar({ step }) {
-  const filled = { background: '#E8123C', borderRadius: 2 }
-  const empty = { background: '#26262e', borderRadius: 2 }
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
-      {[1, 2, 3].map(s => (
-        <div key={s} style={{ flex: 1, height: 4, ...(step >= s ? filled : empty) }} />
+    <div aria-label={`회원가입 ${Math.min(step, 3)}단계`} style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
+      {[1, 2, 3].map(value => (
+        <div key={value} style={{ flex: 1, height: 4, borderRadius: 2, background: step >= value ? '#E8123C' : '#26262e' }} />
       ))}
     </div>
   )
 }
 
+function InlineError({ error }) {
+  if (!error) return null
+  return <p role="alert" style={{ color: '#F4788F', fontSize: 13.5, margin: '0 0 16px' }}>{error}</p>
+}
+
+function ChoiceButton({ active, children, ...props }) {
+  return (
+    <button
+      type="button"
+      className="btn chip"
+      aria-pressed={active}
+      style={{
+        padding: '9px 16px', borderRadius: 20, fontSize: 14, fontWeight: 650,
+        background: active ? '#E8123C' : '#15151A', color: active ? '#fff' : '#b4b4be',
+        border: active ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.12)',
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function Onboarding({ onFinish }) {
   const navigate = useNavigate()
-  const nameRef = useRef()
   const [step, setStep] = useState(1)
-  const [role, setRole] = useState('직장인')
+  const [nickname, setNickname] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState('')
   const [interests, setInterests] = useState([])
-  const [email, setEmail] = useState('')
+  const [nicknameVerified, setNicknameVerified] = useState(false)
+  const [checkingNickname, setCheckingNickname] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const obNext = () => setStep(s => Math.min(3, s + 1))
-  const obPrev = () => setStep(s => Math.max(1, s - 1))
-
-  const toggleInterest = (item) => {
-    setInterests(prev =>
-      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
-    )
-  }
-
-  const finish = () => {
-    const name = nameRef.current?.value?.trim() || '김크레딧'
-    onFinish({ name, email: email.trim() || undefined, role, interests })
-    setStep(1)
-    navigate('/dashboard')
-  }
-
-  const cardStyle = (active) => ({
-    border: `1px solid ${active ? '#E8123C' : 'rgba(255,255,255,.12)'}`,
-    borderRadius: 14, padding: '16px 20px',
-    cursor: 'pointer', background: active ? 'rgba(232,18,60,.06)' : '#15151A',
-    transition: 'all .15s',
+  const cardStyle = active => ({
+    flex: 1, textAlign: 'left', border: `1px solid ${active ? '#E8123C' : 'rgba(255,255,255,.12)'}`,
+    borderRadius: 14, padding: '16px 20px', cursor: 'pointer', color: '#ECECEF',
+    background: active ? 'rgba(232,18,60,.08)' : '#15151A', fontWeight: 700,
   })
 
+  const verifyNickname = async () => {
+    const name = nickname.trim()
+    if (!name) {
+      setError('닉네임을 입력해 주세요')
+      return
+    }
+    setCheckingNickname(true)
+    setError('')
+    try {
+      const result = await checkNickname(name)
+      if (!result.available) {
+        setNicknameVerified(false)
+        setError('이미 사용 중인 닉네임입니다')
+        return
+      }
+      setNicknameVerified(true)
+    } catch (err) {
+      setNicknameVerified(false)
+      setError(err?.message || '닉네임 중복 확인에 실패했습니다')
+    } finally {
+      setCheckingNickname(false)
+    }
+  }
+
+  const nextFromCredentials = () => {
+    if (!nickname.trim()) return setError('닉네임을 입력해 주세요')
+    const missing = passwordMissing(password)
+    if (missing.length) {
+      return setError(`비밀번호는 영문과 숫자를 포함한 8자 이상이어야 합니다 (부족: ${missing.join(', ')})`)
+    }
+    if (!nicknameVerified) return setError('닉네임 중복 확인을 완료해 주세요')
+    if (!role) return setError('역할을 선택해 주세요')
+    setError('')
+    setStep(2)
+  }
+
+  const nextFromInterests = () => {
+    if (interests.length === 0) {
+      setError('관심사를 한 개 이상 선택해 주세요')
+      return
+    }
+    setError('')
+    setStep(3)
+  }
+
+  const toggleInterest = item => {
+    setInterests(current => current.includes(item) ? current.filter(value => value !== item) : [...current, item])
+    setError('')
+  }
+
+  const finish = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setError('')
+    try {
+      await onFinish({ name: nickname.trim(), password, role, interests })
+      setStep(4)
+    } catch (err) {
+      setError(err?.message || '회원가입에 실패했습니다. 다시 시도해 주세요.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <main style={{ padding: '48px 40px 64px', maxWidth: 520, margin: '0 auto' }}>
-      {/* Logo */}
+    <main style={{ padding: '48px 40px 64px', maxWidth: 560, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 32, justifyContent: 'center' }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#E8123C' }} />
-        <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-.03em' }}>NEXUS</span>
+        <span style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>NEXUS</span>
       </div>
-
       <ProgressBar step={step} />
 
-      {/* Step 1 */}
       {step === 1 && (
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', margin: '0 0 8px' }}>
-            반가워요 👋
-          </h1>
-          <p style={{ fontSize: 15, color: '#9a9aa4', margin: '0 0 28px' }}>3분이면 충분해요. 나에게 맞는 학습을 추천해드릴게요.</p>
+        <section>
+          <h1 style={{ color: '#fff', fontSize: 27, margin: '0 0 8px' }}>회원가입</h1>
+          <p style={{ color: '#9a9aa4', margin: '0 0 26px' }}>나에게 맞는 콘텐츠를 추천받을 정보를 등록해 주세요.</p>
 
-          <label style={{ display: 'block', fontSize: 14, color: '#9a9aa4', marginBottom: 8 }}>이름</label>
-          <input
-            ref={nameRef}
-            placeholder="예) 김크레딧"
-            style={{
-              width: '100%', background: '#15151A',
-              border: '1px solid rgba(255,255,255,.12)', borderRadius: 10,
-              padding: '12px 14px', fontSize: 15, color: '#ECECEF',
-              fontFamily: 'inherit', outline: 'none', marginBottom: 16,
-              boxSizing: 'border-box',
-            }}
-          />
+          <label htmlFor="signup-nickname" style={{ display: 'block', color: '#9a9aa4', marginBottom: 8 }}>닉네임</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input
+              id="signup-nickname" value={nickname} placeholder="예) 김크레딧" autoComplete="username"
+              onChange={event => { setNickname(event.target.value); setNicknameVerified(false); setError('') }}
+              style={inputStyle}
+            />
+            <button type="button" className="btn" onClick={verifyNickname} disabled={checkingNickname} style={{ flexShrink: 0, padding: '0 16px', borderRadius: 10, background: '#26262e', color: '#fff' }}>
+              {checkingNickname ? '확인 중...' : '중복 확인'}
+            </button>
+          </div>
+          {nicknameVerified && <p style={{ color: '#48B982', fontSize: 13, margin: '0 0 15px' }}>사용 가능한 닉네임입니다</p>}
 
-          <label style={{ display: 'block', fontSize: 14, color: '#9a9aa4', marginBottom: 8 }}>이메일 (선택)</label>
-          <input
-            type="email"
-            placeholder="이메일 (선택)"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{
-              width: '100%', background: '#15151A',
-              border: '1px solid rgba(255,255,255,.12)', borderRadius: 10,
-              padding: '12px 14px', fontSize: 15, color: '#ECECEF',
-              fontFamily: 'inherit', outline: 'none', marginBottom: 24,
-              boxSizing: 'border-box',
-            }}
-          />
+          <label htmlFor="signup-password" style={{ display: 'block', color: '#9a9aa4', margin: '15px 0 8px' }}>비밀번호</label>
+          <input id="signup-password" aria-label="비밀번호" type="password" value={password} autoComplete="new-password" placeholder="영문·숫자 포함 8자 이상" onChange={event => { setPassword(event.target.value); setError('') }} style={{ ...inputStyle, marginBottom: 22 }} />
 
-          <p style={{ fontSize: 14, color: '#9a9aa4', marginBottom: 12 }}>저는...</p>
-          <div
-            role="radiogroup"
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}
-          >
-            {[['직장인', '💼'], ['개발자', '⌨️']].map(([r, icon]) => (
-              <div
-                key={r}
-                role="radio"
-                aria-checked={role === r}
-                tabIndex={0}
-                onClick={() => setRole(r)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRole(r) } }}
-                style={cardStyle(role === r)}
-              >
-                <p style={{ fontSize: 22, margin: '0 0 6px' }}>{icon}</p>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#ECECEF', margin: 0 }}>{r}</p>
-              </div>
+          <p style={{ color: '#9a9aa4', fontSize: 14, marginBottom: 10 }}>역할</p>
+          <div role="radiogroup" aria-label="역할" style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+            {ROLE_OPTIONS.map(item => (
+              <button key={item} type="button" role="radio" aria-label={item} aria-checked={role === item} onClick={() => { setRole(item); setError('') }} style={cardStyle(role === item)}>
+                {item === '기획자' ? '🧭 ' : '⌨️ '}{item}
+              </button>
             ))}
           </div>
-
-          <button className="btn" onClick={obNext} style={{
-            width: '100%', background: '#E8123C', color: '#fff',
-            fontSize: 15, fontWeight: 700, padding: '13px 0', borderRadius: 12,
-          }}>
-            다음
-          </button>
-        </div>
+          <InlineError error={error} />
+          <button className="btn" onClick={nextFromCredentials} style={{ width: '100%', padding: 13, borderRadius: 12, background: '#E8123C', color: '#fff', fontWeight: 700 }}>다음</button>
+        </section>
       )}
 
-      {/* Step 2 */}
       {step === 2 && (
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', margin: '0 0 8px' }}>
-            관심 분야를 골라주세요
-          </h1>
-          <p style={{ fontSize: 15, color: '#9a9aa4', margin: '0 0 24px' }}>복수 선택 가능합니다.</p>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
-            {INTERESTS.map(item => {
-              const active = interests.includes(item)
-              return (
-                <button
-                  key={item}
-                  className="btn chip"
-                  onClick={() => toggleInterest(item)}
-                  aria-pressed={active}
-                  style={{
-                    padding: '8px 16px', borderRadius: 20, fontSize: 14, fontWeight: 600,
-                    background: active ? '#E8123C' : '#15151A',
-                    color: active ? '#fff' : '#b4b4be',
-                    border: active ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.12)',
-                  }}
-                >
-                  {item}
-                </button>
-              )
-            })}
+        <section>
+          <h1 style={{ color: '#fff', fontSize: 27, margin: '0 0 8px' }}>관심사를 선택해 주세요</h1>
+          <p style={{ color: '#9a9aa4', margin: '0 0 24px' }}>한 건 이상 선택해야 하며 여러 건 선택할 수 있습니다.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginBottom: 26 }}>
+            {INTEREST_OPTIONS.map(item => <ChoiceButton key={item} active={interests.includes(item)} onClick={() => toggleInterest(item)}>{item}</ChoiceButton>)}
           </div>
-
+          <InlineError error={error} />
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn ghost" onClick={obPrev} style={{
-              flex: 1, background: 'transparent', color: '#dcdce2',
-              fontSize: 14, fontWeight: 600, padding: '12px 0', borderRadius: 12,
-              border: '1px solid rgba(255,255,255,.14)',
-            }}>이전</button>
-            <button className="btn" onClick={obNext} style={{
-              flex: 2, background: '#E8123C', color: '#fff',
-              fontSize: 15, fontWeight: 700, padding: '13px 0', borderRadius: 12,
-            }}>다음</button>
+            <button className="btn" onClick={() => { setError(''); setStep(1) }} style={{ flex: 1, borderRadius: 12, background: '#15151A', color: '#fff' }}>이전</button>
+            <button className="btn" onClick={nextFromInterests} style={{ flex: 2, padding: 13, borderRadius: 12, background: '#E8123C', color: '#fff', fontWeight: 700 }}>다음</button>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Step 3 */}
       {step === 3 && (
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', margin: '0 0 24px' }}>
-            준비 완료! 🎉
-          </h1>
-
-          <div style={{
-            background: '#15151A', border: '1px solid rgba(255,255,255,.10)',
-            borderRadius: 16, padding: '22px', marginBottom: 24,
-          }}>
-            <p style={{ fontSize: 14, color: '#55555f', textDecoration: 'line-through', margin: '0 0 4px' }}>29,000원</p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 16px' }}>19,900원 / 월</p>
-            {['120+ 클래스 무제한','현직자 커뮤니티 & 밋플 우선 신청','비씨카드 결제 시 첫 달 50% 할인'].map(b => (
-              <p key={b} style={{ fontSize: 14, color: '#9a9aa4', margin: '0 0 8px', display: 'flex', gap: 8 }}>
-                <span style={{ color: '#1F8A5B', fontWeight: 700 }}>✓</span>{b}
-              </p>
-            ))}
+        <section>
+          <h1 style={{ color: '#fff', fontSize: 27, margin: '0 0 8px' }}>가입 정보를 확인해 주세요</h1>
+          <p style={{ color: '#9a9aa4', margin: '0 0 24px' }}>선택한 역할과 관심사는 내 정보에서 언제든 수정할 수 있습니다.</p>
+          <div style={{ padding: 22, borderRadius: 16, background: '#15151A', border: '1px solid rgba(255,255,255,.1)', marginBottom: 22 }}>
+            <p style={{ color: '#7a7a84', fontSize: 13, margin: '0 0 8px' }}>역할</p>
+            <span style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 18, background: '#E8123C', color: '#fff', fontWeight: 700, marginBottom: 20 }}>{role}</span>
+            <p style={{ color: '#7a7a84', fontSize: 13, margin: '0 0 8px' }}>관심사</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {interests.map(item => <span key={item} style={{ padding: '7px 13px', borderRadius: 18, background: 'rgba(232,18,60,.12)', border: '1px solid #E8123C', color: '#fff' }}>{item}</span>)}
+            </div>
           </div>
+          <InlineError error={error} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn" onClick={() => setStep(2)} style={{ flex: 1, borderRadius: 12, background: '#15151A', color: '#fff' }}>이전</button>
+            <button className="btn" onClick={finish} disabled={submitting} style={{ flex: 2, padding: 13, borderRadius: 12, background: '#E8123C', color: '#fff', fontWeight: 700 }}>{submitting ? '가입 중...' : '회원가입'}</button>
+          </div>
+        </section>
+      )}
 
-          <button className="btn" onClick={finish} style={{
-            width: '100%', background: '#E8123C', color: '#fff',
-            fontSize: 15, fontWeight: 700, padding: '13px 0', borderRadius: 12, marginBottom: 12,
-          }}>
-            무료로 시작하기
-          </button>
-          <button onClick={finish} style={{
-            width: '100%', background: 'none', border: 'none',
-            fontSize: 14, color: '#7a7a84', cursor: 'pointer', padding: '10px 0',
-          }}>
-            나중에 할게요
-          </button>
-        </div>
+      {step === 4 && (
+        <section style={{ textAlign: 'center', padding: '24px 0' }}>
+          <div style={{ fontSize: 50, marginBottom: 18 }}>🎉</div>
+          <h1 style={{ color: '#fff', fontSize: 28, margin: '0 0 10px' }}>회원가입을 축하합니다!</h1>
+          <p style={{ color: '#9a9aa4', margin: '0 0 28px' }}>{nickname}님, NEXUS에서 새로운 인사이트를 만나보세요.</p>
+          <button className="btn" onClick={() => navigate('/')} style={{ width: '100%', padding: 13, borderRadius: 12, background: '#E8123C', color: '#fff', fontWeight: 700 }}>홈으로 가기</button>
+        </section>
       )}
     </main>
   )

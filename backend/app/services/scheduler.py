@@ -81,6 +81,18 @@ def run_luma_job(cache: VersionedCache, category_api_id: str, label: str) -> Non
             logger.exception("luma(%s) 수집 작업 실패", category_api_id)
 
 
+def run_fastcampus_job(cache: VersionedCache) -> None:
+    from app.services.fastcampus_collector import collect_fastcampus_courses
+    from app.services.fastcampus_fetcher import fetch_fastcampus_candidates
+
+    with _session() as db:
+        try:
+            candidates = fetch_fastcampus_candidates()
+            collect_fastcampus_courses(db, cache, candidates=candidates)
+        except Exception:
+            logger.exception("패스트캠퍼스 클래스 수집 작업 실패")
+
+
 def run_collect_chain_job(cache: VersionedCache) -> None:
     """12시간 주기 수집 체인 — 브런치부터 순차 실행, 한 단계 실패해도 다음 단계 진행."""
     settings = get_settings()
@@ -92,6 +104,7 @@ def run_collect_chain_job(cache: VersionedCache) -> None:
         (f"luma:{label}", lambda cid=cid, label=label: run_luma_job(cache, cid, label))
         for cid, label in settings.luma_category_pairs
     ]
+    steps.append(("fastcampus", lambda: run_fastcampus_job(cache)))
     for name, step in steps:
         try:
             step()
