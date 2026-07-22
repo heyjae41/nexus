@@ -1,7 +1,7 @@
-"""브런치(brunch.co.kr) AI 컨텐츠 수집기.
+"""브런치(brunch.co.kr) AI 콘텐츠 수집기.
 
-12시간 주기로 실행되어 기간 내 AI 관련 글 중
-'댓글수 + 좋아요수' 가 가장 큰 글 1건을 선정해 목록에 노출한다.
+12시간 주기로 키워드 페이지별 기간 내 AI 관련 글 중
+'댓글수 + 좋아요수'가 가장 큰 글을 최대 1건씩 선정해 목록에 노출한다.
 """
 import logging
 from dataclasses import dataclass
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 AI_KEYWORDS = (
     "ai", "인공지능", "머신러닝", "딥러닝", "생성형", "gpt", "llm",
     "챗봇", "프롬프트", "클로드", "제미나이", "copilot", "코파일럿", "에이전트",
+    "데이터과학",
 )
 BRUNCH_CATEGORY_SLUG = "curation"
 

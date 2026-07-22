@@ -2,7 +2,7 @@
 
 정책(범위 문서):
 - 12시간 주기로 brunch.co.kr 의 AI 관련 글만 수집한다.
-- 해당 기간 동안 댓글수+좋아요수 합이 가장 큰 글 1건을 선정해 목록에 노출한다.
+- 키워드 페이지별로 해당 기간 댓글수+좋아요수 합이 가장 큰 글을 1건씩 노출한다.
 - 클릭 시 원글 브런치 주소로 이동하며 항상 ?ref=nexus.bccard.ai 를 붙인다.
 """
 from datetime import datetime, timezone
@@ -85,6 +85,7 @@ def test_collect_and_pick_concurrent_duplicate_is_graceful(db, monkeypatch):
 def test_is_ai_related_filters_by_keywords():
     assert is_ai_related(cand(title="LLM 프롬프트 잘 쓰는 법", summary=""))
     assert is_ai_related(cand(title="일상", summary="머신러닝 공부 후기"))
+    assert is_ai_related(cand(title="데이터과학 실무 입문", summary=""))
     assert not is_ai_related(cand(title="제주도 여행기", summary="맛집 추천"))
 
 

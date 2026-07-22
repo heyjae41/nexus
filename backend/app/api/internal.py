@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.serializers import api_response, serialize_article_card
 from app.services.brunch import collect_and_pick
-from app.services.brunch_fetcher import fetch_candidates, filter_by_window
+from app.services.brunch_fetcher import DEFAULT_KEYWORDS, fetch_candidates, filter_by_window
 from app.services.ingest import scan_contents_dir
 
 logger = logging.getLogger(__name__)
@@ -94,20 +94,29 @@ def brunch_run(
     window_end = datetime.now(timezone.utc)
     window_start = window_end - timedelta(hours=settings.brunch_collect_interval_hours)
     try:
-        candidates = fetch_candidates(base_url=settings.brunch_base_url)
-        # 선정 규칙: '해당 기간(12시간) 동안' 발행된 글만 대상으로 한다
-        windowed = filter_by_window(candidates, window_start, window_end)
-        picked = collect_and_pick(
-            db, cache,
-            candidates=windowed,
-            window_start=window_start, window_end=window_end,
-        )
+        candidates_count = 0
+        picked_articles = []
+        for keyword in DEFAULT_KEYWORDS:
+            candidates = fetch_candidates(
+                base_url=settings.brunch_base_url,
+                keywords=(keyword,),
+            )
+            candidates_count += len(candidates)
+            # 선정 규칙: 키워드별로 해당 기간(12시간)에 발행된 글 1건
+            windowed = filter_by_window(candidates, window_start, window_end)
+            picked = collect_and_pick(
+                db, cache,
+                candidates=windowed,
+                window_start=window_start, window_end=window_end,
+            )
+            if picked is not None:
+                picked_articles.append(serialize_article_card(picked))
     except (httpx.HTTPError, ValueError) as exc:
         logger.exception("브런치 수동 수집 실패")
         raise HTTPException(status_code=502, detail="브런치 수집에 실패했습니다") from exc
     return api_response(
         {
-            "candidates": len(candidates),
-            "picked": serialize_article_card(picked) if picked else None,
+            "candidates": candidates_count,
+            "picked": picked_articles,
         }
     )

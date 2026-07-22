@@ -16,7 +16,7 @@ from app.services.brunch import BrunchCandidate
 logger = logging.getLogger(__name__)
 
 ARTICLE_LIST_RE = re.compile(r"var articleList = (\[[\s\S]*?\]);")
-DEFAULT_KEYWORDS = ("인공지능",)
+DEFAULT_KEYWORDS = ("인공지능", "AI", "머신러닝", "데이터과학")
 FETCH_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; NexusBot/1.0)"}
 
 
