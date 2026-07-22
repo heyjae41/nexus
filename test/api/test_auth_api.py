@@ -40,6 +40,21 @@ def test_register_validates_password_role_and_at_least_one_interest(client):
     assert no_interest.status_code == 422
 
 
+def test_session_cookie_secure_flag_follows_forwarded_proto(client):
+    """프록시(TLS 종단) 뒤에서는 X-Forwarded-Proto 로 https 를 판별해 Secure 쿠키를 발급한다."""
+    https = client.post(
+        "/api/auth/register",
+        json={**PROFILE, "nickname": "보안쿠키"},
+        headers={"X-Forwarded-Proto": "https"},
+    )
+    assert https.status_code == 201
+    assert "secure" in https.headers["set-cookie"].lower()
+
+    plain = client.post("/api/auth/register", json={**PROFILE, "nickname": "일반쿠키"})
+    assert plain.status_code == 201
+    assert "secure" not in plain.headers["set-cookie"].lower()
+
+
 def test_register_creates_hashed_password_and_hashed_server_session(client):
     res = client.post("/api/auth/register", json=PROFILE)
     assert res.status_code == 201
