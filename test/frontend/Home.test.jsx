@@ -94,13 +94,27 @@ const mockEventsData = {
 
 const wrap = (ui) => render(<BrowserRouter>{ui}</BrowserRouter>)
 
-describe('Home view — curation section from API', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    fetchEvents.mockResolvedValue(mockEventsData)
-    fetchClasses.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
-    fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
+function renderHome() {
+  return wrap(<Home user={null} enrolled={[]} />)
+}
+
+function mockDefaultHomeApis() {
+  vi.clearAllMocks()
+  fetchEvents.mockResolvedValue(mockEventsData)
+  fetchClasses.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
+  fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
+}
+
+async function renderHomeWithData() {
+  fetchHome.mockResolvedValue(mockHomeData)
+  renderHome()
+  await waitFor(() => {
+    expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
   })
+}
+
+describe('Home view — curation section from API', () => {
+  beforeEach(mockDefaultHomeApis)
 
   it('shows loading skeletons initially', () => {
     const pending = new Promise(() => {})
@@ -108,25 +122,21 @@ describe('Home view — curation section from API', () => {
     fetchEvents.mockReturnValue(pending)
     fetchClasses.mockReturnValue(pending)
     fetchPosts.mockReturnValue(pending)
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     // Skeletons use the .sk class — check for animated skeleton boxes
     const skeletons = document.querySelectorAll('.sk')
     expect(skeletons.length).toBeGreaterThan(0)
   })
 
   it('renders article titles after successful API response', async () => {
-    fetchHome.mockResolvedValue(mockHomeData)
-    wrap(<Home user={null} enrolled={[]} />)
-    await waitFor(() => {
-      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
-    })
+    await renderHomeWithData()
     expect(screen.getByText('브런치 외부 아티클 테스트')).toBeInTheDocument()
     expect(screen.getByText('가이드 아티클')).toBeInTheDocument()
   })
 
   it('renders external article as <a> with target=_blank', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText('브런치 외부 아티클 테스트')).toBeInTheDocument()
     })
@@ -136,11 +146,7 @@ describe('Home view — curation section from API', () => {
   })
 
   it('renders internal article as Link to /articles/:id', async () => {
-    fetchHome.mockResolvedValue(mockHomeData)
-    wrap(<Home user={null} enrolled={[]} />)
-    await waitFor(() => {
-      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
-    })
+    await renderHomeWithData()
     const internalLinks = screen.getAllByTestId('article-card-internal')
     expect(internalLinks.length).toBeGreaterThanOrEqual(1)
     expect(internalLinks[0]).toHaveAttribute('href', '/articles/art-1')
@@ -148,7 +154,7 @@ describe('Home view — curation section from API', () => {
 
   it('shows error message and no skeletons when API fails', async () => {
     fetchHome.mockRejectedValue(new Error('Network error'))
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText(/Network error/i)).toBeInTheDocument()
     })
@@ -156,7 +162,7 @@ describe('Home view — curation section from API', () => {
 
   it('always renders static sections (클래스, 커뮤니티)', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText(/지금 뜨는 클래스/)).toBeInTheDocument()
     })
@@ -173,7 +179,7 @@ describe('Home view — curation section from API', () => {
       }],
       meta: { total: 1, page: 1, limit: 4 },
     })
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     expect(await screen.findByText('홈 수집 클래스')).toBeInTheDocument()
     expect(screen.getByTestId('class-card-external')).toHaveAttribute(
       'href', 'https://fastcampus.co.kr/test?ref=nexus.bccard.ai',
@@ -183,7 +189,7 @@ describe('Home view — curation section from API', () => {
   it('renders meet section with API events when events are returned', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
     fetchEvents.mockResolvedValue(mockEventsData)
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText(/가야할 밋플/)).toBeInTheDocument()
     })
@@ -191,19 +197,15 @@ describe('Home view — curation section from API', () => {
   })
 
   it('hides meet section when API returns no events', async () => {
-    fetchHome.mockResolvedValue(mockHomeData)
     fetchEvents.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 3 } })
-    wrap(<Home user={null} enrolled={[]} />)
-    await waitFor(() => {
-      expect(screen.getAllByText('테스트 뉴스레터 아티클').length).toBeGreaterThan(0)
-    })
+    await renderHomeWithData()
     expect(screen.queryByText(/가야할 밋플/)).not.toBeInTheDocument()
   })
 
   it('meet section event cards are external <a> links', async () => {
     fetchHome.mockResolvedValue(mockHomeData)
     fetchEvents.mockResolvedValue(mockEventsData)
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getAllByText('홈 화면 이벤트 1').length).toBeGreaterThan(0)
     })
@@ -216,15 +218,12 @@ describe('Home view — curation section from API', () => {
 
 describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockDefaultHomeApis()
     fetchHome.mockResolvedValue(mockHomeData)
-    fetchEvents.mockResolvedValue(mockEventsData)
-    fetchClasses.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
-    fetchPosts.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 4 } })
   })
 
   it('메인 슬로건은 유지하고 허위 통계·허위 카드 문구는 노출하지 않는다', async () => {
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     expect(screen.getByText('AFTER WORK, LEVEL UP')).toBeInTheDocument()
     expect(screen.getByText(/퇴근 후 30분/)).toBeInTheDocument()
     // 자체 클래스·실거래 데이터가 없는 현재 단계에서 거짓이 되는 문구들
@@ -242,7 +241,7 @@ describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () =
   })
 
   it('여섯 서비스를 소개하는 칩을 각 섹션 링크와 함께 표시한다', () => {
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     expect(screen.getByRole('link', { name: /매일 골라 읽는 AI 글/ })).toHaveAttribute('href', '/curation')
     expect(screen.getByRole('link', { name: /검증된 명강의 소개/ })).toHaveAttribute('href', '/classes')
     expect(screen.getByRole('link', { name: /밋업·해커톤 소식/ })).toHaveAttribute('href', '/meet')
@@ -254,7 +253,7 @@ describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () =
   })
 
   it('우측 히어로 카드는 실제 최신 큐레이션 글과 다가오는 밋업을 보여준다', async () => {
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText('오늘의 큐레이션')).toBeInTheDocument()
     })
@@ -267,7 +266,7 @@ describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () =
   it('데이터가 없으면 히어로 카드를 렌더링하지 않는다', async () => {
     fetchHome.mockResolvedValue({ sections: [] })
     fetchEvents.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 3 } })
-    wrap(<Home user={null} enrolled={[]} />)
+    renderHome()
     await waitFor(() => {
       expect(screen.getByText(/아직 글이 없어요/)).toBeInTheDocument()
     })

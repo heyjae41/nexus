@@ -11,6 +11,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { fetchArticles } from '@/api/client'
+import { deferred } from './helpers'
 
 function makeArticle(i) {
   return {
@@ -31,6 +32,13 @@ function makeArticle(i) {
 
 const wrap = (ui) => render(<BrowserRouter>{ui}</BrowserRouter>)
 
+async function renderAndWaitForFirstArticle() {
+  wrap(<Curation />)
+  await waitFor(() => {
+    expect(screen.getByText('아티클 제목 1')).toBeInTheDocument()
+  })
+}
+
 describe('Curation list view', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -46,10 +54,7 @@ describe('Curation list view', () => {
       data: [makeArticle(1), makeArticle(2), makeArticle(3)],
       meta: { total: 3, page: 1, limit: 20 },
     })
-    wrap(<Curation />)
-    await waitFor(() => {
-      expect(screen.getByText('아티클 제목 1')).toBeInTheDocument()
-    })
+    await renderAndWaitForFirstArticle()
     expect(screen.getByText('아티클 제목 2')).toBeInTheDocument()
     expect(screen.getByText('아티클 제목 3')).toBeInTheDocument()
   })
@@ -78,11 +83,6 @@ describe('Curation list view', () => {
   })
 
   it('느린 이전 응답이 최신 포맷 필터 결과를 덮어쓰지 않는다', async () => {
-    const deferred = () => {
-      let resolve
-      const promise = new Promise(done => { resolve = done })
-      return { promise, resolve }
-    }
     const allRequest = deferred()
     const columnRequest = deferred()
     fetchArticles
@@ -117,10 +117,7 @@ describe('Curation list view', () => {
       data: Array.from({ length: 5 }, (_, i) => makeArticle(i + 1)),
       meta: { total: 5, page: 1, limit: 20 },
     })
-    wrap(<Curation />)
-    await waitFor(() => {
-      expect(screen.getByText('아티클 제목 1')).toBeInTheDocument()
-    })
+    await renderAndWaitForFirstArticle()
     // No page "2" button
     expect(screen.queryByRole('button', { name: '2' })).not.toBeInTheDocument()
   })
@@ -131,10 +128,7 @@ describe('Curation list view', () => {
       data: articles,
       meta: { total: 45, page: 1, limit: 20 },
     })
-    wrap(<Curation />)
-    await waitFor(() => {
-      expect(screen.getByText('아티클 제목 1')).toBeInTheDocument()
-    })
+    await renderAndWaitForFirstArticle()
     // Should show 3 page buttons (ceil(45/20) = 3)
     expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()

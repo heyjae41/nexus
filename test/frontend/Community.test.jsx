@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { mockNavigate, deferred } from './helpers'
 import { MemoryRouter } from 'react-router-dom'
 import Community from '@/views/Community'
-
-const mockNavigate = vi.fn()
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom')
-  return { ...actual, useNavigate: () => mockNavigate }
-})
 
 vi.mock('@/api/client', () => ({
   fetchPosts: vi.fn(),
@@ -42,6 +36,14 @@ const mockPostsData = {
 
 const wrap = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
 
+async function clickWriteButton(user) {
+  const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  wrap(<Community user={user} />)
+  await waitFor(() => screen.getByText('✎ 글쓰기'))
+  fireEvent.click(screen.getByText('✎ 글쓰기'))
+  return alertSpy
+}
+
 describe('Community list', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,11 +74,6 @@ describe('Community list', () => {
   })
 
   it('느린 이전 응답이 최신 배지 필터 결과를 덮어쓰지 않는다', async () => {
-    const deferred = () => {
-      let resolve
-      const promise = new Promise(done => { resolve = done })
-      return { promise, resolve }
-    }
     const allRequest = deferred()
     const tipRequest = deferred()
     fetchPosts
@@ -106,40 +103,28 @@ describe('Community list', () => {
   })
 
   it('글쓰기 button navigates to /community/write when user is an object', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    wrap(<Community user={{ id: 1, nickname: '테스트유저', role: '직장인' }} />)
-    await waitFor(() => screen.getByText('✎ 글쓰기'))
-    fireEvent.click(screen.getByText('✎ 글쓰기'))
+    const alertSpy = await clickWriteButton({ id: 1, nickname: '테스트유저', role: '직장인' })
     expect(mockNavigate).toHaveBeenCalledWith('/community/write')
     expect(alertSpy).not.toHaveBeenCalled()
     alertSpy.mockRestore()
   })
 
   it('글쓰기 button navigates to /community/write when user is a legacy string', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    wrap(<Community user="김크레딧" />)
-    await waitFor(() => screen.getByText('✎ 글쓰기'))
-    fireEvent.click(screen.getByText('✎ 글쓰기'))
+    const alertSpy = await clickWriteButton('김크레딧')
     expect(mockNavigate).toHaveBeenCalledWith('/community/write')
     expect(alertSpy).not.toHaveBeenCalled()
     alertSpy.mockRestore()
   })
 
   it('글쓰기 button navigates to /onboarding when no user', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    wrap(<Community user={null} />)
-    await waitFor(() => screen.getByText('✎ 글쓰기'))
-    fireEvent.click(screen.getByText('✎ 글쓰기'))
+    const alertSpy = await clickWriteButton(null)
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding')
     expect(alertSpy).not.toHaveBeenCalled()
     alertSpy.mockRestore()
   })
 
   it('window.alert is never called when 글쓰기 is clicked regardless of auth state', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    wrap(<Community user={null} />)
-    await waitFor(() => screen.getByText('✎ 글쓰기'))
-    fireEvent.click(screen.getByText('✎ 글쓰기'))
+    const alertSpy = await clickWriteButton(null)
     expect(alertSpy).not.toHaveBeenCalled()
     alertSpy.mockRestore()
   })

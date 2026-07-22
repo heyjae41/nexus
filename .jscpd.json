@@ -7,5 +7,5 @@
     "**/.omc/**",
     "**/package-lock.json"
   ],
-  "format": ["python", "javascript"]
+  "format": ["python", "javascript", "jsx"]
 }

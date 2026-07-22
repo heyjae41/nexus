@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { mockNavigate } from './helpers'
 import { MemoryRouter } from 'react-router-dom'
 import CommunityWrite from '@/views/CommunityWrite'
-
-const mockNavigate = vi.fn()
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom')
-  return { ...actual, useNavigate: () => mockNavigate }
-})
 
 vi.mock('@/api/client', () => ({
   createPost: vi.fn(),
