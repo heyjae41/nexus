@@ -108,6 +108,8 @@ jobs:
           for i in $(seq 1 30); do curl -sf localhost:8000/api/health > /dev/null && break; sleep 1; done
           for i in $(seq 1 30); do curl -sf localhost:5173 > /dev/null && break; sleep 1; done
           curl -sf localhost:8000/api/health && curl -sf -o /dev/null localhost:5173
+          # contents/ 인제스트 글(예: 회의록 요약)은 60초 잡 대기 대신 즉시 발행한다
+          curl -sf -X POST localhost:8000/api/internal/ingest/run > /dev/null
       - name: Playwright E2E
         # 스펙이 frontend 밖(test/e2e)에 있어 모듈 해석이 리포 루트 node_modules 를 탄다 — 심링크로 연결
         run: |
