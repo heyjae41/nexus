@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Article, Category
 
@@ -50,6 +50,44 @@ def list_articles(
         )
     )
     return Page(items=items, total=total, page=page, size=size)
+
+
+def list_articles_by_category(
+    db: Session, category_ids: list[int], size: int
+) -> dict[int, tuple[list[Article], int]]:
+    """카테고리별 최신 글 top-N 과 총 개수를 단일 쿼리(윈도우 함수)로 로드.
+
+    홈 화면이 캐시 미스 시 카테고리 수만큼 COUNT+SELECT 를 반복(N+1형)하지 않도록 한다.
+    반환: {category_id: ([Article...], total)}
+    """
+    if not category_ids:
+        return {}
+    rn = (
+        func.row_number()
+        .over(
+            partition_by=Article.category_id,
+            order_by=(Article.published_at.desc(), Article.id.desc()),
+        )
+        .label("rn")
+    )
+    total = func.count().over(partition_by=Article.category_id).label("total")
+    sub = (
+        select(Article, rn, total)
+        .where(Article.status == "published", Article.category_id.in_(category_ids))
+        .subquery()
+    )
+    ranked = aliased(Article, sub)
+    rows = db.execute(
+        select(ranked, sub.c.total)
+        .where(sub.c.rn <= size)
+        .order_by(sub.c.category_id, sub.c.rn)
+    ).all()
+
+    result: dict[int, tuple[list[Article], int]] = {}
+    for article, cat_total in rows:
+        items, _ = result.setdefault(article.category_id, ([], cat_total))
+        items.append(article)
+    return result
 
 
 def increment_view(db: Session, article_id: int) -> None:

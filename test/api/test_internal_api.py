@@ -46,8 +46,48 @@ def test_internal_brunch_run_with_stubbed_fetch(client, seed, monkeypatch):
     assert res.json()["data"]["picked"]["title"] == "AI 전환 사례"
 
     listed = client.get("/api/articles?category=curation").json()
-    brunch_cards = [a for a in listed["data"] if a["articleType"] == "brunch"]
+    brunch_cards = [
+        a for a in listed["data"]
+        if a["articleType"] == "column" and a["isExternal"]
+    ]
     assert any(
         c["linkUrl"] == "https://brunch.co.kr/@x/1?ref=nexus.bccard.ai"
         for c in brunch_cards
     )
+
+
+def test_internal_classes_run_with_stubbed_fetch(client, monkeypatch):
+    from app.services.fastcampus_fetcher import FastCampusCandidate
+
+    candidate = FastCampusCandidate(
+        source_id="99", source_category_code="BIZ", source_category_name="AI/업무생산성",
+        source_category_url="https://fastcampus.co.kr/category_online_biz",
+        source_rank=1, title="수동 수집 클래스", summary="설명",
+        source_url="https://fastcampus.co.kr/biz-test", thumbnail_url=None,
+        sub_category_name="업무자동화", format_name="올인원", qualification="누구나",
+        running_time_minutes=300, sale_price=100000, list_price=200000,
+        badges=("얼리버드",),
+    )
+    monkeypatch.setattr(
+        "app.services.fastcampus_fetcher.fetch_fastcampus_candidates",
+        lambda: [candidate],
+    )
+    res = client.post("/api/internal/classes/run")
+    assert res.status_code == 200
+    assert res.json()["data"] == {
+        "candidates": 1, "added": 1, "updated": 0, "hidden": 0,
+    }
+    listed = client.get("/api/classes?category=BIZ").json()
+    assert listed["data"][0]["title"] == "수동 수집 클래스"
+
+
+def test_internal_classes_maps_external_schema_error_to_502(client, monkeypatch):
+    def malformed():
+        raise ValueError("패스트캠퍼스 응답 스키마 오류")
+
+    monkeypatch.setattr(
+        "app.services.fastcampus_fetcher.fetch_fastcampus_candidates", malformed,
+    )
+    res = client.post("/api/internal/classes/run")
+    assert res.status_code == 502
+    assert res.json()["error"] == "클래스 수집에 실패했습니다"
