@@ -1,7 +1,7 @@
 """응답 직렬화: 모델 → API 응답(dict, camelCase)."""
 from typing import Any
 
-from app.models import Article, Category
+from app.models import Article, Category, Course
 from app.services.links import with_ref
 
 
@@ -60,12 +60,13 @@ def serialize_article_card(article: Article) -> dict:
 
 
 def serialize_member(member) -> dict:
+    # password_hash 는 절대 직렬화하지 않는다
+    interests = [item.strip() for item in (member.interests or "").split(",") if item.strip()]
     return {
         "id": member.id,
         "nickname": member.nickname,
-        "email": member.email,
         "role": member.role,
-        "interests": member.interests,
+        "interests": interests,
         "createdAt": member.created_at.isoformat() if member.created_at else None,
     }
 
@@ -126,6 +127,29 @@ def serialize_event_card(event) -> dict:
         "category": event.category,
         "coverImageUrl": event.cover_image_url,
         "linkUrl": with_ref(event.source_url),
+        "isExternal": True,
+    }
+
+
+def serialize_course_card(course: Course) -> dict:
+    badges = [badge for badge in course.badges.split("|") if badge]
+    return {
+        "id": course.id,
+        "sourceId": course.source_id,
+        "title": course.title,
+        "summary": course.summary,
+        "sourceCategoryCode": course.source_category_code,
+        "sourceCategoryName": course.source_category_name,
+        "category": course.sub_category_name or course.source_category_name,
+        "formatName": course.format_name,
+        "qualification": course.qualification,
+        "runningTimeMinutes": course.running_time_minutes,
+        "price": course.sale_price,
+        "original": course.list_price,
+        "badges": badges,
+        "tag": badges[0] if badges else None,
+        "coverImageUrl": course.thumbnail_url,
+        "linkUrl": with_ref(course.source_url),
         "isExternal": True,
     }
 

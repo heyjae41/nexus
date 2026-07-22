@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { CLASSES } from '../data'
 import { classGrad, fmtKo } from '../utils/grads'
 
-export default function Checkout({ onPay }) {
+export default function Checkout() {
   const { classId } = useParams()
   const navigate = useNavigate()
   const cls = CLASSES.find(c => c.id === classId)
@@ -34,10 +34,8 @@ export default function Checkout({ onPay }) {
 
   const grad = classGrad(CLASSES.indexOf(cls))
 
-  const doPay = () => {
-    setPayDone(true)
-    onPay?.('김크레딧')
-  }
+  // 결제는 세션을 만들지 않는다 — 로그인은 ClassDetail 에서 결제 전에 보장된다
+  const doPay = () => setPayDone(true)
 
   if (payDone) {
     return (
