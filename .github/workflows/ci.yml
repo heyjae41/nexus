@@ -61,3 +61,61 @@ jobs:
           OUT=$(npx --yes jscpd --min-tokens 40 2>&1)
           echo "$OUT"
           echo "$OUT" | grep -q "Found 0 clones" || exit 1
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: nexus_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: nexus_e2e
+      DB_USER: postgres
+      DB_PASSWORD: e2e
+      REDIS_URL: redis://localhost:6390/0  # 미기동 포트 → 인메모리 캐시 폴백
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 의존성 설치
+        run: |
+          pip install -r backend/requirements.txt
+          (cd frontend && npm ci && npx playwright install --with-deps chromium)
+      - name: DB 시드 (백엔드 기동 전 — 인메모리 캐시라 기동 후 시드는 반영 안 됨)
+        run: (cd backend && python -m app.seed)
+      - name: 백엔드·프론트 기동
+        run: |
+          PYTHONPATH=backend nohup python -m uvicorn app.main:app --port 8000 > /tmp/backend.log 2>&1 &
+          (cd frontend && nohup npm run dev -- --port 5173 > /tmp/vite.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf localhost:8000/api/health > /dev/null && break; sleep 1; done
+          for i in $(seq 1 30); do curl -sf localhost:5173 > /dev/null && break; sleep 1; done
+          curl -sf localhost:8000/api/health && curl -sf -o /dev/null localhost:5173
+      - name: Playwright E2E
+        run: (cd frontend && E2E_BASE_URL=http://localhost:5173 npx playwright test)
+      - name: 실패 시 로그·스크린샷 수집
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            test/e2e/artifacts/
+            /tmp/backend.log
+            /tmp/vite.log
