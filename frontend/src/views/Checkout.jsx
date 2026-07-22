@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { CLASSES } from '../data'
 import { classGrad, fmtKo } from '../utils/grads'
+import BackLink from '../components/BackLink'
 
 export default function Checkout() {
   const { classId } = useParams()
@@ -74,10 +75,7 @@ export default function Checkout() {
       <div className="detailgrid detailgrid-checkout" style={{ gap: 32 }}>
         {/* Left */}
         <div>
-          <button className="back-link btn" onClick={() => navigate(`/classes/${cls.id}`)}
-            style={{ background: 'none', border: 'none', color: '#8a8a94', fontSize: 13.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '0 0 20px' }}>
-            ← 클래스
-          </button>
+          <BackLink to={`/classes/${cls.id}`}>← 클래스</BackLink>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', margin: '0 0 24px' }}>결제하기</h1>
 
           <p style={{ fontSize: 15, fontWeight: 700, color: '#ECECEF', margin: '0 0 14px' }}>결제 수단</p>

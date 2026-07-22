@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { loginMember } from '../api/client'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', padding: '12px 14px',
@@ -14,37 +15,8 @@ export default function AuthModal({ open, onClose, onAuthenticated, onSignup }) 
   const [submitting, setSubmitting] = useState(false)
   const dialogRef = useRef(null)
   const nicknameRef = useRef(null)
-  const triggerRef = useRef(null)
 
-  useEffect(() => {
-    if (!open) return undefined
-    triggerRef.current = document.activeElement
-    const handleKeyboard = (event) => {
-      if (event.key === 'Escape') {
-        onClose()
-        return
-      }
-      if (event.key !== 'Tab') return
-      const focusable = [...(dialogRef.current?.querySelectorAll('input, button:not([disabled]), a[href]') ?? [])]
-      if (!focusable.length) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault(); last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault(); first.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyboard)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    nicknameRef.current?.focus()
-    return () => {
-      window.removeEventListener('keydown', handleKeyboard)
-      document.body.style.overflow = previousOverflow
-      if (triggerRef.current?.isConnected) triggerRef.current.focus()
-    }
-  }, [open, onClose])
+  useModalA11y({ active: open, containerRef: dialogRef, onClose, initialFocusRef: nicknameRef })
 
   if (!open) return null
 

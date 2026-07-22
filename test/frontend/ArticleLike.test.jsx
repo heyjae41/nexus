@@ -48,6 +48,26 @@ function wrap(articleId = 'a1') {
   )
 }
 
+function likeButton(count) {
+  return screen.getByRole('button', { name: new RegExp(`좋아요 ${count}`, 'i') })
+}
+
+async function waitForLikeButton(count) {
+  await waitFor(() => {
+    expect(likeButton(count)).toBeInTheDocument()
+  })
+  return likeButton(count)
+}
+
+async function clickLikeAndWaitForCall() {
+  wrap()
+  const btn = await waitForLikeButton(326)
+  fireEvent.click(btn)
+  await waitFor(() => {
+    expect(likeArticle).toHaveBeenCalledTimes(1)
+  })
+}
+
 describe('ArticleDetail — like button optimistic update', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -66,75 +86,47 @@ describe('ArticleDetail — like button optimistic update', () => {
 
   it('shows initial like count from API', async () => {
     wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
+    await waitForLikeButton(326)
   })
 
   it('increments like count optimistically on first click', async () => {
     wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
+    const btn = await waitForLikeButton(326)
+    fireEvent.click(btn)
     // Optimistic: immediately shows +1
-    expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    expect(likeButton(327)).toBeInTheDocument()
   })
 
   it('server-confirmed count is not double-added (no 328 phantom)', async () => {
-    wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
     // Like — optimistic +1 (326→327), 서버 확정값도 327 → 그대로 327 (328 아님)
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
-    await waitFor(() => {
-      expect(likeArticle).toHaveBeenCalledTimes(1)
-    })
-    expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    await clickLikeAndWaitForCall()
+    expect(likeButton(327)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /좋아요 328/i })).not.toBeInTheDocument()
   })
 
   it('decrements like count on second click (toggle off) without re-calling API', async () => {
     wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
-    })
+    const btn = await waitForLikeButton(326)
+    fireEvent.click(btn)
+    const btn2 = await waitForLikeButton(327)
     // 취소 — 백엔드에 감소 API 가 없으므로 로컬 표시만 되돌리고 추가 POST 는 보내지 않는다
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 327/i }))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
+    fireEvent.click(btn2)
+    await waitForLikeButton(326)
     expect(likeArticle).toHaveBeenCalledTimes(1)
   })
 
   it('re-like after cancel does not send another increment (abuse guard)', async () => {
-    wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i })) // like → POST
-    await waitFor(() => {
-      expect(likeArticle).toHaveBeenCalledTimes(1)
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 327/i })) // 취소 (POST 없음)
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i })) // 재좋아요 (POST 없음)
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
-    })
+    await clickLikeAndWaitForCall() // like → POST
+    fireEvent.click(likeButton(327)) // 취소 (POST 없음)
+    fireEvent.click(likeButton(326)) // 재좋아요 (POST 없음)
+    await waitForLikeButton(327)
     expect(likeArticle).toHaveBeenCalledTimes(1) // 세션당 증가 1회
   })
 
   it('calls likeArticle API on like click', async () => {
     wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
+    const btn = await waitForLikeButton(326)
+    fireEvent.click(btn)
     await waitFor(() => {
       expect(likeArticle).toHaveBeenCalledWith('a1')
     })
@@ -143,16 +135,12 @@ describe('ArticleDetail — like button optimistic update', () => {
   it('reverts like on API failure', async () => {
     likeArticle.mockRejectedValue(new Error('네트워크 오류'))
     wrap()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: /좋아요 326/i }))
+    const btn = await waitForLikeButton(326)
+    fireEvent.click(btn)
     // Optimistic increment shown first
-    expect(screen.getByRole('button', { name: /좋아요 327/i })).toBeInTheDocument()
+    expect(likeButton(327)).toBeInTheDocument()
     // After rejection, reverts to original
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /좋아요 326/i })).toBeInTheDocument()
-    })
+    await waitForLikeButton(326)
   })
 
   it('related list excludes the current article even when API ids are numbers', async () => {

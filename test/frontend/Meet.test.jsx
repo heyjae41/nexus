@@ -11,6 +11,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { fetchEvents } from '@/api/client'
+import { deferred } from './helpers'
 
 function makeEvent(i) {
   return {
@@ -33,6 +34,13 @@ function makeEvent(i) {
 
 const wrap = (ui) => render(<BrowserRouter>{ui}</BrowserRouter>)
 
+async function renderAndWaitForEvent(label) {
+  wrap(<Meet />)
+  await waitFor(() => {
+    expect(screen.getByText(label)).toBeInTheDocument()
+  })
+}
+
 describe('Meet view — events from API', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -41,10 +49,7 @@ describe('Meet view — events from API', () => {
       data: [makeEvent(1), makeEvent(2), makeEvent(3)],
       meta: { total: 3, page: 1, limit: 20 },
     })
-    wrap(<Meet />)
-    await waitFor(() => {
-      expect(screen.getByText('테스트 이벤트 1')).toBeInTheDocument()
-    })
+    await renderAndWaitForEvent('테스트 이벤트 1')
     expect(screen.getByText('테스트 이벤트 2')).toBeInTheDocument()
     expect(screen.getByText('테스트 이벤트 3')).toBeInTheDocument()
   })
@@ -94,11 +99,6 @@ describe('Meet view — events from API', () => {
   })
 
   it('느린 이전 응답이 최신 이벤트 배지 결과를 덮어쓰지 않는다', async () => {
-    const deferred = () => {
-      let resolve
-      const promise = new Promise(done => { resolve = done })
-      return { promise, resolve }
-    }
     const allRequest = deferred()
     const aiRequest = deferred()
     fetchEvents
@@ -133,10 +133,7 @@ describe('Meet view — events from API', () => {
       data: [makeEvent(1), makeEvent(2)],
       meta: { total: 2, page: 1, limit: 20 },
     })
-    wrap(<Meet />)
-    await waitFor(() => {
-      expect(screen.getByText('테스트 이벤트 1')).toBeInTheDocument()
-    })
+    await renderAndWaitForEvent('테스트 이벤트 1')
     const cards = screen.getAllByTestId('event-card-external')
     expect(cards).toHaveLength(2)
     cards.forEach(card => {

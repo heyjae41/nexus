@@ -3,11 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import ArticleCard from '../components/ArticleCard'
 import ClassCard from '../components/ClassCard'
 import EventCard from '../components/EventCard'
-import PostCard from '../components/PostCard'
+import { PostCardList } from '../components/PostCard'
 import Skeleton from '../components/Skeleton'
 import { fetchClasses, fetchHome, fetchEvents, fetchPosts } from '../api/client'
 import { clickableProps } from '../utils/a11y'
-import { timeAgo } from '../utils/timeAgo'
 
 
 function HeroCard({ title, tag, meta, onClick }) {
@@ -231,23 +230,7 @@ export default function Home() {
           <section style={{ marginBottom: 56 }}>
             <SectionHeader emoji="💬" title="이번 주 커뮤니티" moreTo="/community" />
             <div className="rgrid-2">
-              {homePosts.map((post, i) => (
-                <PostCard
-                  key={post.id}
-                  post={{
-                    id: post.id,
-                    tag: post.tag,
-                    title: post.title,
-                    author: post.authorName,
-                    time: timeAgo(post.createdAt),
-                    likes: post.likesCount,
-                    commentCount: post.commentsCount,
-                  }}
-                  index={i}
-                  onClick={() => navigate(`/community/${post.id}`)}
-                  compact
-                />
-              ))}
+              <PostCardList posts={homePosts} compact />
             </div>
           </section>
 

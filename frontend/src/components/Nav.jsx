@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { displayName } from '../utils/user'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 const NAV_LINKS = [
   { label: '홈', path: '/', match: ['/'] },
@@ -27,37 +28,13 @@ export default function Nav({ user, onLogin, onLogout }) {
 
   useEffect(() => { setMenuOpen(false) }, [pathname])
 
-  useEffect(() => {
-    if (!menuOpen) return undefined
-    const trigger = burgerRef.current
-    const handleKeyboard = event => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false)
-        return
-      }
-      if (event.key !== 'Tab') return
-      const focusable = [...(menuPanelRef.current?.querySelectorAll('a[href], button:not([disabled])') ?? [])]
-      if (!focusable.length) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', handleKeyboard)
-    closeButtonRef.current?.focus()
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', handleKeyboard)
-      document.body.style.overflow = previous
-      trigger?.focus()
-    }
-  }, [menuOpen])
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  useModalA11y({
+    active: menuOpen,
+    containerRef: menuPanelRef,
+    onClose: closeMenu,
+    initialFocusRef: closeButtonRef,
+  })
 
   const logout = async () => {
     setLoggingOut(true)

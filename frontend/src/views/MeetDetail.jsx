@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { EVENTS } from '../data'
 import { meetGrad, fmtKo } from '../utils/grads'
+import BackLink from '../components/BackLink'
 
 export default function MeetDetail() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [applied, setApplied] = useState(false)
   const event = EVENTS.find(e => e.id === id)
   if (!event) return <div style={{ padding: 40, color: '#9a9aa4' }}>이벤트를 찾을 수 없습니다.</div>
@@ -43,13 +43,7 @@ export default function MeetDetail() {
 
         {/* Right — details */}
         <div>
-          <button
-            className="back-link btn"
-            onClick={() => navigate('/meet')}
-            style={{ background: 'none', border: 'none', color: '#8a8a94', fontSize: 13.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '0 0 18px' }}
-          >
-            ← meet.pl
-          </button>
+          <BackLink to="/meet" bottomGap={18}>← meet.pl</BackLink>
           <h1 style={{ fontSize: 30, fontWeight: 800, color: '#fff', lineHeight: 1.25, letterSpacing: '-.025em', margin: '0 0 20px' }}>
             {event.title}
           </h1>

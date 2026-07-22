@@ -31,6 +31,13 @@ vi.mock('@/api/client', () => ({
 
 import { fetchCurrentMember, registerMember } from '@/api/client'
 
+async function payAndExpectNoRegister() {
+  render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: /결제하기/ }))
+  await screen.findByText('수강 신청 완료!')
+  expect(registerMember).not.toHaveBeenCalled()
+}
+
 describe('Checkout — 결제와 로그인 세션', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -42,22 +49,14 @@ describe('Checkout — 결제와 로그인 세션', () => {
     const existing = { id: 7, nickname: '실사용자', role: '개발자' }
     fetchCurrentMember.mockResolvedValue(existing)
 
-    render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: /결제하기/ }))
-
-    await screen.findByText('수강 신청 완료!')
-    expect(registerMember).not.toHaveBeenCalled()
+    await payAndExpectNoRegister()
     expect(screen.getByRole('link', { name: '실사용자' })).toBeInTheDocument()
     expect(localStorage.getItem('nexus.user')).toBeNull()
   })
 
   it('비로그인 결제는 게스트 계정을 만들지 않는다 (비밀번호 정책)', async () => {
     fetchCurrentMember.mockRejectedValue(new Error('로그인이 필요합니다'))
-    render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: /결제하기/ }))
-
-    await screen.findByText('수강 신청 완료!')
-    expect(registerMember).not.toHaveBeenCalled()
+    await payAndExpectNoRegister()
     expect(localStorage.getItem('nexus.user')).toBeNull()
   })
 

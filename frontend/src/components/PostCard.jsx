@@ -1,5 +1,34 @@
+import { useNavigate } from 'react-router-dom'
 import { communityAvatarGrad, fmtKo, initial } from '../utils/grads'
 import { clickableProps } from '../utils/a11y'
+import { timeAgo } from '../utils/timeAgo'
+
+/* API 응답 글(post)을 PostCard 가 기대하는 카드 셰이프로 변환한다 */
+function toPostCardShape(post) {
+  return {
+    id: post.id,
+    tag: post.tag,
+    title: post.title,
+    author: post.authorName,
+    time: timeAgo(post.createdAt),
+    likes: post.likesCount,
+    commentCount: post.commentsCount,
+  }
+}
+
+/** API 글 목록을 카드 목록으로 렌더 — 클릭 시 상세로 이동 (홈·커뮤니티 공용). */
+export function PostCardList({ posts, compact = false }) {
+  const navigate = useNavigate()
+  return posts.map((post, i) => (
+    <PostCard
+      key={post.id}
+      post={toPostCardShape(post)}
+      index={i}
+      compact={compact}
+      onClick={() => navigate(`/community/${post.id}`)}
+    />
+  ))
+}
 
 /**
  * Shared PostCard — community post listing card.

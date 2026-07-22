@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import BackLink from '../components/BackLink'
 import { createPost } from '../api/client'
 
 const ALLOWED_TAGS = ['자료', '노하우', '팁', '기술자료']
@@ -47,13 +48,7 @@ export default function CommunityWrite({ user }) {
 
   return (
     <main style={{ padding: '40px 40px 64px', maxWidth: 720, margin: '0 auto' }}>
-      <button
-        className="back-link btn"
-        onClick={() => navigate('/community')}
-        style={{ background: 'none', border: 'none', color: '#8a8a94', fontSize: 13.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '0 0 24px' }}
-      >
-        ← 커뮤니티
-      </button>
+      <BackLink to="/community" bottomGap={24}>← 커뮤니티</BackLink>
 
       <p style={{
         fontFamily: '"JetBrains Mono", monospace',
