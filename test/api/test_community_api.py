@@ -20,6 +20,12 @@ def write_post(client, member_id, title="RAG 도입 후기", tag="노하우"):
     )
 
 
+def member_with_post(client):
+    m = register(client)
+    post_id = write_post(client, m["id"]).json()["data"]["id"]
+    return m, post_id
+
+
 def test_member_register_and_relogin(client):
     first = register(client)
     again = register(client)
@@ -67,8 +73,7 @@ def test_community_list_filters_by_defined_badge(client):
 
 
 def test_post_detail_with_comments_and_like_toggle(client):
-    m = register(client)
-    post_id = write_post(client, m["id"]).json()["data"]["id"]
+    m, post_id = member_with_post(client)
 
     res = client.post(
         f"/api/community/posts/{post_id}/comments",
@@ -95,15 +100,13 @@ def test_post_detail_with_comments_and_like_toggle(client):
 
 
 def test_like_requires_member(client):
-    m = register(client)
-    post_id = write_post(client, m["id"]).json()["data"]["id"]
+    m, post_id = member_with_post(client)
     res = client.post(f"/api/community/posts/{post_id}/like", json={"memberId": 999})
     assert res.status_code == 403
 
 
 def test_comment_requires_member(client):
-    m = register(client)
-    post_id = write_post(client, m["id"]).json()["data"]["id"]
+    m, post_id = member_with_post(client)
     res = client.post(
         f"/api/community/posts/{post_id}/comments",
         json={"memberId": 999, "body": "x"},

@@ -15,6 +15,15 @@ async function request(path, options = {}) {
   return res.json()
 }
 
+async function requestJson(path, method, body) {
+  const json = await request(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return json.data ?? json
+}
+
 export async function checkNickname(nickname) {
   const params = new URLSearchParams({ nickname })
   const json = await request(`/api/auth/nickname-available?${params}`)
@@ -22,21 +31,11 @@ export async function checkNickname(nickname) {
 }
 
 export async function registerAccount({ nickname, password, role, interests }) {
-  const json = await request('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname, password, role, interests }),
-  })
-  return json.data ?? json
+  return requestJson('/api/auth/register', 'POST', { nickname, password, role, interests })
 }
 
 export async function loginMember({ nickname, password }) {
-  const json = await request('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname, password }),
-  })
-  return json.data ?? json
+  return requestJson('/api/auth/login', 'POST', { nickname, password })
 }
 
 export async function fetchCurrentMember() {
@@ -45,12 +44,7 @@ export async function fetchCurrentMember() {
 }
 
 export async function updateCurrentMember(patch) {
-  const json = await request('/api/auth/me', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  })
-  return json.data ?? json
+  return requestJson('/api/auth/me', 'PATCH', patch)
 }
 
 export async function logoutMember() {
@@ -108,12 +102,7 @@ export async function fetchHotpicks({ signal } = {}) {
 
 export async function registerMember({ nickname, password, role, interests } = {}) {
   // 신규 닉네임=가입, 기존 닉네임=로그인(비밀번호 검증, 불일치 시 401 에러 메시지)
-  const json = await request('/api/members', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname, password, role, interests }),
-  })
-  return json.data ?? json
+  return requestJson('/api/members', 'POST', { nickname, password, role, interests })
 }
 
 export async function fetchMember(id) {
@@ -122,12 +111,7 @@ export async function fetchMember(id) {
 }
 
 export async function updateMember(id, patch) {
-  const json = await request(`/api/members/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  })
-  return json.data ?? json
+  return requestJson(`/api/members/${id}`, 'PATCH', patch)
 }
 
 export async function deleteMember(id) {
@@ -148,28 +132,13 @@ export async function fetchPost(id) {
 }
 
 export async function createPost({ memberId, tag, title, body } = {}) {
-  const json = await request('/api/community/posts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ memberId, tag, title, body }),
-  })
-  return json.data ?? json
+  return requestJson('/api/community/posts', 'POST', { memberId, tag, title, body })
 }
 
 export async function createComment(postId, { memberId, body } = {}) {
-  const json = await request(`/api/community/posts/${postId}/comments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ memberId, body }),
-  })
-  return json.data ?? json
+  return requestJson(`/api/community/posts/${postId}/comments`, 'POST', { memberId, body })
 }
 
 export async function likePost(postId, memberId) {
-  const json = await request(`/api/community/posts/${postId}/like`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ memberId }),
-  })
-  return json.data ?? json
+  return requestJson(`/api/community/posts/${postId}/like`, 'POST', { memberId })
 }

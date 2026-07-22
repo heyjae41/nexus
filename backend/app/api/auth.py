@@ -1,5 +1,5 @@
 """회원가입·로그인·현재 세션 API."""
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NoReturn
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
@@ -69,6 +69,19 @@ def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(COOKIE_NAME, path="/", httponly=True, samesite="lax")
 
 
+def _session_response(db: Session, response: Response, request: Request, member: Member):
+    """세션 발급 → 쿠키 세팅 → 회원 응답 (가입/로그인 공통 꼬리)."""
+    token = create_session(db, member.id)
+    _set_session_cookie(response, request, token)
+    return api_response(serialize_member(member))
+
+
+def _raise_member_value_error(exc: ValueError) -> NoReturn:
+    """중복 닉네임은 409, 그 외 검증 위반은 400 으로 매핑한다."""
+    status = 409 if "사용 중" in str(exc) else 400
+    raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+
 def require_member(
     nexus_session: Annotated[str | None, Cookie()] = None,
     db: Session = Depends(get_db),
@@ -107,11 +120,8 @@ def register(
             interests=", ".join(payload.interests),
         )
     except ValueError as exc:
-        status = 409 if "사용 중" in str(exc) else 400
-        raise HTTPException(status_code=status, detail=str(exc)) from exc
-    token = create_session(db, member.id)
-    _set_session_cookie(response, request, token)
-    return api_response(serialize_member(member))
+        _raise_member_value_error(exc)
+    return _session_response(db, response, request, member)
 
 
 @router.post("/login")
@@ -129,9 +139,7 @@ def login(
         raise HTTPException(
             status_code=401, detail="닉네임 또는 비밀번호가 올바르지 않습니다"
         ) from exc
-    token = create_session(db, member.id)
-    _set_session_cookie(response, request, token)
-    return api_response(serialize_member(member))
+    return _session_response(db, response, request, member)
 
 
 @router.get("/me")
@@ -154,8 +162,7 @@ def profile_update(
             interests=None if payload.interests is None else ", ".join(payload.interests),
         )
     except ValueError as exc:
-        status = 409 if "사용 중" in str(exc) else 400
-        raise HTTPException(status_code=status, detail=str(exc)) from exc
+        _raise_member_value_error(exc)
     return api_response(serialize_member(updated))
 
 

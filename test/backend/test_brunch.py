@@ -7,8 +7,7 @@
 """
 from datetime import datetime, timezone
 
-from app.cache import InMemoryCacheBackend, VersionedCache
-from app.models import BrunchCollectRun, Category
+from app.models import BrunchCollectRun
 from app.repositories.articles import list_articles
 from app.services.brunch import (
     BrunchCandidate,
@@ -36,13 +35,7 @@ def cand(**over) -> BrunchCandidate:
     return BrunchCandidate(**fields)
 
 
-def make_cache():
-    return VersionedCache(InMemoryCacheBackend(), prefix="nexus:", ttl_seconds=300)
-
-
-def seed_curation(db):
-    db.add(Category(slug="curation", name="큐레이션", display_order=1))
-    db.commit()
+from shared import make_cache, seed_curation  # noqa: E402 — 수집 테스트 공용 헬퍼
 
 
 def test_article_source_url_unique_constraint(db):

@@ -20,6 +20,31 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# 반복되는 컬럼 레시피 — 모델마다 동일 파라미터를 재선언하지 않는다
+def _ts_now_col() -> Mapped[datetime]:
+    """생성/수집 시각 컬럼 (기본값 now)."""
+    return mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+
+
+def _ts_now_onupdate_col() -> Mapped[datetime]:
+    """수정 시각 컬럼 (갱신 시 자동 반영)."""
+    return mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+def _int_zero_col() -> Mapped[int]:
+    """0 에서 시작하는 정수 컬럼 (카운트·정렬순서)."""
+    return mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+
+
+def _published_status_col() -> Mapped[str]:
+    """published 기본 상태 컬럼."""
+    return mapped_column(
+        String(20), nullable=False, default="published", server_default=text("'published'")
+    )
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -33,11 +58,9 @@ class Category(Base):
     slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(String(300))
-    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    display_order: Mapped[int] = _int_zero_col()
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
     articles: Mapped[list["Article"]] = relationship(back_populates="category")
 
@@ -66,20 +89,15 @@ class Article(Base):
     thumbnail_url: Mapped[str | None] = mapped_column(String(1000))  # 목록 카드 대표 이미지
     content_filename: Mapped[str | None] = mapped_column(String(300), unique=True)
     read_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=4, server_default=text("4"))
-    likes_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    comments_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="published", server_default=text("'published'"))
+    likes_count: Mapped[int] = _int_zero_col()
+    comments_count: Mapped[int] = _int_zero_col()
+    view_count: Mapped[int] = _int_zero_col()
+    status: Mapped[str] = _published_status_col()
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow,
-        server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
+    updated_at: Mapped[datetime] = _ts_now_onupdate_col()
 
     category: Mapped[Category] = relationship(back_populates="articles")
 
@@ -95,9 +113,7 @@ class Member(Base):
     password_hash: Mapped[str | None] = mapped_column(String(300))
     role: Mapped[str | None] = mapped_column(String(20))
     interests: Mapped[str | None] = mapped_column(String(300))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class AuthSession(Base):
@@ -112,9 +128,7 @@ class AuthSession(Base):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class CommunityPost(Base):
@@ -132,12 +146,10 @@ class CommunityPost(Base):
     tag: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    likes_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    comments_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="published", server_default=text("'published'"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    likes_count: Mapped[int] = _int_zero_col()
+    comments_count: Mapped[int] = _int_zero_col()
+    status: Mapped[str] = _published_status_col()
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class CommunityPostLike(Base):
@@ -151,9 +163,7 @@ class CommunityPostLike(Base):
     member_id: Mapped[int] = mapped_column(
         ForeignKey("members.id"), primary_key=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class CommunityComment(Base):
@@ -173,9 +183,7 @@ class CommunityComment(Base):
     member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id"))
     author_name: Mapped[str] = mapped_column(String(50), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class Course(Base):
@@ -192,7 +200,7 @@ class Course(Base):
     source_category_code: Mapped[str] = mapped_column(String(50), nullable=False)
     source_category_name: Mapped[str] = mapped_column(String(100), nullable=False)
     source_category_url: Mapped[str] = mapped_column(String(1000), nullable=False)
-    source_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    source_rank: Mapped[int] = _int_zero_col()
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     summary: Mapped[str | None] = mapped_column(Text)
     source_url: Mapped[str] = mapped_column(String(1000), unique=True, nullable=False)
@@ -204,15 +212,9 @@ class Course(Base):
     sale_price: Mapped[int | None] = mapped_column(Integer)
     list_price: Mapped[int | None] = mapped_column(Integer)
     badges: Mapped[str] = mapped_column(String(200), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="published", server_default=text("'published'")
-    )
-    collected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow, server_default=func.now()
-    )
+    status: Mapped[str] = _published_status_col()
+    collected_at: Mapped[datetime] = _ts_now_col()
+    updated_at: Mapped[datetime] = _ts_now_onupdate_col()
 
 
 class FastCampusCollectRun(Base):
@@ -222,14 +224,12 @@ class FastCampusCollectRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    candidates_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    added_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    updated_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    hidden_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    candidates_count: Mapped[int] = _int_zero_col()
+    added_count: Mapped[int] = _int_zero_col()
+    updated_count: Mapped[int] = _int_zero_col()
+    hidden_count: Mapped[int] = _int_zero_col()
     error_message: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class MeetupEvent(Base):
@@ -251,14 +251,12 @@ class MeetupEvent(Base):
     # NULL = 가격 미상 (luma 등 가격 정보를 제공하지 않는 소스)
     price_min: Mapped[int | None] = mapped_column(Integer)
     is_free: Mapped[bool | None] = mapped_column(Boolean)
-    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    view_count: Mapped[int] = _int_zero_col()
     event_system_type: Mapped[str | None] = mapped_column(String(20))
     category: Mapped[str | None] = mapped_column(String(100))
     cover_image_url: Mapped[str | None] = mapped_column(String(1000))
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="published", server_default=text("'published'"))
-    collected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    status: Mapped[str] = _published_status_col()
+    collected_at: Mapped[datetime] = _ts_now_col()
 
 
 class MeetupCollectRun(Base):
@@ -268,12 +266,10 @@ class MeetupCollectRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    candidates_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-    added_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    candidates_count: Mapped[int] = _int_zero_col()
+    added_count: Mapped[int] = _int_zero_col()
     error_message: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class WriterSession(Base):
@@ -283,10 +279,7 @@ class WriterSession(Base):
 
     telegram_user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     summary: Mapped[str | None] = mapped_column(Text)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow,
-        server_default=func.now()
-    )
+    updated_at: Mapped[datetime] = _ts_now_onupdate_col()
 
 
 class WriterMessage(Base):
@@ -301,9 +294,7 @@ class WriterMessage(Base):
     telegram_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     role: Mapped[str] = mapped_column(String(12), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()
 
 
 class BrunchCollectRun(Base):
@@ -315,9 +306,7 @@ class BrunchCollectRun(Base):
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    candidates_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    candidates_count: Mapped[int] = _int_zero_col()
     picked_article_id: Mapped[int | None] = mapped_column(ForeignKey("articles.id"))
     error_message: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = _ts_now_col()

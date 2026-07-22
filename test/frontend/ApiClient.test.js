@@ -12,6 +12,13 @@ function mockResponse(body = { success: true, data: [], meta: { total: 0 } }) {
   return fetchMock
 }
 
+async function expectOmitsCategoryParam(fetchFn) {
+  const fetchMock = mockResponse()
+  await fetchFn({ category: null, page: 1, size: 20 })
+  const url = new URL(fetchMock.mock.calls[0][0], 'http://nexus.test')
+  expect(url.searchParams.has('category')).toBe(false)
+}
+
 describe('fetchArticles query contract', () => {
   it('선택한 글 포맷을 type 쿼리로 전송한다', async () => {
     const fetchMock = mockResponse()
@@ -58,10 +65,7 @@ describe('fetchClasses query contract', () => {
   })
 
   it('전체 클래스에서는 category 쿼리를 생략한다', async () => {
-    const fetchMock = mockResponse()
-    await fetchClasses({ category: null, page: 1, size: 20 })
-    const url = new URL(fetchMock.mock.calls[0][0], 'http://nexus.test')
-    expect(url.searchParams.has('category')).toBe(false)
+    await expectOmitsCategoryParam(fetchClasses)
   })
 })
 
@@ -77,12 +81,7 @@ describe('fetchEvents query contract', () => {
   })
 
   it('전체 이벤트에서는 category 쿼리를 생략한다', async () => {
-    const fetchMock = mockResponse()
-
-    await fetchEvents({ category: null, page: 1, size: 20 })
-
-    const url = new URL(fetchMock.mock.calls[0][0], 'http://nexus.test')
-    expect(url.searchParams.has('category')).toBe(false)
+    await expectOmitsCategoryParam(fetchEvents)
   })
 })
 

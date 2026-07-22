@@ -153,30 +153,31 @@ def test_fetch_rejects_missing_badge_category_and_wrong_category_id():
         fetch_fastcampus_candidates(sources=[source], client=Client(payloads))
 
 
+def _biz_setup():
+    """BIZ 카테고리 소스 + BEST/최신 목록까지 정상인 기본 페이로드."""
+    base = "https://fastcampus.co.kr"
+    source = FastCampusSource(f"{base}/category_online_biz", "BIZ", "AI/업무생산성")
+    payloads = {
+        f"{base}/.api/courses/recommended/best": {"data": {"1": [1]}},
+        f"{base}/.api/courses/marketing/latest": {"data": {"1": []}},
+    }
+    return base, source, payloads
+
+
 def test_fetch_normalizes_malformed_external_schema_to_value_error():
     import pytest
 
-    base = "https://fastcampus.co.kr"
-    source = FastCampusSource(f"{base}/category_online_biz", "BIZ", "AI/업무생산성")
-    client = Client({
-        f"{base}/.api/courses/recommended/best": {"data": {"1": [1]}},
-        f"{base}/.api/courses/marketing/latest": {"data": {"1": []}},
-        f"{base}/.api/categories/BIZ": {"data": []},
-    })
+    base, source, payloads = _biz_setup()
+    payloads[f"{base}/.api/categories/BIZ"] = {"data": []}
     with pytest.raises(ValueError, match="카테고리 응답"):
-        fetch_fastcampus_candidates(sources=[source], client=client)
+        fetch_fastcampus_candidates(sources=[source], client=Client(payloads))
 
 
 def test_fetch_rejects_malformed_products_mapping():
     import pytest
 
-    base = "https://fastcampus.co.kr"
-    source = FastCampusSource(f"{base}/category_online_biz", "BIZ", "AI/업무생산성")
-    client = Client({
-        f"{base}/.api/courses/recommended/best": {"data": {"1": [1]}},
-        f"{base}/.api/courses/marketing/latest": {"data": {"1": []}},
-        f"{base}/.api/categories/BIZ": {"data": {"id": 1, "courses": [course(1, "x", "강의")]}},
-        (f"{base}/.api/courses/products", (("id", "1"),)): {"data": []},
-    })
+    base, source, payloads = _biz_setup()
+    payloads[f"{base}/.api/categories/BIZ"] = {"data": {"id": 1, "courses": [course(1, "x", "강의")]}}
+    payloads[(f"{base}/.api/courses/products", (("id", "1"),))] = {"data": []}
     with pytest.raises(ValueError, match="상품 응답"):
-        fetch_fastcampus_candidates(sources=[source], client=client)
+        fetch_fastcampus_candidates(sources=[source], client=Client(payloads))
