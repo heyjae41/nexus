@@ -49,6 +49,7 @@ function DealCard({ deal }) {
             src={image}
             alt={name}
             loading="lazy"
+            referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
