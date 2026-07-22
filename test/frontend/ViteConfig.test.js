@@ -8,13 +8,17 @@ function guardMiddleware() {
   return use.mock.calls[0][0]
 }
 
+function runGuard(url) {
+  const middleware = guardMiddleware()
+  const response = { setHeader: vi.fn(), end: vi.fn() }
+  const next = vi.fn()
+  middleware({ url }, response, next)
+  return { response, next }
+}
+
 describe('Vite malformed URI guard', () => {
   it('불완전한 percent 인코딩을 Vite 내부 미들웨어 전에 400으로 종료한다', () => {
-    const middleware = guardMiddleware()
-    const response = { setHeader: vi.fn(), end: vi.fn() }
-    const next = vi.fn()
-
-    middleware({ url: '/%' }, response, next)
+    const { response, next } = runGuard('/%')
 
     expect(response.statusCode).toBe(400)
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/plain; charset=utf-8')
@@ -23,11 +27,7 @@ describe('Vite malformed URI guard', () => {
   })
 
   it('정상 URI는 기존 Vite 처리 과정으로 전달한다', () => {
-    const middleware = guardMiddleware()
-    const response = { setHeader: vi.fn(), end: vi.fn() }
-    const next = vi.fn()
-
-    middleware({ url: '/classes?category=AI%20TECH' }, response, next)
+    const { response, next } = runGuard('/classes?category=AI%20TECH')
 
     expect(next).toHaveBeenCalledOnce()
     expect(response.end).not.toHaveBeenCalled()

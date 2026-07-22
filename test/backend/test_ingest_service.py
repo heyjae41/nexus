@@ -5,8 +5,6 @@
 - 이미 입력된 파일(content_filename 중복)은 재입력하지 않는다.
 - 입력 성공 시 캐시가 무효화되어 메인/목록에 즉시 반영된다.
 """
-from app.cache import InMemoryCacheBackend, VersionedCache
-from app.models import Category
 from app.repositories.articles import list_articles
 from app.services.ingest import scan_contents_dir
 
@@ -19,13 +17,7 @@ HTML = """<!doctype html><html><head><title>t</title></head>
 </body></html>"""
 
 
-def make_cache():
-    return VersionedCache(InMemoryCacheBackend(), prefix="nexus:", ttl_seconds=300)
-
-
-def seed_curation(db):
-    db.add(Category(slug="curation", name="큐레이션", display_order=1))
-    db.commit()
+from shared import make_cache, seed_curation  # noqa: E402 — 수집 테스트 공용 헬퍼
 
 
 def write_file(tmp_path, name, content=HTML):
