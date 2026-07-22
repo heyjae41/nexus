@@ -59,6 +59,13 @@ describe('Hotdeal — 실시간 AI 핫픽 API', () => {
     fetchHotpicks.mockResolvedValue(payload)
   })
 
+  it('상품 이미지는 referrer 없이 로드한다 (커뮤니티 CDN 핫링크 차단 우회)', async () => {
+    renderHotdeal()
+    await screen.findByText('최신 AI 핫딜 상품')
+    const img = screen.getByAltText('최신 AI 핫딜 상품')
+    expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
   it('페이지 진입과 동일 AI핫딜 메뉴 재클릭마다 API를 호출한다', async () => {
     renderHotdeal({ withSameRouteLink: true })
     expect(await screen.findByText('최신 AI 핫딜 상품')).toBeInTheDocument()
