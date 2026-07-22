@@ -86,3 +86,8 @@ def test_fetch_dacon_keeps_future_registration_before_start():
     )
 
     assert [candidate.source_id for candidate in result] == ["dacon:236800"]
+
+
+def test_fetch_dacon_rejects_empty_first_page():
+    with pytest.raises(ValueError, match="첫 페이지 빈 응답"):
+        fetch_dacon_candidates(client=Client({0: []}))

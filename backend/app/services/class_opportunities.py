@@ -125,6 +125,21 @@ def _track_update(
     return changed
 
 
+def _replacement_course(
+    own: dict[str, Course],
+    incoming_ids: set[str],
+    candidate: ClassOpportunityCandidate,
+) -> tuple[str, Course] | tuple[None, None]:
+    title_key = _title_key(candidate.title)
+    url_key = _url_key(candidate.source_url)
+    for source_id, course in own.items():
+        if source_id in incoming_ids:
+            continue
+        if _title_key(course.title) == title_key or _url_key(course.source_url) == url_key:
+            return source_id, course
+    return None, None
+
+
 def _upsert_candidates(
     db: Session,
     own: dict[str, Course],
@@ -134,19 +149,30 @@ def _upsert_candidates(
 ) -> tuple[int, int, int, set[str]]:
     added = updated = skipped = 0
     accepted_ids = set()
+    incoming_ids = {candidate.source_id for candidate in candidates}
     for candidate in candidates:
         if candidate.source_id in accepted_ids:
             skipped += 1
             continue
         values = _values(candidate)
         course = own.get(candidate.source_id)
+        replaced_source_id = None
+        if course is None:
+            replaced_source_id, course = _replacement_course(
+                own, incoming_ids, candidate
+            )
         if _is_duplicate(course, candidate, published_titles, all_urls):
             skipped += 1
             continue
         if course is not None:
-            updated += _track_update(
+            if replaced_source_id is not None:
+                del own[replaced_source_id]
+                course.source_id = candidate.source_id
+                own[candidate.source_id] = course
+            changed = _track_update(
                 course, candidate, values, published_titles, all_urls
             )
+            updated += changed or replaced_source_id is not None
             accepted_ids.add(candidate.source_id)
             continue
         db.add(Course(source_id=candidate.source_id, **values))

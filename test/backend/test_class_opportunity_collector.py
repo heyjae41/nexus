@@ -143,3 +143,31 @@ def test_collect_restores_hidden_item_after_duplicate_disappears(db):
 
     assert (result.updated, result.hidden, result.skipped) == (1, 0, 0)
     assert db.query(Course).filter_by(source_id="daker:1").one().status == "published"
+
+
+def test_collect_rekeys_same_opportunity_when_source_id_changes(db):
+    collect_class_opportunities(
+        db, cache(), source_type="daker",
+        candidates=[
+            candidate(
+                source_id="old",
+                title="ID가 바뀌는 해커톤",
+                source_url="https://example.com/daker/stable",
+            )
+        ],
+    )
+
+    result = collect_class_opportunities(
+        db, cache(), source_type="daker",
+        candidates=[
+            candidate(
+                source_id="new",
+                title="ID가 바뀌는 해커톤",
+                source_url="https://example.com/daker/stable",
+            )
+        ],
+    )
+
+    assert (result.added, result.updated, result.hidden, result.skipped) == (0, 1, 0, 0)
+    assert db.query(Course).filter_by(source_id="daker:old").one_or_none() is None
+    assert db.query(Course).filter_by(source_id="daker:new").one().status == "published"

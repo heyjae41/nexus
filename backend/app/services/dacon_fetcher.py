@@ -120,6 +120,8 @@ def _fetch_all(http: httpx.Client, max_pages: int, now: datetime):
     result = []
     for page in range(max_pages):
         items = _fetch_page(http, page)
+        if page == 0 and not items:
+            raise ValueError("DACON 경진대회 첫 페이지 빈 응답")
         result.extend(_page_candidates(items, page, now))
         if len(items) < PAGE_SIZE:
             return result

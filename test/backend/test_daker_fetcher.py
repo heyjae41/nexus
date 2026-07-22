@@ -92,3 +92,10 @@ def test_fetch_daker_rejects_naive_datetime():
         fetch_daker_candidates(
             client=client, now=datetime(2026, 7, 22, tzinfo=timezone.utc)
         )
+
+
+def test_fetch_daker_rejects_empty_source_payload():
+    with pytest.raises(ValueError, match="빈 응답"):
+        fetch_daker_candidates(
+            client=Client([]), now=datetime(2026, 7, 22, tzinfo=timezone.utc)
+        )

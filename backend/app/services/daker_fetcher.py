@@ -94,6 +94,8 @@ def _candidate(item: dict, rank: int, now: datetime) -> ClassOpportunityCandidat
 def _validate_payload(payload) -> list[dict]:
     if not isinstance(payload, list):
         raise ValueError("DAKER 해커톤 응답 형식 오류")
+    if not payload:
+        raise ValueError("DAKER 해커톤 원본 빈 응답")
     for item in payload:
         if not isinstance(item, dict) or "status" not in item:
             raise ValueError("DAKER 해커톤 상태 필드 누락")
