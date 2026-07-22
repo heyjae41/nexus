@@ -2,9 +2,17 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.services.brunch_fetcher import filter_by_window, parse_keyword_page
+from app.services.brunch_fetcher import (
+    DEFAULT_KEYWORDS,
+    filter_by_window,
+    parse_keyword_page,
+)
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "brunch_keyword_ai.html"
+
+
+def test_default_keywords_cover_four_brunch_pages():
+    assert DEFAULT_KEYWORDS == ("인공지능", "AI", "머신러닝", "데이터과학")
 
 
 def test_parse_keyword_page_extracts_candidates():

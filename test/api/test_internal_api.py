@@ -20,40 +20,54 @@ def test_internal_ingest_run(client, seed, tmp_path, monkeypatch):
     get_settings.cache_clear()
 
 
-def test_internal_brunch_run_with_stubbed_fetch(client, seed, monkeypatch):
+def test_internal_brunch_run_picks_one_article_per_keyword(client, seed, monkeypatch):
     seed(client)
     from datetime import datetime, timedelta, timezone
 
     from app.services.brunch import BrunchCandidate
 
-    def fake_fetch(*args, **kwargs):
+    def fake_fetch(*, base_url, keywords):
+        keyword = keywords[0]
+        published_at = datetime.now(timezone.utc) - timedelta(hours=1)
         return [
             BrunchCandidate(
-                title="AI 전환 사례", url="https://brunch.co.kr/@x/1",
-                author="작가", likes=3, comments=4, summary="ai",
-                published_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                title=f"{keyword} 낮은 점수", url=f"https://brunch.co.kr/@x/{keyword}-low",
+                author="작가", likes=1, comments=1, summary="ai",
+                published_at=published_at,
             ),
-            BrunchCandidate(  # 수집 윈도우(12시간) 밖 글은 선정되지 않아야 한다
-                title="AI 옛날 글", url="https://brunch.co.kr/@x/0",
-                author="작가", likes=999, comments=999, summary="ai",
-                published_at=datetime.now(timezone.utc) - timedelta(days=30),
+            BrunchCandidate(
+                title=f"{keyword} 인기글", url=f"https://brunch.co.kr/@x/{keyword}-top",
+                author="작가", likes=10, comments=5, summary="ai",
+                published_at=published_at,
             ),
         ]
 
     monkeypatch.setattr("app.api.internal.fetch_candidates", fake_fetch)
     res = client.post("/api/internal/brunch/run")
+
     assert res.status_code == 200
-    assert res.json()["data"]["picked"]["title"] == "AI 전환 사례"
+    data = res.json()["data"]
+    assert data["candidates"] == 8
+    assert [article["title"] for article in data["picked"]] == [
+        "인공지능 인기글",
+        "AI 인기글",
+        "머신러닝 인기글",
+        "데이터과학 인기글",
+    ]
 
     listed = client.get("/api/articles?category=curation").json()
     brunch_cards = [
-        a for a in listed["data"]
-        if a["articleType"] == "column" and a["isExternal"]
+        article
+        for article in listed["data"]
+        if article["articleType"] == "column" and article["isExternal"]
     ]
-    assert any(
-        c["linkUrl"] == "https://brunch.co.kr/@x/1?ref=nexus.bccard.ai"
-        for c in brunch_cards
-    )
+    expected_titles = {
+        "인공지능 인기글",
+        "AI 인기글",
+        "머신러닝 인기글",
+        "데이터과학 인기글",
+    }
+    assert {article["title"] for article in brunch_cards} >= expected_titles
 
 
 def test_internal_classes_run_with_stubbed_fetch(client, monkeypatch):

@@ -68,25 +68,44 @@ def test_run_ingest_job_scans_contents_dir(db, monkeypatch):
     scheduler_module.run_ingest_job(_cache())  # 예외 전파 없음 (로깅만)
 
 
-def test_run_brunch_job_passes_12h_window(db, monkeypatch):
-    """브런치 잡: 후보를 12시간 창으로 거르고 collect_and_pick 에 넘긴다. 실패는 삼킨다."""
+def test_run_brunch_job_picks_one_article_per_keyword(db, monkeypatch):
+    """브런치 잡은 4개 키워드를 따로 조회해 키워드별 최고 글 1건씩 선정한다."""
     monkeypatch.setattr(scheduler_module, "_session", lambda: db)
-    monkeypatch.setattr(scheduler_module, "fetch_candidates", lambda base_url: ["원본"])
+    fetched = []
+
+    def fake_fetch(*, base_url, keywords):
+        keyword = keywords[0]
+        fetched.append(keyword)
+        return [f"원본:{keyword}"]
+
+    monkeypatch.setattr(scheduler_module, "fetch_candidates", fake_fetch)
     monkeypatch.setattr(
-        scheduler_module, "filter_by_window", lambda cands, s, e: ["창내글"]
+        scheduler_module,
+        "filter_by_window",
+        lambda cands, start, end: [f"창내:{cands[0]}"],
     )
-    calls = {}
+    picked = []
 
     def fake_pick(db_, cache_, *, candidates, window_start, window_end):
-        calls["candidates"] = candidates
-        calls["hours"] = (window_end - window_start).total_seconds() / 3600
+        picked.append(candidates[0])
+        assert (window_end - window_start).total_seconds() / 3600 == 12
 
     monkeypatch.setattr(scheduler_module, "collect_and_pick", fake_pick)
     scheduler_module.run_brunch_job(_cache())
-    assert calls["candidates"] == ["창내글"]
-    assert calls["hours"] == 12  # settings.brunch_collect_interval_hours 기본값
 
-    def boom(*a, **k):
+    assert fetched == ["인공지능", "AI", "머신러닝", "데이터과학"]
+    assert picked == [
+        "창내:원본:인공지능",
+        "창내:원본:AI",
+        "창내:원본:머신러닝",
+        "창내:원본:데이터과학",
+    ]
+
+
+def test_run_brunch_job_swallows_fetch_failure(db, monkeypatch):
+    monkeypatch.setattr(scheduler_module, "_session", lambda: db)
+
+    def boom(*args, **kwargs):
         raise RuntimeError("네트워크")
 
     monkeypatch.setattr(scheduler_module, "fetch_candidates", boom)
