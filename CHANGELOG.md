@@ -2,6 +2,16 @@
 
 > 최신 순. 커밋 해시는 `git log` 기준, 상세는 각 커밋·병합 브랜치 참고.
 
+## 2026-07-22 — E2E 를 CI 게이트에 편입
+
+- **CI e2e 잡 신설**: PG 서비스 컨테이너 → 시드 → 인제스트 트리거 → 백엔드(8000) → vite(5173) →
+  Playwright 6종 실행. 실패 시 스크린샷·로그 아티팩트 수집. (`feat/e2e-ci` + 후속 fix 2건, 4개 잡 전부 초록 확인)
+- e2e 주소를 `E2E_BASE_URL`·`E2E_API` 로 주입 가능하게 개방, vite 프록시 전용 `API_PROXY_TARGET`
+  변수 추가(VITE_ 접두사의 클라이언트 노출·CORS 문제 회피)
+- e2e 스펙 현행화: 구 localStorage 로그인 방식 제거 → 서버 세션 복원 대기,
+  쿠키 공유되는 `page.request` 사용, '자료' 태그 exact 매칭
+- 브런치 수집 키워드 확장·수집 가이드 문서 보강 (`feat/brunch-keywords-and-collection-docs`)
+
 ## 2026-07-22 — 보안·운영 하드닝 & CI
 
 - **CI 가동**: GitHub Actions(`.github/workflows/ci.yml`)가 push/PR 마다 품질 게이트
