@@ -81,8 +81,10 @@ cd .. && ruff check backend test               # 파이썬 린트
 radon cc backend/app -n C -s                   # 복잡도 (출력 없어야 정상)
 npx jscpd backend/app frontend/src --min-tokens 40   # 중복 코드
 
-# E2E (옵션): backend(8000) + frontend dev(80) 실행 상태에서
+# E2E: backend + frontend dev 실행 상태에서 (주소가 다르면 E2E_BASE_URL·E2E_API 로 지정)
 cd frontend && npx playwright install chromium && npm run e2e
+# CI 의 e2e 잡이 시드된 임시 PG 스택으로 동일 테스트를 자동 실행한다 (.github/workflows/ci.yml)
+# 주의: 시드는 백엔드 기동 '전'에 실행 (Redis 없이 인메모리 캐시면 기동 후 시드가 반영되지 않음)
 ```
 
 ## 7. Docker 배포 스택 (선택)

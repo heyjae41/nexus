@@ -16,7 +16,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE || 'http://localhost:8000',
+        // API_PROXY_TARGET: 프록시 전용 (VITE_ 접두사가 아니라 클라이언트 번들에 노출되지 않음)
+        target: process.env.API_PROXY_TARGET || process.env.VITE_API_BASE || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
