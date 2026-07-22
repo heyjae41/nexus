@@ -52,12 +52,14 @@ class ProfilePatch(BaseModel):
 
 
 def _set_session_cookie(response: Response, request: Request, token: str) -> None:
+    # TLS 종단이 nginx 등 앞단에 있으면 앱에는 http 로 보이므로 X-Forwarded-Proto 를 우선한다
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     response.set_cookie(
         COOKIE_NAME,
         token,
         max_age=SESSION_DAYS * 24 * 60 * 60,
         httponly=True,
-        secure=request.url.scheme == "https",
+        secure=scheme == "https",
         samesite="lax",
         path="/",
     )

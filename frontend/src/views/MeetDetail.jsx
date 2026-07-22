@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { EVENTS } from '../data'
 import { meetGrad, fmtKo } from '../utils/grads'
@@ -5,6 +6,7 @@ import { meetGrad, fmtKo } from '../utils/grads'
 export default function MeetDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [applied, setApplied] = useState(false)
   const event = EVENTS.find(e => e.id === id)
   if (!event) return <div style={{ padding: 40, color: '#9a9aa4' }}>이벤트를 찾을 수 없습니다.</div>
 
@@ -87,15 +89,25 @@ export default function MeetDetail() {
 
           <button
             className="btn"
-            onClick={() => alert('참가 신청이 완료되었습니다!')}
+            disabled={applied}
+            onClick={() => setApplied(true)}
             style={{
-              width: '100%', background: '#E8123C', color: '#fff',
+              width: '100%', background: applied ? '#2a2a31' : '#E8123C', color: '#fff',
               fontSize: 15, fontWeight: 700, padding: '13px 0',
-              borderRadius: 12, marginBottom: 24,
+              borderRadius: 12, marginBottom: applied ? 10 : 24,
+              cursor: applied ? 'default' : 'pointer',
             }}
           >
-            참가 신청하기
+            {applied ? '✓ 신청 완료' : '참가 신청하기'}
           </button>
+          {applied && (
+            <p role="status" style={{
+              fontSize: 13.5, color: '#4FE3C1', margin: '0 0 24px',
+              textAlign: 'center',
+            }}>
+              참가 신청이 완료되었습니다!
+            </p>
+          )}
 
           {/* Description */}
           <p style={{ fontSize: 15.5, lineHeight: 1.8, color: '#b4b4be', margin: '0 0 28px' }}>

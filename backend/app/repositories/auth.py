@@ -16,6 +16,8 @@ def _token_hash(token: str) -> str:
 
 
 def create_session(db: Session, member_id: int) -> str:
+    # 만료 세션은 발급 시점에 함께 정리해 테이블이 무한 누적되지 않게 한다
+    db.execute(delete(AuthSession).where(AuthSession.expires_at <= utcnow()))
     token = secrets.token_urlsafe(32)
     db.add(
         AuthSession(
