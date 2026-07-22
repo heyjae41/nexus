@@ -118,6 +118,7 @@ postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/
 | 문서 | 내용 |
 |---|---|
 | `README.md` | 서비스 개요·콘텐츠 파이프라인·캐시 정책 요약 |
+| `CHANGELOG.md` | 날짜별 작업 히스토리 (기능·리팩터링·보안·인프라) |
 | `docs/ARCHITECTURE.md` | 시스템 구성·DB 스키마·캐시 정책 상세 |
 | `docs/DESIGN_SPEC.md` | Claude Design 시안 기반 UI 구현 명세 (프론트 수정 시 기준) |
 | `CLAUDE.md` | Claude Code 작업 규칙 (TDD·품질 게이트·프로젝트 관례) |
