@@ -46,21 +46,6 @@ export const EVENTS = [
   { id:'e5', title:'바이브코딩 해커톤 2026', host:'NEXUS x Dev Korea', date:'2026.08.02 (토)', time:'오전 10:00 – 오후 8:00', location:'코엑스, 삼성동', going:320, tag:'해커톤', desc:'AI 에이전트와 함께 하루 만에 금융 서비스를 만드는 해커톤. BC카드 API 제공, 우승팀 사내 연계 기회.', schedule:[['10:00','킥오프 & 팀 빌딩'],['11:00','해킹 시작'],['17:00','제출 마감'],['17:30','데모 & 심사'],['19:00','시상 & 네트워킹']] },
 ]
 
-export const DEALS = [
-  { name:'보라카이 4일 (노쇼핑·호핑투어)', price:529900, original:0, discount:0, category:'여행', channel:'노랑풍선', img:'https://dimgcdn.ybtour.co.kr/TN/ee/ee36359db90b602bac23fe63a8faf511.tn.410x280.JPG' },
-  { name:'푸꾸옥 인터컨티넨탈 에어텔 5/6일', price:929000, original:1858000, discount:50, category:'여행', channel:'노랑풍선', img:'https://dimgcdn.ybtour.co.kr/TN/85/85037d241c2e91675082bee8efdd6562.tn.410x280.jpeg' },
-  { name:'클럽메드 푸켓 올인클루시브 3박5일', price:1140000, original:0, discount:0, category:'여행', channel:'노랑풍선', img:'https://dimgcdn.ybtour.co.kr/TN/71/710432c6e3124b2a5916eff2138178e4.tn.410x280.jpg' },
-  { name:'다낭/호이안 5/6일 (부산 출발)', price:659000, original:0, discount:0, category:'여행', channel:'노랑풍선', img:'https://dimgcdn.ybtour.co.kr/TN/79/798308110f991d072ac7a24eea0e6da9.tn.410x280.jpg' },
-  { name:'스탠리 퀜처 H2.0 텀블러 591ml', price:23760, original:43200, discount:40, category:'생활/주방', channel:'네이버', img:'https://cdn89.dasaja.co.kr:4443/files/shop_item_img/1775117163.jpg' },
-  { name:'오레오 600g x 2개', price:9140, original:18900, discount:52, category:'식품/건강', channel:'쿠팡', img:'https://cdn89.dasaja.co.kr:4443/files/shop_item_img/1782760865.jpg' },
-  { name:'쿤달 이중미세모 칫솔 12개입 2세트', price:20900, original:41000, discount:49, category:'뷰티/헬스', channel:'G마켓', img:'https://cdn2.ppomppu.co.kr/zboard/data3/2026/0630/m_20260630091345_OD1Jo4Ag5j.png' },
-  { name:'페레로로쉐 (5T x 12) x 2', price:35900, original:0, discount:14, category:'식품/건강', channel:'떠리몰', img:'https://cdn89.dasaja.co.kr:4443/files/shop_item_img/1782755344.jpg' },
-  { name:'유니클로 박시 크롭 티셔츠 1+1', price:26200, original:0, discount:0, category:'패션/잡화', channel:'유니클로', img:'https://cdn89.dasaja.co.kr:4443/files/shop_item_img/1782749048.jpg' },
-  { name:'매일 어메이징오트 190ml 54팩', price:20940, original:0, discount:0, category:'식품/건강', channel:'롯데온', img:'https://cdn2.ppomppu.co.kr/zboard/data3/2026/0630/m_20260630090732_XOpv0YvQOR.jpg' },
-  { name:'벡셀 알카라인 건전지 AA 48알', price:11740, original:0, discount:0, category:'생활/주방', channel:'지마켓', img:'https://cdn2.ppomppu.co.kr/zboard/data3/2026/0630/m_20260630091837_uqd35AapIV.png' },
-  { name:'비브르 탁상용 선풍기 7000mAh', price:36160, original:0, discount:6, category:'가전/디지털', channel:'G마켓', img:'https://cdn89.dasaja.co.kr:4443/files/shop_item_img/1781048888.jpg' },
-]
-
 export const HD_CATS = ['전체','여행','식품/건강','생활/주방','뷰티/헬스','패션/잡화','가전/디지털']
 
 /* Static editorial articles for ArticleDetail rich view — §4.7 */
