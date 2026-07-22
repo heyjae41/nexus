@@ -4,6 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
+from app.api.common import PageQuery, cached_page_response, page_query
 from app.cache import VersionedCache
 from app.db import get_db
 from app.repositories.articles import (
@@ -73,68 +74,52 @@ def home(db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cach
 def articles(
     category: str | None = Query(default=None, max_length=50),
     type: str | None = Query(default=None, max_length=20),
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=12, ge=1, le=50),
+    paging: PageQuery = page_query(12),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    key = f"articles:list:{category}:{type}:{page}:{size}"
-
-    def load():
-        result = list_articles(db, category_slug=category, article_type=type, page=page, size=size)
-        return {
-            "items": [serialize_article_card(a) for a in result.items],
-            "meta": {"total": result.total, "page": result.page, "limit": result.size},
-        }
-
-    loaded = cache.get_or_set(key, load)
-    return api_response(loaded["items"], meta=loaded["meta"])
+    key = f"articles:list:{category}:{type}:{paging.page}:{paging.size}"
+    return cached_page_response(
+        cache, key,
+        lambda: list_articles(
+            db, category_slug=category, article_type=type, page=paging.page, size=paging.size
+        ),
+        serialize_article_card,
+    )
 
 
 @router.get("/classes")
 def classes(
     category: ClassCategory | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=20, ge=1, le=50),
+    paging: PageQuery = page_query(),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    key = f"classes:list:{category or 'all'}:{page}:{size}"
+    from app.repositories.courses import list_courses
 
-    def load():
-        from app.repositories.courses import list_courses
-
-        result = list_courses(db, category=category, page=page, size=size)
-        return {
-            "items": [serialize_course_card(course) for course in result.items],
-            "meta": {"total": result.total, "page": result.page, "limit": result.size},
-        }
-
-    loaded = cache.get_or_set(key, load)
-    return api_response(loaded["items"], meta=loaded["meta"])
+    key = f"classes:list:{category or 'all'}:{paging.page}:{paging.size}"
+    return cached_page_response(
+        cache, key,
+        lambda: list_courses(db, category=category, page=paging.page, size=paging.size),
+        serialize_course_card,
+    )
 
 
 @router.get("/events")
 def events(
     category: EventCategory | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=12, ge=1, le=50),
+    paging: PageQuery = page_query(12),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    key = f"events:list:{category or 'all'}:{page}:{size}"
+    from app.repositories.events import list_upcoming_events
 
-    def load():
-        from app.repositories.events import list_upcoming_events
-
-        result = list_upcoming_events(db, category=category, page=page, size=size)
-        return {
-            "items": [serialize_event_card(e) for e in result.items],
-            "meta": {"total": result.total, "page": result.page, "limit": result.size},
-        }
-
-    loaded = cache.get_or_set(key, load)
-    return api_response(loaded["items"], meta=loaded["meta"])
+    key = f"events:list:{category or 'all'}:{paging.page}:{paging.size}"
+    return cached_page_response(
+        cache, key,
+        lambda: list_upcoming_events(db, category=category, page=paging.page, size=paging.size),
+        serialize_event_card,
+    )
 
 
 @router.get("/articles/{article_id}")

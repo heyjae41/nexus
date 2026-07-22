@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.auth import _set_session_cookie, require_member
+from app.api.common import PageQuery, cached_page_response, page_query
 from app.api.routes import get_cache
 from app.cache import VersionedCache
 from app.db import get_db
@@ -80,6 +81,17 @@ def _raise_http(exc: Exception) -> "NoReturn":
 def _require_same_member(member_id: int, current: Member) -> None:
     if member_id != current.id:
         raise HTTPException(status_code=403, detail="다른 회원의 정보에는 접근할 수 없습니다")
+
+
+def _member_write(current: Member, member_id: int, cache: VersionedCache, action):
+    """본인 확인 → 쓰기 실행 → 캐시 bump — 'DB 반영사항 즉시 조회' 불변식을 한 곳에서 보장한다."""
+    _require_same_member(member_id, current)
+    try:
+        result = action()
+    except (LookupError, ValueError) as exc:
+        _raise_http(exc)
+    cache.bump_version()
+    return result
 
 
 @router.post("/members")
@@ -162,22 +174,16 @@ def member_delete(
 @router.get("/community/posts")
 def community_posts(
     tag: CommunityTag | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=20, ge=1, le=50),
+    paging: PageQuery = page_query(),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    key = f"community:list:{tag}:{page}:{size}"
-
-    def load():
-        result = list_posts(db, tag=tag, page=page, size=size)
-        return {
-            "items": [serialize_post_card(p) for p in result.items],
-            "meta": {"total": result.total, "page": result.page, "limit": result.size},
-        }
-
-    loaded = cache.get_or_set(key, load)
-    return api_response(loaded["items"], meta=loaded["meta"])
+    key = f"community:list:{tag}:{paging.page}:{paging.size}"
+    return cached_page_response(
+        cache, key,
+        lambda: list_posts(db, tag=tag, page=paging.page, size=paging.size),
+        serialize_post_card,
+    )
 
 
 @router.post("/community/posts")
@@ -187,15 +193,10 @@ def community_post_create(
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    _require_same_member(payload.memberId, current)
-    try:
-        post = create_post(
-            db, member_id=payload.memberId, tag=payload.tag,
-            title=payload.title, body=payload.body,
-        )
-    except (LookupError, ValueError) as exc:
-        _raise_http(exc)
-    cache.bump_version()  # 신규 글은 목록/홈에 즉시 반영
+    post = _member_write(current, payload.memberId, cache, lambda: create_post(
+        db, member_id=payload.memberId, tag=payload.tag,
+        title=payload.title, body=payload.body,
+    ))
     return api_response(serialize_post_card(post))
 
 
@@ -236,12 +237,9 @@ def community_comment_create(
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    _require_same_member(payload.memberId, current)
-    try:
-        comment = add_comment(db, post_id=post_id, member_id=payload.memberId, body=payload.body)
-    except (LookupError, ValueError) as exc:
-        _raise_http(exc)
-    cache.bump_version()  # 댓글 수가 목록 카드에 노출되므로 즉시 반영
+    comment = _member_write(current, payload.memberId, cache, lambda: add_comment(
+        db, post_id=post_id, member_id=payload.memberId, body=payload.body,
+    ))
     return api_response(serialize_comment(comment))
 
 
@@ -253,10 +251,7 @@ def community_post_like(
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    _require_same_member(payload.memberId, current)
-    try:
-        likes, liked = toggle_post_like(db, post_id=post_id, member_id=payload.memberId)
-    except (LookupError, ValueError) as exc:
-        _raise_http(exc)
-    cache.bump_version()
+    likes, liked = _member_write(current, payload.memberId, cache, lambda: toggle_post_like(
+        db, post_id=post_id, member_id=payload.memberId,
+    ))
     return api_response({"id": post_id, "likesCount": likes, "liked": liked})
