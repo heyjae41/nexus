@@ -111,6 +111,8 @@ def register(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    # 회원 생성은 cache.bump_version() 면제 — 작성자명은 글/댓글 쓰기 시점에
+    # 비정규화 저장되고 회원 엔티티는 캐시되지 않아 stale 조회가 없다.
     try:
         member = create_member(
             db,

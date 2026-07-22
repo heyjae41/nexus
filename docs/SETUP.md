@@ -99,7 +99,21 @@ postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/
   서버가 잘못된 상태로 자동 재시작될 수 있다 → 증상(빈 화면, "React is not defined") 시 `npm run dev` 재실행.
 - 공유 Redis 를 쓰는 경우 키 프리픽스 `nexus:` 로 격리되어 있으니 그대로 두면 된다.
 
-## 9. 문서 지도
+## 9. 운영 서버 보안·서비스 구성 (2026-07 반영)
+
+- **방화벽**: ufw 활성 — 공개 포트는 22(SSH)·80(웹)만. 백엔드 8000 은 `docker0` 인터페이스
+  (프론트 컨테이너→호스트 프록시)에서만 허용.
+- **Docker 포트 차단**: docker 포트포워딩(DNAT)은 ufw INPUT 을 우회하므로 PG(5432)·Redis(6379)는
+  `/etc/ufw/after.rules` 의 `DOCKER-USER` 체인 규칙으로 외부(eth0) 유입을 차단한다.
+  규칙 수정 후 `ufw reload`.
+- **백엔드 서비스**: systemd `nexus-backend.service` (`/etc/systemd/system/`) — 재부팅 자동 기동,
+  크래시 시 자동 재시작. 로그: `.omc/logs/uvicorn.log`. 재시작: `systemctl restart nexus-backend`
+  (재시작 후 수집 타이머가 리셋되므로 `/api/internal/{ingest,meetup,brunch}/run` 수동 트리거 권장).
+- **로그인 rate limit**: nginx 가 `/api/auth/login`·`/api/auth/register`·`/api/members` 를
+  IP 당 분당 10회(burst 5)로 제한, 초과 시 429.
+- **CI**: `.github/workflows/ci.yml` 이 push/PR 마다 품질 게이트(pytest·ruff·radon·vitest·eslint·build·jscpd)를 실행한다.
+
+## 10. 문서 지도
 
 | 문서 | 내용 |
 |---|---|

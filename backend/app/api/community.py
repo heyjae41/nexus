@@ -101,7 +101,11 @@ def member_register(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """레거시 가입/로그인 호환 경로 — 성공 시에도 서버 세션을 발급한다."""
+    """레거시 가입/로그인 호환 경로 — 성공 시에도 서버 세션을 발급한다.
+
+    회원 생성은 cache.bump_version() 면제 — 작성자명이 글/댓글에 쓰기 시점에
+    비정규화 저장되고 회원 엔티티 자체는 캐시되지 않아 stale 조회가 없다.
+    """
     try:
         member = register_member(
             db, nickname=payload.nickname, password=payload.password,

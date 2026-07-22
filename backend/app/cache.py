@@ -124,32 +124,36 @@ class VersionedCache:
         self.backend.set(self._full_key(key), json.dumps(value), self.ttl_seconds)
 
     def get_or_set(self, key: str, loader: Callable[[], Any]) -> Any:
-        version = self._version()
-        full_key = self._full_key_for(version, key)
-        raw = self.backend.get(full_key)
-        if self._version() != version:
-            return self.get_or_set(key, loader)
-        if raw is not None:
-            return json.loads(raw)
-        with self._flight_lock:
-            waiter = self._in_flight.get(full_key)
-            if waiter is None:
-                self._in_flight[full_key] = threading.Event()
-        if waiter is not None:
-            # 다른 요청이 같은 키를 로드 중 — 완료를 기다렸다 캐시를 재사용
-            waiter.wait(timeout=5)
-            return self.get_or_set(key, loader)
-        try:
-            value = loader()
-            # 로드 중 DB 쓰기가 commit되어 버전이 바뀌었다면 구 스냅샷은 저장하지 않는다.
-            if self._version() == version:
-                self.backend.set(full_key, json.dumps(value), self.ttl_seconds)
-            return value
-        finally:
+        # 버전 경합·동시 로드 재시도는 유한 루프로 제한 — 지속적 쓰기 트래픽에서도
+        # 재귀로 스택이 깊어지지 않고, 소진 시 캐시를 우회해 직접 로드한다.
+        for _ in range(3):
+            version = self._version()
+            full_key = self._full_key_for(version, key)
+            raw = self.backend.get(full_key)
+            if self._version() != version:
+                continue
+            if raw is not None:
+                return json.loads(raw)
             with self._flight_lock:
-                event = self._in_flight.pop(full_key, None)
-            if event is not None:
-                event.set()
+                waiter = self._in_flight.get(full_key)
+                if waiter is None:
+                    self._in_flight[full_key] = threading.Event()
+            if waiter is not None:
+                # 다른 요청이 같은 키를 로드 중 — 완료를 기다렸다 캐시를 재사용
+                waiter.wait(timeout=5)
+                continue
+            try:
+                value = loader()
+                # 로드 중 DB 쓰기가 commit되어 버전이 바뀌었다면 구 스냅샷은 저장하지 않는다.
+                if self._version() == version:
+                    self.backend.set(full_key, json.dumps(value), self.ttl_seconds)
+                return value
+            finally:
+                with self._flight_lock:
+                    event = self._in_flight.pop(full_key, None)
+                if event is not None:
+                    event.set()
+        return loader()
 
     def bump_version(self) -> None:
         """DB 반영사항 발생 시 호출 — 이전 캐시 전체를 즉시 무효화한다.

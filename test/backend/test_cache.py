@@ -85,6 +85,16 @@ def test_get_or_set_does_not_store_old_snapshot_under_new_version():
     assert cache.get("classes") == "fresh-db-snapshot"
 
 
+def test_get_or_set_bounded_retry_under_constant_version_races():
+    """버전이 계속 바뀌는 극단 상황에서도 재귀 폭주 없이 로더 값을 반환한다."""
+    import itertools
+
+    cache = make_cache()
+    counter = itertools.count()
+    cache._version = lambda: next(counter)  # 매 확인마다 버전이 달라지는 최악 경합 시뮬레이션
+    assert cache.get_or_set("home", lambda: "fresh") == "fresh"
+
+
 def test_create_cache_falls_back_to_memory_when_redis_unavailable():
     cache = create_cache(redis_url="redis://127.0.0.1:1/0", prefix="nexus:", ttl_seconds=60)
     cache.set("k", "v")
