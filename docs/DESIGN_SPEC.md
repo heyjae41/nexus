@@ -230,12 +230,14 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 - **좌측 (max 580px)**:
   - 뱃지 (mono, `rgba(255,255,255,.16)` 배경 알약): `AFTER WORK, LEVEL UP`
   - h1 (52px): "퇴근 후 30분,<br>금융 AI 한 스푼."
-  - 설명 p (16.5px, rgba white .88): "BC카드 실거래 데이터로 배우고, 현직자와 토론하고, 사내 프로젝트로 연결돼요. 직장인과 개발자를 위한 가장 실무적인 금융 AI 학습 채널."
-  - 버튼 2개: "무료로 시작하기"(흰배경/레드텍스트, radius 30px → 온보딩) + "클래스 둘러보기"(ghost, 1.5px 반투명 흰 테두리 → 클래스)
-  - **통계 3개** (26px gap): `38만 건` / 실습용 익명 거래 데이터 · `120+` / 금융·AI 실무 클래스 · `9,400+` / 수강생·현직자 커뮤니티
-- **우측 플로팅 카드** (`.herocards`, absolute right, 300px, 모바일 숨김): 2개 글래스 카드 (`rgba(12,12,15,.5)` + blur):
-  1. `LIVE 커뮤니티` / "사내에서 RAG 도입한 후기 (삽질 포함)" / "지금 23명 보는 중" → 커뮤니티
-  2. `인기 클래스` / "이상거래 탐지(FDS) 모델 만들기" / "수강생 1,580명 · 4.9★" → 클래스
+  - 설명 p (16.5px, rgba white .88): "쏟아지는 AI 소식을 다 쫓을 필요는 없어요. 읽을만한 글, 들을만한 강의, 가볼만한 밋업과 오늘의 핫딜까지 — BC카드 AI사업팀이 매일 직접 골라 담아요."
+    (자체 클래스·실거래 데이터가 없는 현재 단계에서 허위가 되는 문구·통계는 금지 — 큐레이션 허브 정체성으로 서술)
+  - CTA 버튼 없음 — 아래 서비스 칩이 진입점 역할
+  - **서비스 칩 6개** (mono 라벨 `WHAT'S INSIDE` 아래, gap 8px wrap, 알약: `rgba(255,255,255,.10)` 배경 + `.16` 테두리 + blur, radius 22px). 각 칩 = 이모지 + 서비스명(13px/700/#fff) + 한 줄 소개(12px, rgba white .68):
+    ✦ 큐레이션 "매일 골라 읽는 AI 글"(→/curation) · ▶ 클래스 "검증된 명강의 소개"(→/classes) · 📍 meet.pl "밋업·해커톤 소식"(→/meet) · 💬 커뮤니티 "현직자 팁·Q&A"(→/community) · ⚡ AI핫딜 "오늘의 특가 수집"(→/hotdeal) · 🍜 eat.pl "회사 근처 맛집 검색"(외부 새 탭)
+- **우측 플로팅 카드** (`.herocards`, absolute right, 300px, 모바일 숨김): 실데이터 글래스 카드 (`rgba(12,12,15,.5)` + blur), 해당 데이터 없으면 미표시:
+  1. `오늘의 큐레이션` / 최신 큐레이션 글 제목 / `{authorName} · {readMinutes}분 읽기` → 큐레이션
+  2. `다가오는 밋업` / 첫 이벤트 제목 / `{place ?? area ?? 'meet.pl에서 확인'}` → meet.pl
 
 #### (b) 섹션들 (각 `max-width:1180px`, 헤더 = h2 + "더보기 →" 링크)
 1. **✦ 나를 위한 큐레이션** (3열 그리드 `.rgrid-3`) — `homeArticles` = 아티클 첫 3개. 카드: 상단 124px 그라디언트 + 카테고리(mono/레드) + 타이틀(15.5px) + `{source} · {readTime}`. → 큐레이션 상세.
@@ -248,9 +250,9 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 ### 2.4 클래스 목록 (`classes`)
 
-`max-width:1180px`. 상단: mono 라벨 `CLASS · 데이터사이언스 / AI` + h1 "금융 AI 클래스" + 설명. **카테고리 칩** (`classCats`): `전체, 데이터 분석, LLM·생성형 AI, 금융 도메인, 생산성, 커리어, 부트캠프`. 활성 칩 = 배경 `#E8123C`/텍스트 흰색/테두리 레드, 비활성 = 배경 `#15151A`/텍스트 `#b4b4be`/테두리 `rgba(255,255,255,.08)`. 클릭 시 `setState({cat})`.
-카운트 텍스트: `{cat} · 총 {n}개 클래스`.
-**클래스 그리드** (3열): 카드 = 148px 그라디언트(좌상단 카테고리 뱃지 + 우상단 level 뱃지) + tag(레드, 13px 높이 고정) + 타이틀(16px) + `{instructor} · {chapters}개 챕터 · {rating}★` + 가격(18px/800). 필터: `cat==='전체'`면 전체, 아니면 `category===cat`.
+`max-width:1180px`. 상단: mono 라벨 `CLASS · FASTCAMPUS CURATION` + h1 "지금 주목받는 AI 클래스" + 대상 배지 설명. **카테고리 칩**: `전체, AI TECH, AI CREATIVE, AI/업무생산성`. 선택 카테고리는 `/api/classes?category=` 서버 필터로 전달하고 페이지를 1로 초기화한다. 빠른 전환 시 최신 요청만 화면 상태를 갱신한다.
+카운트 텍스트: `{카테고리} · 총 {n}개 클래스`.
+**클래스 그리드** (3열): 패스트캠퍼스 실제 썸네일(좌상단 수집 카테고리 + 우상단 과정 형식) + 복수 상태 태그(`얼리버드`, `인기 급상승`, `BEST`, `NEW`) + 타이틀 + 하위 카테고리/수강 대상/러닝타임 + 할인가/정가. 카드는 `linkUrl`을 새 탭으로 열며 `ref=nexus.bccard.ai`를 포함한다. 홈의 "지금 뜨는 클래스"도 동일 API의 첫 4건을 사용한다.
 
 ### 2.5 클래스 상세 (`class-detail`, classId 필요)
 
@@ -262,7 +264,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 ### 2.6 큐레이션 목록 (`curation`)
 
-`max-width:1080px`. mono `CURATION · 테크 & 비즈니스 인사이트` + h1 "나를 위한 큐레이션" + 설명 "매일 업데이트되는 AI 테크 강좌와 금융·커리어 인사이트. 출근길에 한 편씩." **가로형 리스트 카드** (`allArticles` 전체, 세로 스택, `margin-bottom:14px`): 좌측 200px 그라디언트(모바일 숨김) + 우측 패딩 영역(카테고리 mono + 타이틀 19px + excerpt 14px/`#9a9aa4` + `{source} · {readTime} 읽기`). → 큐레이션 상세.
+`max-width:1080px`. mono `CURATION · 테크 & 비즈니스 인사이트` + h1 "나를 위한 큐레이션" + 설명 "매일 업데이트되는 AI 테크 강좌와 금융·커리어 인사이트. 출근길에 한 편씩." 상단 **글 포맷 필터 칩**은 `전체, 뉴스레터, 컬럼, 가이드`이며 활성 스타일은 클래스 카테고리 칩과 같다. 수집 사이트명(예: 브런치)은 필터·뱃지로 노출하지 않는다. 클릭 시 해당 `article_type` 글만 조회하고 1페이지로 돌아간다. **가로형 리스트 카드** (`allArticles` 전체, 세로 스택, `margin-bottom:14px`): 좌측 200px 그라디언트(모바일 숨김) + 우측 패딩 영역(글 포맷 mono + 타이틀 19px + excerpt 14px/`#9a9aa4` + `{source} · {readTime} 읽기`). → 큐레이션 상세.
 
 ### 2.7 큐레이션 상세 (`curation-detail`, articleId 필요)
 
@@ -271,7 +273,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 ### 2.8 커뮤니티 목록 (`community`)
 
-`max-width:820px`. 상단행: mono `COMMUNITY · 직접 쓰는 노하우` + h1 "커뮤니티" / 우측 "✎ 글쓰기" 버튼(레드, 클릭 시 alert 프로토타입). 설명 "팁·기술자료·삽질 후기까지. 현직자들이 직접 등록하고 댓글로 나눕니다." **글 카드** (세로 스택, gap 14px): 좌측 46px 원형 아바타 + 태그칩(mono, `rgba(232,18,60,.12)` 배경) + `{author} · {time}` + 타이틀(17px) + `♥ {likes} · 💬 {commentCount}`. → 커뮤니티 상세.
+`max-width:820px`. 상단행: mono `COMMUNITY · 직접 쓰는 노하우` + h1 "커뮤니티" / 우측 "✎ 글쓰기" 버튼(레드). 설명 "팁·기술자료·삽질 후기까지. 현직자들이 직접 등록하고 댓글로 나눕니다." 상단 **배지 필터 칩**은 `전체, 자료, 노하우, 팁, 기술자료`이며 활성 스타일은 클래스 카테고리 칩과 같다. 클릭 시 해당 `tag` 글만 서버에서 조회하며, 빠른 전환에서 이전 응답이 최신 목록을 덮어쓰지 않는다. **글 카드** (세로 스택, gap 14px): 좌측 46px 원형 아바타 + 태그칩(mono, `rgba(232,18,60,.12)` 배경) + `{author} · {time}` + 타이틀(17px) + `♥ {likes} · 💬 {commentCount}`. → 커뮤니티 상세.
 
 ### 2.9 커뮤니티 상세 (`community-detail`, postId 필요)
 
@@ -280,7 +282,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 ### 2.10 밋플 목록 (`meet`) & 상세 (`meet-detail`)
 
-**목록** (`max-width:1080px`, 3열): mono `meet.pl · AI 이벤트 & 밋업` + h1 "가야할 밋플" + 설명. 카드: 140px 이미지/그라디언트(좌상단 tag 뱃지 + 우상단 날짜뱃지) + 타이틀(16px) + host + `📍{location}` + `👥{going}명 참여 예정`.
+**목록** (`max-width:1080px`, 3열): mono `meet.pl · AI 이벤트 & 밋업` + h1 "가야할 밋플" + 설명. 현재 이벤트 1~5페이지(95개)의 좌상단 카테고리를 전수 확인해 상단 **배지 필터 칩**을 `전체, IT/프로그래밍, AI, 경제/금융`으로 정의한다. 활성 스타일은 클래스 카테고리 칩과 같고, 클릭하면 `category` 쿼리로 서버에서 해당 이벤트만 페이지네이션해 조회한다. 빠른 전환에서는 이전 응답이 최신 목록을 덮어쓰지 않는다. 카드: 140px 이미지/그라디언트(좌상단 category 뱃지 + 우상단 온라인 배지 + 우하단 날짜뱃지) + 타이틀(16px) + host + `📍{location}` + 조회수·가격.
 - 날짜뱃지 = `date`에서 "2026." 제거 + 요일 괄호 제거 (예: `07.15`).
 
 **상세** (`meet-detail`, eventId 필요, `max-width:980px`, 2단 `.85fr 1.15fr`):
@@ -289,7 +291,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 ### 2.11 AI핫딜 (`hotdeal`)
 
-배경 `#0A0A12` (푸른 검정). **액센트가 레드가 아닌 블루-보라(`#3E3FD9`/`#6E6FF5`)**. mono `AI HOTPICK · gemma 27B 추천` + h1 "AI 추천 핫딜" + 설명 "매일 업데이트되는 AI 추천 특가 모음 · 총 {n}개 — 수많은 상품 중 지금 가장 혜택 좋은 딜만 골라드립니다." **카테고리 칩**(`hdCats`: 전체, 여행, 식품/건강, 생활/주방, 뷰티/헬스, 패션/잡화, 가전/디지털) — 활성 칩 배경 `#3E3FD9`. **상품 그리드**(4열): 카드 `#12121C`, `aspect-ratio:1.45/1` 이미지(실패 시 숨김, 좌상단 할인율 뱃지 레드 `discount>0`일 때) + `{category} · {channel}`(mono/블루) + 상품명(13.5px, min-height 38px) + 원가(취소선, `original>0`) + 가격(17px/800). 클릭 시 `window.open('https://open.paybooc.co.kr')`. 하단 데이터 출처 각주: "데이터: open.paybooc.co.kr/bcai · BC카드 AI 핫픽 API".
+배경 `#0A0A12` (푸른 검정). **액센트가 레드가 아닌 블루-보라(`#3E3FD9`/`#6E6FF5`)**. 화면 진입·동일 메뉴 재클릭·브라우저 새로고침마다 `https://open.paybooc.co.kr/bcai/api/hotpick/hotpicks`를 `cache: 'no-store'`로 호출하며, 정적 핫딜 fixture는 사용하지 않는다. mono `AI HOTPICK · gemma 27B 추천` + h1 "AI 추천 핫딜" + API `last_updated`와 현재 결과 수를 표시한다. **카테고리 칩**은 API 응답의 `category` 값에서 동적으로 구성하고 활성 칩 배경은 `#3E3FD9`다. **상품 그리드**(4열): 카드 `#12121C`, `aspect-ratio:1.45/1` 이미지(실패 시 숨김, 좌상단 할인율 뱃지) + `{category} · {orgid}`(mono/블루) + `product_name` + `original_price` + `product_price`. 카드 전체는 API의 `source_url`을 `href`로 사용하는 외부 링크이며 새 탭에서 안전하게 연다. 전체 결과는 클라이언트에서 페이지당 40개씩 렌더링해 수백 개 카드가 한 번에 DOM에 생성되지 않도록 한다. 로딩·오류/재시도·빈 결과 상태를 제공한다. 하단 데이터 출처 각주: "데이터: open.paybooc.co.kr/bcai · BC카드 AI 핫픽 API".
 
 ### 2.12 온보딩 (`onboarding`, 3스텝)
 

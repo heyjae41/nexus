@@ -46,13 +46,14 @@ PYTHONPATH=backend uvicorn app.main:app --port 8000 --reload
 
 기동과 함께 스케줄러가 시작된다:
 - **인제스트** 1분 주기 — `contents/*.html` → DB (저장 도구가 즉시 반영도 시도)
-- **수집 체인** 12시간 주기 — 브런치 → event-us → luma AI → luma TECH 순차
+- **수집 체인** 12시간 주기 — 브런치 → event-us → luma AI → luma TECH → 패스트캠퍼스 클래스 순차
 
 수동 트리거(내부 API, 로컬에서만 접근):
 ```bash
 curl -X POST localhost:8000/api/internal/ingest/run
 curl -X POST localhost:8000/api/internal/brunch/run
 curl -X POST localhost:8000/api/internal/meetup/run   # event-us + luma 전체
+curl -X POST localhost:8000/api/internal/classes/run  # 패스트캠퍼스 지정 3개 카테고리
 ```
 
 ## 4. 프론트엔드
