@@ -69,20 +69,48 @@ def meetup_run(
 def classes_run(
     db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
 ):
+    from app.services.class_opportunities import collect_class_opportunities
+    from app.services.dacon_fetcher import fetch_dacon_candidates
+    from app.services.daker_fetcher import fetch_daker_candidates
     from app.services.fastcampus_collector import collect_fastcampus_courses
     from app.services.fastcampus_fetcher import fetch_fastcampus_candidates
 
     try:
-        candidates = fetch_fastcampus_candidates()
-        result = collect_fastcampus_courses(db, cache, candidates=candidates)
+        # 외부 응답을 모두 검증한 뒤 반영해 fetch 단계의 부분 성공을 피한다.
+        fastcampus_candidates = fetch_fastcampus_candidates()
+        daker_candidates = fetch_daker_candidates()
+        dacon_candidates = fetch_dacon_candidates()
+        results = {
+            "fastcampus": collect_fastcampus_courses(
+                db, cache, candidates=fastcampus_candidates
+            ),
+            "daker": collect_class_opportunities(
+                db, cache, source_type="daker", candidates=daker_candidates
+            ),
+            "dacon": collect_class_opportunities(
+                db, cache, source_type="dacon", candidates=dacon_candidates
+            ),
+        }
     except (httpx.HTTPError, ValueError) as exc:
-        logger.exception("패스트캠퍼스 클래스 수동 수집 실패")
+        logger.exception("클래스 수동 수집 실패")
         raise HTTPException(status_code=502, detail="클래스 수집에 실패했습니다") from exc
+
+    sources = {}
+    for name, result in results.items():
+        sources[name] = {
+            "candidates": result.candidates,
+            "added": result.added,
+            "updated": result.updated,
+            "hidden": result.hidden,
+            "skipped": getattr(result, "skipped", 0),
+        }
     return api_response({
-        "candidates": result.candidates,
-        "added": result.added,
-        "updated": result.updated,
-        "hidden": result.hidden,
+        "candidates": sum(item["candidates"] for item in sources.values()),
+        "added": sum(item["added"] for item in sources.values()),
+        "updated": sum(item["updated"] for item in sources.values()),
+        "hidden": sum(item["hidden"] for item in sources.values()),
+        "skipped": sum(item["skipped"] for item in sources.values()),
+        "sources": sources,
     })
 
 

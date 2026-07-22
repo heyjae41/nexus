@@ -20,7 +20,9 @@ FastAPI 시작
       ├─ Event-us Meetup
       ├─ Luma AI
       ├─ Luma TECH
-      └─ FastCampus
+      ├─ FastCampus
+      ├─ Daker Hackathons
+      └─ DACON Competitions
 ```
 
 - `ingest`는 외부 크롤러가 아니라 내부 HTML 파일을 DB에 발행하는 작업이다.
@@ -78,7 +80,7 @@ LUMA_CATEGORIES=cat-ai:AI,cat-tech:TECH
 12시간마다 아래 순서로 실행한다.
 
 ```text
-Brunch → Event-us → Luma AI → Luma TECH → FastCampus
+Brunch → Event-us → Luma AI → Luma TECH → FastCampus → Daker → DACON
 ```
 
 각 단계는 독립 DB 세션을 사용한다. 한 단계가 실패해도 예외를 로깅한 뒤 다음 단계로 진행한다. 외부 사이트 하나의 장애가 전체 체인이나 API 서버를 중단시키지 않는다.
@@ -380,25 +382,29 @@ ai, 인공지능, 머신러닝, 데이터과학, 딥러닝, 생성형, gpt, llm,
 
 동시 실행으로 이미 저장된 URL에서 UNIQUE 충돌이 발생하면 실패가 아니라 `duplicate`로 기록한다.
 
-## 6. Classes (FastCampus)
+## 6. Classes (FastCampus · Daker · DACON)
 
 ### 6.1 역할과 실행 주기
 
-클래스 수집은 FastCampus 공개 JSON API에서 지정 배지가 붙은 과정을 찾아
-`courses` 테이블과 동기화한다. 단순 신규 추가가 아니라 기존 과정 갱신과
-대상 배지에서 이탈한 과정의 숨김 처리까지 수행한다.
+클래스 영역은 FastCampus AI 과정뿐 아니라 Daker의 모집중·진행중 해커톤과
+DACON의 참가신청중 경진대회를 `courses` 테이블에 동기화한다. FastCampus는
+지정 배지 과정을 수집하고, Daker/DACON은 현재 참가 가능한 항목만 수집한다.
+모든 소스는 신규 추가, 기존 항목 갱신, 더 이상 대상이 아닌 항목 숨김을 수행한다.
 
 관련 코드:
 
 - `backend/app/services/fastcampus_fetcher.py`
 - `backend/app/services/fastcampus_collector.py`
+- `backend/app/services/daker_fetcher.py`
+- `backend/app/services/dacon_fetcher.py`
+- `backend/app/services/class_opportunities.py`
 - `backend/app/repositories/courses.py`
 - `backend/app/api/routes.py`
 
-정기 실행은 12시간 `collect_chain`의 마지막 단계다.
+정기 실행은 12시간 `collect_chain`의 마지막 세 단계다.
 
 ```text
-Brunch → Event-us → Luma AI → Luma TECH → FastCampus
+Brunch → Event-us → Luma AI → Luma TECH → FastCampus → Daker → DACON
 ```
 
 ### 6.2 대상 카테고리
@@ -528,11 +534,15 @@ GET /api/classes?page=1&size=20
 GET /api/classes?category=DATASCIENCEDL
 GET /api/classes?category=AICREATIVE
 GET /api/classes?category=BIZ
+GET /api/classes?category=DAKER
+GET /api/classes?category=DACON
 ```
 
-공개 과정만 반환하며 정렬 순서는 AI TECH → AI CREATIVE → AI/업무생산성,
-각 카테고리 안에서는 원본 순위 순이다. 원본 과정 링크에는
-`ref=nexus.bccard.ai`를 붙이고 외부 링크로 직렬화한다.
+공개 항목만 반환하며 정렬 순서는 AI TECH → AI CREATIVE → AI/업무생산성 →
+해커톤 → 경진대회, 각 카테고리 안에서는 원본 순위 순이다. 원본 링크에는
+`ref=nexus.bccard.ai`를 붙이고 외부 링크로 직렬화한다. 응답의 `sourceType`은
+`fastcampus`, `daker`, `dacon` 중 하나이며, 프런트엔드는 이를 사용해 강의의
+가격/학습시간 카드와 해커톤·경진대회의 상태/총상금 카드를 구분한다.
 
 ### 6.11 현재 운영 현황
 
@@ -551,6 +561,69 @@ GET /api/classes?category=BIZ
 운영 DB에는 과정 62건(공개 56, 숨김 6)과 수집 이력 18건이 있다. 최근 정기
 실행은 후보 56건을 처리해 신규 0건, 갱신 13건, 숨김 1건으로 성공했다.
 
+### 6.12 Daker 해커톤
+
+공식 공개 API:
+
+```text
+GET https://daker.ai/api/hackathons/public-list
+```
+
+다음 조건을 모두 만족하는 항목만 가져온다.
+
+- `status == published`
+- `isPracticeMode != true`
+- `lastStageEndDate` 또는 `endDate`가 현재 UTC 시각 이후
+- `registrationDeadline`이 현재 시각 이후면 `모집중`, 이미 지났지만 대회 종료
+  전이면 `진행중`
+
+상태와 종료일 필드가 누락되면 후보 0건으로 간주하지 않고 스키마 오류로
+수집을 중단한다. 외부 ID에는 `daker:` 접두어를 붙이며, 제목·tagline·주최사·
+상금·헤더 이미지·slug 상세 링크를 저장한다. 2026-07-22 실제 공개 API 검증
+결과는 모집중 5건, 진행중 1건이다.
+
+### 6.13 DACON 경진대회
+
+공식 공개 API:
+
+```text
+GET https://app.dacon.io/api/v1/competition/list?offset={page}&range=
+```
+
+0페이지부터 페이지당 15건을 순회하며 15건 미만 페이지에서 종료한다. 무한
+페이지 순회를 막기 위해 최대 50페이지까지만 허용한다. 화면의 `참가신청중`과
+동일하게 다음 조건을 모두 만족하는 항목만 가져온다.
+
+- `practice == 1`
+- KST로 해석한 `period_start`가 아직 미래이거나 `period_dday >= 0`
+
+세 상태 필드가 누락되거나 값 형식이 바뀌면 스키마 오류로 중단한다. 외부 ID에는
+`dacon:` 접두어를 붙이며, 제목·키워드·상금·로고·공식 overview 링크를 저장한다.
+API의 `prize`는 만원 단위이므로 원 단위로 변환한다. 2026-07-22 실제 공개 API
+검증 결과는 참가신청중 1건이다.
+
+### 6.14 소스 간 중복과 동기화
+
+Daker/DACON 후보는 다음 순서로 중복을 판정한다.
+
+1. 같은 소스의 접두어 포함 `source_id`가 있으면 갱신 대상으로 식별한다.
+2. 갱신 대상 자신을 제외한 모든 기존 행 및 같은 배치 후보의 정규화 URL이 같으면
+   반영을 건너뛴다. URL 비교 시 query/fragment와 끝 `/`를 제거하고 scheme/host를
+   소문자로 바꾼다.
+3. 갱신 대상 자신을 제외한 공개 중인 모든 소스 및 같은 배치 후보의 정규화 제목이
+   같으면 반영을 건너뛴다. 제목은 Unicode NFKC와 casefold를 적용한 뒤 공백·
+   문장부호를 제거한다.
+4. 이번 정상 응답에서 사라졌거나 중복으로 건너뛴 같은 소스의 기존 공개 항목은
+   `status=hidden`으로 바꾼다. 다시 대상 상태가 되고 중복도 없으면 `published`로
+   복구한다.
+
+따라서 FastCampus·Daker·DACON 간 제목 중복도 저장하지 않는다. 숨김 제목은
+새로운 활성 항목을 가로막지 않지만, DB의 `source_url UNIQUE` 제약을 지키기 위해
+동일 URL은 숨김 상태여도 중복으로 처리한다.
+
+동일 프로세스는 `threading.Lock`, PostgreSQL은 transaction advisory lock으로
+수동·정기 실행을 직렬화한다. 신규·갱신·숨김이 있으면 캐시 버전을 증가시킨다.
+
 ## 7. 수동 실행 API
 
 `backend/app/api/internal.py`는 스케줄러와 같은 코드 경로를 수동으로 실행한다.
@@ -560,7 +633,11 @@ GET /api/classes?category=BIZ
 | `POST /api/internal/ingest/run` | `/contents` 즉시 스캔 |
 | `POST /api/internal/meetup/run` | Event-us + Luma 전체 수집 |
 | `POST /api/internal/brunch/run` | Brunch 즉시 수집 |
-| `POST /api/internal/classes/run` | FastCampus 즉시 수집 |
+| `POST /api/internal/classes/run` | FastCampus + Daker + DACON 즉시 수집 |
+
+클래스 수동 실행은 세 외부 응답을 모두 먼저 조회·검증한 뒤 DB 반영을 시작한다.
+응답에는 전체 합계와 `sources.fastcampus`, `sources.daker`, `sources.dacon`별
+`candidates`, `added`, `updated`, `hidden`, `skipped` 수가 포함된다.
 
 외부 포트 80의 Nginx는 `/api/internal/` 요청에 HTTP 403을 반환한다.
 

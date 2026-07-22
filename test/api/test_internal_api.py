@@ -86,10 +86,23 @@ def test_internal_classes_run_with_stubbed_fetch(client, monkeypatch):
         "app.services.fastcampus_fetcher.fetch_fastcampus_candidates",
         lambda: [candidate],
     )
+    monkeypatch.setattr(
+        "app.services.daker_fetcher.fetch_daker_candidates",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        "app.services.dacon_fetcher.fetch_dacon_candidates",
+        lambda: [],
+    )
     res = client.post("/api/internal/classes/run")
     assert res.status_code == 200
     assert res.json()["data"] == {
-        "candidates": 1, "added": 1, "updated": 0, "hidden": 0,
+        "candidates": 1, "added": 1, "updated": 0, "hidden": 0, "skipped": 0,
+        "sources": {
+            "fastcampus": {"candidates": 1, "added": 1, "updated": 0, "hidden": 0, "skipped": 0},
+            "daker": {"candidates": 0, "added": 0, "updated": 0, "hidden": 0, "skipped": 0},
+            "dacon": {"candidates": 0, "added": 0, "updated": 0, "hidden": 0, "skipped": 0},
+        },
     }
     listed = client.get("/api/classes?category=BIZ").json()
     assert listed["data"][0]["title"] == "수동 수집 클래스"

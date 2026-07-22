@@ -3,12 +3,21 @@ from app.models import Course
 
 
 def add_course(client, source_id, category, badges, rank=1, status="published"):
+    names = {
+        "DATASCIENCEDL": "AI TECH",
+        "AICREATIVE": "AI CREATIVE",
+        "BIZ": "AI/업무생산성",
+        "DAKER": "해커톤",
+        "DACON": "경진대회",
+    }
+    source_type = {
+        "DAKER": "daker",
+        "DACON": "dacon",
+    }.get(category, "fastcampus")
     db = client.session_factory()
     db.add(Course(
-        source_type="fastcampus", source_id=source_id,
-        source_category_code=category, source_category_name={
-            "DATASCIENCEDL": "AI TECH", "AICREATIVE": "AI CREATIVE", "BIZ": "AI/업무생산성",
-        }[category],
+        source_type=source_type, source_id=source_id,
+        source_category_code=category, source_category_name=names[category],
         source_category_url=f"https://fastcampus.co.kr/category_online_{category.lower()}",
         source_rank=rank, title=f"과정 {source_id}", summary="설명",
         source_url=f"https://fastcampus.co.kr/{source_id}",
@@ -43,6 +52,19 @@ def test_classes_api_filters_by_source_category(client):
     assert res.status_code == 200
     assert [x["sourceId"] for x in res.json()["data"]] == ["2"]
     assert res.json()["meta"]["total"] == 1
+
+
+def test_classes_api_lists_opportunity_categories_with_source_type(client):
+    add_course(client, "daker:1", "DAKER", ["모집중"])
+    add_course(client, "dacon:2", "DACON", ["참가신청중"])
+
+    daker = client.get("/api/classes?category=DAKER").json()
+    dacon = client.get("/api/classes?category=DACON").json()
+
+    assert daker["data"][0]["sourceType"] == "daker"
+    assert daker["data"][0]["sourceCategoryName"] == "해커톤"
+    assert dacon["data"][0]["sourceType"] == "dacon"
+    assert dacon["data"][0]["sourceCategoryName"] == "경진대회"
 
 
 def test_classes_api_rejects_unknown_category(client):

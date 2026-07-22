@@ -97,6 +97,30 @@ def run_fastcampus_job(cache: VersionedCache) -> None:
             logger.exception("패스트캠퍼스 클래스 수집 작업 실패")
 
 
+def run_daker_job(cache: VersionedCache) -> None:
+    from app.services.class_opportunities import collect_class_opportunities
+    from app.services.daker_fetcher import fetch_daker_candidates
+
+    with _session() as db:
+        try:
+            candidates = fetch_daker_candidates()
+            collect_class_opportunities(db, cache, source_type="daker", candidates=candidates)
+        except Exception:
+            logger.exception("DAKER 해커톤 수집 작업 실패")
+
+
+def run_dacon_job(cache: VersionedCache) -> None:
+    from app.services.class_opportunities import collect_class_opportunities
+    from app.services.dacon_fetcher import fetch_dacon_candidates
+
+    with _session() as db:
+        try:
+            candidates = fetch_dacon_candidates()
+            collect_class_opportunities(db, cache, source_type="dacon", candidates=candidates)
+        except Exception:
+            logger.exception("DACON 경진대회 수집 작업 실패")
+
+
 def run_collect_chain_job(cache: VersionedCache) -> None:
     """12시간 주기 수집 체인 — 브런치부터 순차 실행, 한 단계 실패해도 다음 단계 진행."""
     settings = get_settings()
@@ -108,7 +132,11 @@ def run_collect_chain_job(cache: VersionedCache) -> None:
         (f"luma:{label}", lambda cid=cid, label=label: run_luma_job(cache, cid, label))
         for cid, label in settings.luma_category_pairs
     ]
-    steps.append(("fastcampus", lambda: run_fastcampus_job(cache)))
+    steps.extend([
+        ("fastcampus", lambda: run_fastcampus_job(cache)),
+        ("daker", lambda: run_daker_job(cache)),
+        ("dacon", lambda: run_dacon_job(cache)),
+    ])
     for name, step in steps:
         try:
             step()

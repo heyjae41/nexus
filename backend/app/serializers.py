@@ -136,6 +136,7 @@ def serialize_course_card(course: Course) -> dict:
     return {
         "id": course.id,
         "sourceId": course.source_id,
+        "sourceType": course.source_type,
         "title": course.title,
         "summary": course.summary,
         "sourceCategoryCode": course.source_category_code,

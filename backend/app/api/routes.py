@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api")
 
 HOME_SECTION_SIZE = 6
 EventCategory = Literal["IT/프로그래밍", "AI", "경제/금융"]
-ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ"]
+ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ", "DAKER", "DACON"]
 
 
 def get_cache(request: Request) -> VersionedCache:

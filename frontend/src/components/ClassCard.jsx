@@ -13,8 +13,12 @@ export default function ClassCard({ cls, index, compact = false }) {
   const grad = classGrad(index)
 
   if (cls.isExternal) {
+    const isOpportunity = cls.sourceType === 'daker' || cls.sourceType === 'dacon'
     const hours = cls.runningTimeMinutes ? `${Math.floor(cls.runningTimeMinutes / 60)}시간` : null
     const price = Number.isFinite(cls.price) ? `${cls.price.toLocaleString('ko-KR')}원` : '가격 확인'
+    const reward = Number.isFinite(cls.price) && cls.price > 0
+      ? `총 상금 ${cls.price.toLocaleString('ko-KR')}원`
+      : cls.qualification ? `혜택 ${cls.qualification}` : '상금·혜택 확인'
     return (
       <ExternalCard
         href={cls.linkUrl}
@@ -37,17 +41,33 @@ export default function ClassCard({ cls, index, compact = false }) {
             fontSize: 15.5, fontWeight: 700, color: '#ECECEF', lineHeight: 1.4,
             margin: '0 0 8px', ...clamp2,
           }}>{cls.title}</p>
-          <p style={{ fontSize: 12.5, color: '#7a7a84', margin: '0 0 8px' }}>
-            {[cls.category, cls.qualification, hours].filter(Boolean).join(' · ')}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
-            <p style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{price}</p>
-            {Number.isFinite(cls.original) && cls.original > cls.price && (
-              <span style={{ fontSize: 12, color: '#686872', textDecoration: 'line-through' }}>
-                {cls.original.toLocaleString('ko-KR')}원
-              </span>
-            )}
-          </div>
+          {isOpportunity ? (
+            <>
+              {cls.summary && (
+                <p style={{ fontSize: 12.5, color: '#9a9aa4', lineHeight: 1.45, margin: '0 0 6px', ...clamp2 }}>
+                  {cls.summary}
+                </p>
+              )}
+              {cls.category && (
+                <p style={{ fontSize: 12, color: '#686872', margin: '0 0 8px' }}>{cls.category}</p>
+              )}
+              <p style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>{reward}</p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 12.5, color: '#7a7a84', margin: '0 0 8px' }}>
+                {[cls.category, cls.qualification, hours].filter(Boolean).join(' · ')}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                <p style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{price}</p>
+                {Number.isFinite(cls.original) && cls.original > cls.price && (
+                  <span style={{ fontSize: 12, color: '#686872', textDecoration: 'line-through' }}>
+                    {cls.original.toLocaleString('ko-KR')}원
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </ExternalCard>
     )

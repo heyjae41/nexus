@@ -120,10 +120,12 @@ category, cover_image_url, status, collected_at`. 인덱스: `(event_start)`.
 ### meetup_collect_runs — 밋업 수집 이력
 `id PK, status(success/empty/failed), candidates_count, added_count, error_message, created_at`.
 
-### courses / fastcampus_collect_runs — 수집형 클래스
-`courses`: 패스트캠퍼스 과정 ID(`source_id`)와 URL을 UNIQUE로 보존하고, 세 대상 카테고리,
-목록 순위, 제목/설명/이미지/가격/과정 형식/수강 대상/러닝타임/복수 배지를 저장한다.
-공개 대상 배지는 `얼리버드`, `인기 급상승`, `BEST`, `NEW`로 제한한다. 재수집 시 upsert하며
+### courses / fastcampus_collect_runs — 수집형 클래스·참가 기회
+`courses`: FastCampus 과정, Daker 해커톤, DACON 경진대회의 소스별 ID(`source_id`)와
+URL을 UNIQUE로 보존한다. FastCampus 과정은 세 대상 카테고리, 목록 순위, 제목/설명/
+이미지/가격/과정 형식/수강 대상/러닝타임/복수 배지를 저장한다. Daker/DACON 항목은
+`daker:`/`dacon:` ID 접두어와 상태, 주최사/키워드, 상금·혜택을 같은 필드에 매핑한다.
+FastCampus 공개 대상 배지는 `얼리버드`, `인기 급상승`, `BEST`, `NEW`로 제한한다. 재수집 시 upsert하며
 대상 배지를 잃은 기존 과정은 삭제 대신 `status='hidden'` 처리한다. 단, 카테고리 ID·BEST/NEW
 응답 구조·카테고리별 대상 과정 존재 여부를 먼저 검증하고, 기존 공개 건수 대비 50% 초과 급감 시
 전체 반영을 중단한다. 숨김은 수집 완료가 확인된 카테고리에만 적용한다. 수동 실행과 스케줄 실행은
@@ -174,7 +176,7 @@ updated_count, hidden_count, error_message, created_at`.
 - `GET /api/articles?category=&type=&page=&size=` — 목록(카드 필드 포함)
 - `GET /api/articles/{id}` — 상세(view_count 증가)
 - `POST /api/articles/{id}/like` — 익명 증가 전용(위 '좋아요 정책' 참고)
-- `GET /api/classes?category=&page=&size=` — 패스트캠퍼스 수집 클래스 목록. 카테고리 코드: `DATASCIENCEDL`, `AICREATIVE`, `BIZ`
+- `GET /api/classes?category=&page=&size=` — 수집형 클래스·참가 기회 목록. 카테고리 코드: `DATASCIENCEDL`, `AICREATIVE`, `BIZ`, `DAKER`, `DACON`
 - `GET /api/events?category=&page=&size=` — 밋업 목록(배지: `IT/프로그래밍`, `AI`, `경제/금융`; 미지정 시 전체)
 - `POST /api/members` — 가입 또는 로그인(닉네임+비밀번호, 위 members 정책 참고) · `GET/PATCH/DELETE /api/members/{id}` — 프로필/탈회
 - `GET /api/community/posts?tag=&page=&size=` · `POST /api/community/posts` · `GET /api/community/posts/{id}` — 커뮤니티 글

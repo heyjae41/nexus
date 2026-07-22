@@ -9,6 +9,8 @@ const CATEGORIES = [
   { code: 'DATASCIENCEDL', label: 'AI TECH' },
   { code: 'AICREATIVE', label: 'AI CREATIVE' },
   { code: 'BIZ', label: 'AI/업무생산성' },
+  { code: 'DAKER', label: '해커톤' },
+  { code: 'DACON', label: '경진대회' },
 ]
 const PAGE_SIZE = 20
 
@@ -51,12 +53,12 @@ export default function Classes() {
   return (
     <main style={{ padding: '40px 40px 64px', maxWidth: 1180, margin: '0 auto' }}>
       <div style={{ marginBottom: 28 }}>
-        <PageLabel>CLASS · FASTCAMPUS CURATION</PageLabel>
+        <PageLabel>CLASS · AI LEARNING &amp; CHALLENGES</PageLabel>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-.03em', margin: '0 0 8px' }}>
           지금 주목받는 AI 클래스
         </h1>
         <p style={{ fontSize: 15, color: '#9a9aa4', margin: 0 }}>
-          패스트캠퍼스의 얼리버드·인기 급상승·BEST·NEW 과정만 모았습니다.
+          엄선한 AI 과정과 지금 참가할 수 있는 해커톤·경진대회를 모았습니다.
         </p>
       </div>
 
@@ -74,7 +76,7 @@ export default function Classes() {
       </div>
 
       <p role="status" aria-live="polite" style={{ fontSize: 13.5, color: '#9a9aa4', marginBottom: 20 }}>
-        {activeLabel} · 총 {meta.total}개 클래스
+        {activeLabel} · 총 {meta.total}개
       </p>
 
       {loading ? (

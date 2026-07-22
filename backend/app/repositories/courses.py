@@ -30,6 +30,8 @@ def list_courses(
         (Course.source_category_code == "DATASCIENCEDL", 1),
         (Course.source_category_code == "AICREATIVE", 2),
         (Course.source_category_code == "BIZ", 3),
+        (Course.source_category_code == "DAKER", 4),
+        (Course.source_category_code == "DACON", 5),
         else_=9,
     )
     items = list(db.scalars(

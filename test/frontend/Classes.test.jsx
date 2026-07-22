@@ -14,6 +14,14 @@ const course = {
   linkUrl: 'https://fastcampus.co.kr/data_online_aistock?ref=nexus.bccard.ai', isExternal: true,
 }
 
+const opportunity = {
+  id: 2, sourceId: 'daker:abc', sourceType: 'daker', title: 'AI 해커톤',
+  summary: 'AI 서비스를 만드는 해커톤', sourceCategoryName: '해커톤', category: '주최사',
+  formatName: '모집중', qualification: null, runningTimeMinutes: null,
+  price: 1000000, original: null, badges: ['모집중'], coverImageUrl: null,
+  linkUrl: 'https://daker.ai/public/hackathons/ai-hackathon?ref=nexus.bccard.ai', isExternal: true,
+}
+
 const wrap = () => render(<BrowserRouter><Classes /></BrowserRouter>)
 
 describe('Classes — 수집형 목록', () => {
@@ -29,11 +37,22 @@ describe('Classes — 수집형 목록', () => {
     expect(card).toHaveAttribute('target', '_blank')
   })
 
-  it('세 수집 카테고리를 서버 필터로 전달한다', async () => {
+  it('해커톤 카드는 모집 상태와 총상금을 표시하고 강의 정보는 숨긴다', async () => {
+    fetchClasses.mockResolvedValue({ data: [opportunity], meta: { total: 1, page: 1, limit: 20 } })
+    wrap()
+    expect(await screen.findByText('AI 해커톤')).toBeInTheDocument()
+    expect(screen.getAllByText('모집중').length).toBeGreaterThan(0)
+    expect(screen.getByText('총 상금 1,000,000원')).toBeInTheDocument()
+    expect(screen.getByText('AI 서비스를 만드는 해커톤')).toBeInTheDocument()
+    expect(screen.queryByText(/총 학습시간/)).not.toBeInTheDocument()
+    expect(screen.queryByText('가격 확인')).not.toBeInTheDocument()
+  })
+
+  it('다섯 수집 카테고리를 서버 필터로 전달한다', async () => {
     fetchClasses.mockResolvedValue({ data: [course], meta: { total: 1, page: 1, limit: 20 } })
     wrap()
     await screen.findByText('AI 투자 에이전트')
-    for (const label of ['전체', 'AI TECH', 'AI CREATIVE', 'AI/업무생산성']) {
+    for (const label of ['전체', 'AI TECH', 'AI CREATIVE', 'AI/업무생산성', '해커톤', '경진대회']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
     fireEvent.click(screen.getByRole('button', { name: 'AI CREATIVE' }))

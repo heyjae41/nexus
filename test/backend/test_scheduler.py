@@ -17,7 +17,7 @@ def test_scheduler_has_ingest_and_collect_chain():
 
 
 def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
-    """브런치 → event-us → luma(AI/TECH) → fastcampus. 실패해도 다음 단계 진행."""
+    """브런치 → 밋업 → FastCampus → Daker → DACON. 실패해도 다음 단계 진행."""
     calls = []
     monkeypatch.setattr(
         scheduler_module, "run_brunch_job",
@@ -37,9 +37,20 @@ def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
         scheduler_module, "run_fastcampus_job",
         lambda cache: calls.append("fastcampus"),
     )
+    monkeypatch.setattr(
+        scheduler_module, "run_daker_job",
+        lambda cache: calls.append("daker"),
+    )
+    monkeypatch.setattr(
+        scheduler_module, "run_dacon_job",
+        lambda cache: calls.append("dacon"),
+    )
 
     run_collect_chain_job(make_cache())
-    assert calls == ["brunch", "eventus", "luma:AI", "luma:TECH", "fastcampus"]
+    assert calls == [
+        "brunch", "eventus", "luma:AI", "luma:TECH",
+        "fastcampus", "daker", "dacon",
+    ]
 
 
 def _cache():

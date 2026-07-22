@@ -1,18 +1,16 @@
 """패스트캠퍼스 과정 upsert 및 대상 태그 이탈 과정 숨김 처리."""
 from dataclasses import dataclass
 import logging
-import threading
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
 from app.models import Course, FastCampusCollectRun
+from app.services.course_collection_lock import course_collection_lock
 from app.services.fastcampus_fetcher import FastCampusCandidate
 
 logger = logging.getLogger(__name__)
-_COLLECT_LOCK = threading.Lock()
-_PG_ADVISORY_LOCK_ID = 336_131_872_083
 
 
 class CollectionSafetyError(ValueError):
@@ -118,11 +116,6 @@ def _collect_locked(
     completed_categories: set[str],
 ) -> FastCampusCollectResult:
     try:
-        if db.get_bind().dialect.name == "postgresql":
-            db.execute(
-                text("SELECT pg_advisory_xact_lock(:lock_id)"),
-                {"lock_id": _PG_ADVISORY_LOCK_ID},
-            )
         existing = {
             course.source_id: course
             for course in db.scalars(select(Course).where(Course.source_type == "fastcampus"))
@@ -169,9 +162,7 @@ def collect_fastcampus_courses(
     categories = completed_categories or {
         candidate.source_category_code for candidate in candidates
     }
-    # 단일 프로세스의 수동·스케줄 실행을 직렬화하고, PostgreSQL에서는 위의
-    # transaction advisory lock으로 다중 프로세스까지 같은 수집 배치를 직렬화한다.
-    with _COLLECT_LOCK:
+    with course_collection_lock(db):
         return _collect_locked(
             db, cache, candidates=candidates, completed_categories=set(categories)
         )
