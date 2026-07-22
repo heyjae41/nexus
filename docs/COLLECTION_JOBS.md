@@ -24,7 +24,7 @@ FastAPI 시작
 ```
 
 - `ingest`는 외부 크롤러가 아니라 내부 HTML 파일을 DB에 발행하는 작업이다.
-- `brunch`는 최근 12시간 AI 관련 글 중 인기글 1건을 선정한다.
+- `brunch`는 최근 12시간 AI 관련 글 중 키워드별 인기글을 최대 1건씩 선정한다.
 - `meetup`은 Event-us 및 Luma에서 찾은 신규 이벤트 전체를 저장한다.
 - 신규 데이터가 반영되면 Redis 캐시 네임스페이스 버전을 올려 기존 조회 캐시를 즉시 무효화한다.
 
@@ -279,11 +279,16 @@ POST https://api.event-us.kr/api/v1/engine/search
 - `backend/app/services/brunch.py`
 - `backend/app/services/publish.py`
 
-기본 조회 URL:
+조회 URL:
 
 ```text
 https://brunch.co.kr/keyword/인공지능
+https://brunch.co.kr/keyword/AI
+https://brunch.co.kr/keyword/머신러닝
+https://brunch.co.kr/keyword/데이터과학
 ```
+
+각 URL은 서로 독립적으로 후보를 조회하고 선정한다.
 
 키워드 페이지의 서버 렌더링 스크립트에 들어 있는 다음 데이터를 추출한다.
 
@@ -315,7 +320,7 @@ var articleList = [...]
 제목과 요약에 다음 키워드 중 하나가 포함되어야 한다.
 
 ```text
-ai, 인공지능, 머신러닝, 딥러닝, 생성형, gpt, llm,
+ai, 인공지능, 머신러닝, 데이터과학, 딥러닝, 생성형, gpt, llm,
 챗봇, 프롬프트, 클로드, 제미나이, copilot, 코파일럿, 에이전트
 ```
 
@@ -323,11 +328,16 @@ ai, 인공지능, 머신러닝, 딥러닝, 생성형, gpt, llm,
 
 ### 5.3 인기글 선정
 
-신규 AI 후보 중 다음 점수가 가장 높은 글 한 건만 선정한다.
+각 키워드 페이지의 신규 AI 후보 중 다음 점수가 가장 높은 글을 한 건씩 선정한다.
 
 ```text
 좋아요 수 + 댓글 수
 ```
+
+따라서 한 주기에서 정상적으로 최대 4건이 선정된다. 같은 글이 여러 키워드
+페이지에 겹치면 먼저 처리된 키워드에서 저장되고, 이후 키워드에서는 기존
+`source_url`을 제외한 차순위 글을 선정한다. 해당 키워드에 시간 창 내 신규
+후보가 없으면 실제 선정 건수는 4건보다 적을 수 있다.
 
 동점인 경우 Python `max()` 특성상 후보 목록에서 먼저 나온 글이 선택된다.
 
@@ -349,7 +359,11 @@ ai, 인공지능, 머신러닝, 딥러닝, 생성형, gpt, llm,
 
 ### 5.5 수집 이력
 
-`brunch_collect_runs` 필드:
+`brunch_collect_runs`에는 키워드별로 실행 이력 한 행이 기록되므로 정기 수집
+한 주기에 최대 4개의 이력 행이 생성된다. 현재 테이블에는 키워드 컬럼이 없어
+이력 행만으로 어느 키워드의 실행인지 직접 식별할 수는 없다.
+
+필드:
 
 - 수집 시간 창 시작/종료
 - `status`: `success`, `empty`, `duplicate`, `failed`
@@ -366,7 +380,178 @@ ai, 인공지능, 머신러닝, 딥러닝, 생성형, gpt, llm,
 
 동시 실행으로 이미 저장된 URL에서 UNIQUE 충돌이 발생하면 실패가 아니라 `duplicate`로 기록한다.
 
-## 6. 수동 실행 API
+## 6. Classes (FastCampus)
+
+### 6.1 역할과 실행 주기
+
+클래스 수집은 FastCampus 공개 JSON API에서 지정 배지가 붙은 과정을 찾아
+`courses` 테이블과 동기화한다. 단순 신규 추가가 아니라 기존 과정 갱신과
+대상 배지에서 이탈한 과정의 숨김 처리까지 수행한다.
+
+관련 코드:
+
+- `backend/app/services/fastcampus_fetcher.py`
+- `backend/app/services/fastcampus_collector.py`
+- `backend/app/repositories/courses.py`
+- `backend/app/api/routes.py`
+
+정기 실행은 12시간 `collect_chain`의 마지막 단계다.
+
+```text
+Brunch → Event-us → Luma AI → Luma TECH → FastCampus
+```
+
+### 6.2 대상 카테고리
+
+| 코드 | 표시명 | 예상 외부 카테고리 ID | 페이지 |
+|---|---|---:|---|
+| `DATASCIENCEDL` | AI TECH | 39 | `/category_online_datasciencedl` |
+| `AICREATIVE` | AI CREATIVE | 921 | `/category_online_aicreative` |
+| `BIZ` | AI/업무생산성 | 1 | `/category_online_biz` |
+
+응답의 카테고리 ID가 예상값과 다르면 사이트 스키마나 라우팅이 바뀐 것으로
+간주하고 수집을 실패시킨다.
+
+### 6.3 외부 API 조회
+
+수집기는 다음 FastCampus 공개 API를 사용한다.
+
+```text
+GET /.api/courses/recommended/best
+GET /.api/courses/marketing/latest
+GET /.api/categories/{category_code}
+GET /.api/courses/products?id={course_ids}
+```
+
+처리 순서:
+
+1. 전체 BEST 과정 ID를 조회한다.
+2. 전체 NEW 과정 ID를 조회한다.
+3. 세 카테고리의 과정 목록과 원본 순위를 조회한다.
+4. 대상 배지가 하나 이상 있는 과정만 선택한다.
+5. 선택한 과정 ID를 최대 100개씩 묶어 상품/가격 정보를 조회한다.
+6. 과정과 상품 정보를 `FastCampusCandidate`로 변환한다.
+
+상품이 여러 개면 `state=NORMAL`이고 구매 가능한 상품을 우선 사용한다. 해당
+상품이 없으면 첫 번째 상품을 사용하고, 상품 자체가 없으면 가격은 `NULL`이 된다.
+
+### 6.4 후보 선정 기준
+
+허용 배지:
+
+```text
+얼리버드, 인기 급상승, BEST, NEW
+```
+
+- `BEST`: recommended/best API의 카테고리별 ID 목록
+- `NEW`: marketing/latest API의 카테고리별 ID 목록
+- `얼리버드`, `인기 급상승`: 과정 카드의 `highlightBadgeTitle`
+
+하나의 과정이 여러 배지를 가질 수 있다. 같은 과정 ID가 여러 카테고리에
+등장하면 앞서 처리한 카테고리의 후보 하나만 유지한다. 일반 과정처럼 대상
+배지가 하나도 없는 과정은 수집하지 않는다.
+
+### 6.5 후보 필드
+
+DB에 반영할 후보에는 다음 정보가 포함된다.
+
+- 외부 과정 ID와 카테고리 코드/표시명/페이지 URL
+- 카테고리 내 원본 순위
+- 제목과 요약
+- 과정 URL과 썸네일
+- 하위 카테고리와 과정 형식
+- 수강 자격
+- 러닝타임(분)
+- 판매가와 정가
+- 복수 배지
+
+러닝타임 `HH:MM`은 분 단위로 변환하며, 파싱할 수 없으면 `NULL`로 둔다.
+
+### 6.6 Upsert와 숨김 처리
+
+중복 식별자는 `courses.source_id`이며 `source_id`와 `source_url` 모두 DB UNIQUE
+제약이 있다.
+
+수집 결과 반영:
+
+- 신규 ID: `Course` 추가, `status=published`
+- 기존 ID: 제목, 가격, 배지, 순위 등 변경 필드 갱신
+- 이전에는 공개됐지만 이번 완료 카테고리 후보에 없는 ID: `status=hidden`
+- 숨김 과정이 다시 후보에 들어오면 `status=published`로 복구
+
+숨김은 수집을 완료한 카테고리에만 적용한다. 일부 카테고리만 수집한 경우 다른
+카테고리의 과정을 잘못 숨기지 않는다. 실제 목록 API도 `status=published`만
+반환하므로 숨김 처리는 사용자 화면에서 즉시 제외되는 효과가 있다.
+
+### 6.7 불완전 응답 방어
+
+외부 API 장애나 스키마 변경으로 공개 과정을 대량 숨기는 사고를 막기 위해
+fail-closed 검증을 수행한다.
+
+- 전체 후보 또는 완료 카테고리가 비어 있으면 반영 중단
+- 완료되지 않은 카테고리 후보가 섞이면 반영 중단
+- 완료 카테고리마다 후보가 최소 1건은 있어야 함
+- 기존 공개 과정이 4건 이상인 카테고리에서 신규 후보가 기존의 절반 미만으로
+  급감하면 반영 중단
+- 카테고리 ID 불일치, 빈 과정 목록, 필수 필드 누락, 상품 응답 형식 오류 시 실패
+- 세 카테고리/API 중 하나라도 실패하면 전체 후보 반영을 수행하지 않음
+
+검증 실패 시 기존 공개/숨김 상태를 롤백하고 `failed` 실행 이력만 별도 커밋한다.
+
+### 6.8 동시성과 트랜잭션
+
+동일 프로세스에서는 `threading.Lock`으로 수동 실행과 스케줄 실행을 직렬화한다.
+PostgreSQL에서는 transaction advisory lock을 추가로 사용해 여러 API 프로세스가
+동시에 같은 배치를 반영하지 못하게 한다.
+
+후보 검증, upsert, 숨김, 성공 이력은 하나의 DB 트랜잭션으로 커밋된다. 실패하면
+전체 변경을 롤백한 뒤 실패 이력을 기록한다.
+
+### 6.9 캐시와 수집 이력
+
+`fastcampus_collect_runs`에는 다음을 기록한다.
+
+- 상태: `success`, `failed`
+- 후보 수
+- 신규 추가 수
+- 변경 갱신 수
+- 숨김 수
+- 오류 메시지와 실행 시각
+
+신규·갱신·숨김 중 하나라도 발생한 경우에만 캐시 버전을 증가시킨다. 완전히
+동일한 멱등 실행에서는 캐시를 유지한다.
+
+### 6.10 목록 API
+
+```text
+GET /api/classes?page=1&size=20
+GET /api/classes?category=DATASCIENCEDL
+GET /api/classes?category=AICREATIVE
+GET /api/classes?category=BIZ
+```
+
+공개 과정만 반환하며 정렬 순서는 AI TECH → AI CREATIVE → AI/업무생산성,
+각 카테고리 안에서는 원본 순위 순이다. 원본 과정 링크에는
+`ref=nexus.bccard.ai`를 붙이고 외부 링크로 직렬화한다.
+
+### 6.11 현재 운영 현황
+
+조사 시점 FastCampus 공개 API 결과:
+
+| 카테고리 | 후보 수 |
+|---|---:|
+| AI TECH | 19 |
+| AI CREATIVE | 16 |
+| AI/업무생산성 | 21 |
+| 합계 | 56 |
+
+후보의 배지 출현 수는 `NEW` 33, `BEST` 16, `인기 급상승` 9, `얼리버드` 4다.
+한 과정이 여러 배지를 가질 수 있으므로 배지 합계는 후보 수보다 클 수 있다.
+
+운영 DB에는 과정 62건(공개 56, 숨김 6)과 수집 이력 18건이 있다. 최근 정기
+실행은 후보 56건을 처리해 신규 0건, 갱신 13건, 숨김 1건으로 성공했다.
+
+## 7. 수동 실행 API
 
 `backend/app/api/internal.py`는 스케줄러와 같은 코드 경로를 수동으로 실행한다.
 
@@ -381,7 +566,7 @@ ai, 인공지능, 머신러닝, 딥러닝, 생성형, gpt, llm,
 
 주의: FastAPI 자체의 내부 API에는 인증 의존성이 없다. 현재 백엔드가 Hermes Agent 서버의 `0.0.0.0:8000`에 직접 바인딩되어 있으므로 네트워크/방화벽에서 8000 포트를 허용하면 Nginx 차단을 우회할 수 있다.
 
-## 7. 캐시 무효화
+## 8. 캐시 무효화
 
 `VersionedCache`는 다음 형태의 키를 사용한다.
 
@@ -400,7 +585,7 @@ Redis 장애 처리:
 
 캐시는 수집과 API의 단일 장애점이 되지 않도록 설계되어 있다.
 
-## 8. 현재 운영 구성과 데이터 현황
+## 9. 현재 운영 구성과 데이터 현황
 
 조사 시점의 실제 서비스 구성:
 
@@ -433,6 +618,10 @@ nexus-redis 컨테이너
 | Brunch 수집 이력 | 16 |
 | Meetup 이벤트 | 143 |
 | Meetup 수집 이력 | 42 |
+| FastCampus 과정 | 62 |
+| FastCampus 공개 과정 | 56 |
+| FastCampus 숨김 과정 | 6 |
+| FastCampus 수집 이력 | 18 |
 
 현재 `/contents`의 HTML 1개는 DB Article ID 7로 반영되어 있다.
 
@@ -447,22 +636,27 @@ picked_article_id=27
 
 최근 Meetup 실행에서는 후보 99건 중 신규 0건이 `success`로 기록되었고, 이전 실행 중 후보 77건에서 신규 1건이 추가된 기록이 있다.
 
+최근 FastCampus 실행에서는 후보 56건 중 신규 0건, 갱신 13건, 숨김 1건이
+`success`로 기록됐다.
+
 운영 현황 수치는 조사 시점의 스냅샷이며 이후 달라질 수 있다.
 
-## 9. 장점과 개선 필요 사항
+## 10. 장점과 개선 필요 사항
 
-### 9.1 잘 되어 있는 부분
+### 10.1 잘 되어 있는 부분
 
 - 재실행해도 중복 저장되지 않는 멱등성
 - 애플리케이션 사전 조회와 DB UNIQUE 제약의 이중 방어
 - 스케줄러와 수동 실행의 동시 수집 레이스 처리
 - Meetup의 이벤트별 SAVEPOINT
+- FastCampus의 프로세스 락, PostgreSQL advisory lock, 급감 방어
+- FastCampus의 신규/갱신/숨김 전체 동기화와 실패 시 롤백
 - 외부 소스 하나가 실패해도 다음 수집 단계 진행
 - 신규 데이터 반영 후 즉시 캐시 무효화
 - Redis 장애가 DB 쓰기와 API 가용성을 중단하지 않도록 폴백
 - 수동 실행과 자동 실행이 핵심 수집 함수를 공유
 
-### 9.2 개선 필요 사항
+### 10.2 개선 필요 사항
 
 1. 스케줄러가 API 프로세스 내부에 있어 API 재시작 시 interval 기준 시각이 재설정된다.
 2. API 다중 워커를 사용하면 워커마다 스케줄러가 실행될 수 있다.
@@ -478,7 +672,7 @@ picked_article_id=27
 12. 백엔드 8000 포트 직접 접근 시 내부 API의 Nginx 차단을 우회할 수 있다.
 13. `scheduler.py` 상단 설명과 일부 기존 아키텍처 문서가 현재의 Meetup/Luma/FastCampus 체인을 완전히 반영하지 못한다.
 
-## 10. 검증
+## 11. 검증
 
 다음 테스트 모듈을 실제 실행했다.
 
@@ -489,12 +683,18 @@ test/backend/test_meetup_collector.py
 test/backend/test_meetup_fetcher.py
 test/backend/test_brunch.py
 test/backend/test_brunch_fetcher.py
+test/backend/test_fastcampus_collector.py
+test/backend/test_fastcampus_fetcher.py
+test/api/test_classes_api.py
 ```
 
 결과:
 
 ```text
-47 passed
+66 passed
 ```
 
-검증 범위에는 잡 등록 주기, 체인 순서와 실패 격리, ingest 즉시 반영과 중복 처리, Meetup 후보 수집과 동시성, Brunch 파싱·AI 필터·인기글 선정·중복 처리가 포함된다.
+검증 범위에는 잡 등록 주기, 체인 순서와 실패 격리, ingest 즉시 반영과 중복
+처리, Meetup 후보 수집과 동시성, Brunch 파싱·AI 필터·인기글 선정·중복 처리,
+FastCampus 공개 API 파싱·배지 필터·upsert·숨김·급감 방어·동시성·목록 API가
+포함된다.
