@@ -16,7 +16,12 @@ class EventPage:
     size: int
 
 
-def list_upcoming_events(db: Session, page: int = 1, size: int = 12) -> EventPage:
+def list_upcoming_events(
+    db: Session,
+    category: str | None = None,
+    page: int = 1,
+    size: int = 12,
+) -> EventPage:
     """다가오는 밋업을 가까운 일정 순으로 반환한다.
 
     지난 행사와 일정 미정(event_start IS NULL) 행사는 의도적으로 제외한다 —
@@ -27,6 +32,8 @@ def list_upcoming_events(db: Session, page: int = 1, size: int = 12) -> EventPag
         MeetupEvent.status == "published",
         MeetupEvent.event_start >= now,
     )
+    if category:
+        base = base.where(MeetupEvent.category == category)
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     items = list(
         db.scalars(
