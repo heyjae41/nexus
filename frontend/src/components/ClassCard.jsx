@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { classGrad, fmtKo } from '../utils/grads'
-import { clickableProps } from '../utils/a11y'
+import { classGrad, fmtKo, coverBg } from '../utils/grads'
+import { ExternalCard, ClickableCard, ThumbBadge } from './cardKit'
+import { clamp2 } from '../utils/cardStyles'
 
 /**
  * Shared ClassCard — renders a class listing card.
@@ -15,33 +16,14 @@ export default function ClassCard({ cls, index, compact = false }) {
     const hours = cls.runningTimeMinutes ? `${Math.floor(cls.runningTimeMinutes / 60)}시간` : null
     const price = Number.isFinite(cls.price) ? `${cls.price.toLocaleString('ko-KR')}원` : '가격 확인'
     return (
-      <a
+      <ExternalCard
         href={cls.linkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`${cls.title} (새 창에서 열림)`}
-        data-testid="class-card-external"
-        style={{
-          display: 'block', background: '#15151A', border: '1px solid rgba(255,255,255,.06)',
-          borderRadius: 16, overflow: 'hidden', textDecoration: 'none', color: 'inherit',
-        }}
+        ariaLabel={`${cls.title} (새 창에서 열림)`}
+        testId="class-card-external"
       >
-        <div style={{
-          height: 148,
-          background: cls.coverImageUrl
-            ? `center/cover no-repeat url(${cls.coverImageUrl}), ${grad}`
-            : grad,
-          position: 'relative',
-        }}>
-          <span style={{
-            position: 'absolute', top: 8, left: 10, fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 10, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,.6)',
-            padding: '3px 8px', borderRadius: 5,
-          }}>{cls.sourceCategoryName}</span>
-          {cls.formatName && <span style={{
-            position: 'absolute', top: 8, right: 10, fontSize: 10, fontWeight: 700,
-            color: '#fff', background: 'rgba(0,0,0,.55)', padding: '3px 8px', borderRadius: 5,
-          }}>{cls.formatName}</span>}
+        <div style={{ height: 148, position: 'relative', background: coverBg(cls.coverImageUrl, grad) }}>
+          <ThumbBadge>{cls.sourceCategoryName}</ThumbBadge>
+          {cls.formatName && <ThumbBadge pos="tr" mono={false} weight={700}>{cls.formatName}</ThumbBadge>}
         </div>
         <div style={{ padding: '12px 14px 16px' }}>
           <div style={{ minHeight: 19, display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -53,8 +35,7 @@ export default function ClassCard({ cls, index, compact = false }) {
           </div>
           <p style={{
             fontSize: 15.5, fontWeight: 700, color: '#ECECEF', lineHeight: 1.4,
-            margin: '0 0 8px', display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            margin: '0 0 8px', ...clamp2,
           }}>{cls.title}</p>
           <p style={{ fontSize: 12.5, color: '#7a7a84', margin: '0 0 8px' }}>
             {[cls.category, cls.qualification, hours].filter(Boolean).join(' · ')}
@@ -68,7 +49,7 @@ export default function ClassCard({ cls, index, compact = false }) {
             )}
           </div>
         </div>
-      </a>
+      </ExternalCard>
     )
   }
 
@@ -78,45 +59,20 @@ export default function ClassCard({ cls, index, compact = false }) {
   const onClick = () => navigate(`/classes/${cls.id}`)
 
   return (
-    <div
-      className="card"
-      onClick={onClick}
-      {...clickableProps(onClick, 'link')}
-      style={{
-        background: '#15151A',
-        border: '1px solid rgba(255,255,255,.06)',
-        borderRadius: 16, overflow: 'hidden',
-      }}
-    >
+    <ClickableCard onClick={onClick}>
       <div style={{ height: compact ? 120 : 148, background: grad, position: 'relative' }}>
-        <span style={{
-          position: 'absolute', top: 8, left: 10,
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 10, fontWeight: 600, color: '#fff',
-          background: compact ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.55)',
-          padding: compact ? '3px 7px' : '3px 8px', borderRadius: 5,
-        }}>
-          {cls.category}
-        </span>
+        <ThumbBadge>{cls.category}</ThumbBadge>
         {compact ? (
           cls.tag && (
-            <span style={{
-              position: 'absolute', top: 8, right: 10,
-              fontSize: 10, fontWeight: 700, color: '#E8123C',
-              background: 'rgba(232,18,60,.15)', padding: '3px 7px', borderRadius: 5,
-            }}>
+            <ThumbBadge pos="tr" mono={false} weight={700} color="#E8123C" bg="rgba(232,18,60,.15)">
               {cls.tag}
-            </span>
+            </ThumbBadge>
           )
         ) : (
           cls.level && (
-            <span style={{
-              position: 'absolute', top: 8, right: 10,
-              fontSize: 10, fontWeight: 700, color: '#fff',
-              background: 'rgba(0,0,0,.45)', padding: '3px 8px', borderRadius: 5,
-            }}>
+            <ThumbBadge pos="tr" mono={false} weight={700} bg="rgba(0,0,0,.45)">
               {cls.level}
-            </span>
+            </ThumbBadge>
           )
         )}
       </div>
@@ -134,9 +90,7 @@ export default function ClassCard({ cls, index, compact = false }) {
         </p>
         <p style={{
           fontSize: compact ? 15 : 15.5, fontWeight: 700, color: '#ECECEF',
-          lineHeight: 1.4, margin: '0 0 8px',
-          display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          lineHeight: 1.4, margin: '0 0 8px', ...clamp2,
         }}>
           {cls.title}
         </p>
@@ -155,6 +109,6 @@ export default function ClassCard({ cls, index, compact = false }) {
           )}
         </p>
       </div>
-    </div>
+    </ClickableCard>
   )
 }

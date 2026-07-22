@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { articleGrad } from '../utils/grads'
+import { ThumbImage } from './cardKit'
+import { clamp2 } from '../utils/cardStyles'
 
 /* Badge Korean labels — §API integration */
 const BADGE_LABELS = {
@@ -29,15 +31,7 @@ function GridCard({ article, index }) {
     }}>
       {/* Thumbnail */}
       <div style={{ height: 124, background: grad, position: 'relative', overflow: 'hidden' }}>
-        {article.thumbnailUrl && (
-          <img
-            src={article.thumbnailUrl}
-            alt=""
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
+        <ThumbImage src={article.thumbnailUrl} />
         {badge && (
           <span style={{
             position: 'absolute', top: 10, left: 12,
@@ -56,9 +50,7 @@ function GridCard({ article, index }) {
         <p style={{
           fontSize: 15.5, fontWeight: 700, color: '#ECECEF',
           lineHeight: 1.4, letterSpacing: '-.01em',
-          margin: '0 0 10px',
-          display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          margin: '0 0 10px', ...clamp2,
         }}>
           {article.title || article.summary}
         </p>
@@ -89,15 +81,7 @@ function ListCard({ article, index }) {
         className="hidemob"
         style={{ width: 200, flexShrink: 0, background: grad, minHeight: 120, position: 'relative', overflow: 'hidden' }}
       >
-        {article.thumbnailUrl && (
-          <img
-            src={article.thumbnailUrl}
-            alt=""
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
+        <ThumbImage src={article.thumbnailUrl} />
       </div>
       {/* Content */}
       <div style={{ padding: '18px 20px 18px 0', flex: 1, minWidth: 0 }}>
@@ -118,11 +102,7 @@ function ListCard({ article, index }) {
           {article.title}
         </p>
         {(article.summary || article.excerpt) && (
-          <p style={{
-            fontSize: 14, color: '#9a9aa4', margin: '0 0 12px',
-            display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>
+          <p style={{ fontSize: 14, color: '#9a9aa4', margin: '0 0 12px', ...clamp2 }}>
             {article.summary || article.excerpt}
           </p>
         )}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import BackLink from '../components/BackLink'
 import { fetchPost, createComment, likePost } from '../api/client'
 import { communityAvatarGrad, fmtKo, initial } from '../utils/grads'
 import { timeAgo } from '../utils/timeAgo'
@@ -97,13 +98,7 @@ export default function CommunityDetail({ user }) {
 
   return (
     <main style={{ padding: '40px 40px 64px', maxWidth: 720, margin: '0 auto' }}>
-      <button
-        className="back-link btn"
-        onClick={() => navigate('/community')}
-        style={{ background: 'none', border: 'none', color: '#8a8a94', fontSize: 13.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '0 0 20px' }}
-      >
-        ← 커뮤니티
-      </button>
+      <BackLink to="/community">← 커뮤니티</BackLink>
 
       {/* Author row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>

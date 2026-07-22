@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import ArticleCard from '../components/ArticleCard'
 import { ArticleListSkeleton } from '../components/Skeleton'
+import PageLabel from '../components/PageLabel'
+import FilterChips from '../components/FilterChips'
+import Pagination from '../components/Pagination'
+import { ErrorRetry, EmptyMessage } from '../components/ListFeedback'
+import { usePagedList } from '../hooks/usePagedList'
 import { fetchArticles } from '../api/client'
 
 const PAGE_SIZE = 20
@@ -12,48 +17,20 @@ const FORMAT_FILTERS = [
 ]
 
 export default function Curation() {
-  const [articles, setArticles] = useState([])
-  const [meta, setMeta] = useState(null)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [articleType, setArticleType] = useState(null)
-  const latestRequest = useRef(0)
 
-  const load = useCallback(async (p = 1, type = articleType) => {
-    const requestId = ++latestRequest.current
-    setLoading(true)
-    setError(null)
-    try {
-      const json = await fetchArticles({ category: 'curation', type, page: p, size: PAGE_SIZE })
-      if (requestId !== latestRequest.current) return
-      const items = json.data ?? json.articles ?? []
-      const metaInfo = json.meta ?? null
-      setArticles(items)
-      setMeta(metaInfo)
-      setPage(p)
-    } catch (err) {
-      if (requestId === latestRequest.current) setError(err.message)
-    } finally {
-      if (requestId === latestRequest.current) setLoading(false)
-    }
+  const fetchPage = useCallback(async (p, type = articleType) => {
+    const json = await fetchArticles({ category: 'curation', type, page: p, size: PAGE_SIZE })
+    return { data: json.data ?? json.articles ?? [], meta: json.meta ?? null }
   }, [articleType])
 
-  useEffect(() => { load(1) }, [load])
-
-  const totalPages = meta ? Math.ceil(meta.total / PAGE_SIZE) : 1
+  const { items: articles, page, loading, error, load, totalPages } = usePagedList(fetchPage, PAGE_SIZE)
 
   return (
     <main style={{ padding: '40px 40px 64px', maxWidth: 1080, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <p style={{
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 11, fontWeight: 600, letterSpacing: '.06em',
-          color: '#E8123C', margin: '0 0 10px',
-        }}>
-          CURATION · 테크 &amp; 비즈니스 인사이트
-        </p>
+        <PageLabel>CURATION · 테크 &amp; 비즈니스 인사이트</PageLabel>
         <h1 style={{
           fontSize: 32, fontWeight: 800, color: '#fff',
           letterSpacing: '-.03em', margin: '0 0 10px',
@@ -65,35 +42,13 @@ export default function Curation() {
         </p>
       </div>
 
-      <div
-        aria-label="글 포맷 필터"
-        style={{
-          display: 'flex', gap: 8, flexWrap: 'wrap',
-          margin: '-8px 0 28px',
-        }}
-      >
-        {FORMAT_FILTERS.map(({ value, label }) => {
-          const active = articleType === value
-          return (
-            <button
-              key={label}
-              type="button"
-              className="btn chip"
-              aria-pressed={active}
-              onClick={() => setArticleType(value)}
-              style={{
-                padding: '8px 16px', borderRadius: 20,
-                border: active ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
-                background: active ? '#E8123C' : '#15151A',
-                color: active ? '#fff' : '#b4b4be',
-                fontSize: 13, fontWeight: 700,
-              }}
-            >
-              {label}
-            </button>
-          )
-        })}
-      </div>
+      <FilterChips
+        options={FORMAT_FILTERS}
+        value={articleType}
+        onChange={setArticleType}
+        ariaLabel="글 포맷 필터"
+        style={{ margin: '-8px 0 28px' }}
+      />
 
       {/* Article list */}
       {loading ? (
@@ -101,23 +56,9 @@ export default function Curation() {
           {Array.from({ length: 6 }, (_, i) => <ArticleListSkeleton key={i} />)}
         </div>
       ) : error ? (
-        <div className="empty-state">
-          <p style={{ marginBottom: 12 }}>콘텐츠를 불러오지 못했습니다.</p>
-          <button
-            className="btn"
-            onClick={() => load(1)}
-            style={{
-              background: '#E8123C', color: '#fff',
-              padding: '10px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-            }}
-          >
-            다시 시도
-          </button>
-        </div>
+        <ErrorRetry message="콘텐츠를 불러오지 못했습니다." onRetry={() => load(1)} />
       ) : articles.length === 0 ? (
-        <div className="empty-state">
-          <p>아직 글이 없어요.</p>
-        </div>
+        <EmptyMessage>아직 글이 없어요.</EmptyMessage>
       ) : (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -126,27 +67,12 @@ export default function Curation() {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 40 }}>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button
-                  key={p}
-                  className="btn"
-                  onClick={() => { load(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                  style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    fontSize: 14, fontWeight: 600,
-                    background: p === page ? '#E8123C' : 'rgba(255,255,255,.06)',
-                    color: p === page ? '#fff' : '#9a9aa4',
-                    border: 'none',
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
+          <Pagination
+            totalPages={totalPages}
+            page={page}
+            ariaLabel="글 페이지"
+            onPage={(p) => { load(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          />
         </>
       )}
     </main>

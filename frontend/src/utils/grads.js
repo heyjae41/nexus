@@ -32,3 +32,8 @@ export function fmtPrice(price) {
 export function initial(name) {
   return name ? name[0] : '?'
 }
+
+/* 커버 이미지가 있으면 그라디언트 위에 겹치고, 없으면 그라디언트만 */
+export function coverBg(url, grad) {
+  return url ? `center/cover no-repeat url(${url}), ${grad}` : grad
+}
