@@ -1,0 +1,62 @@
+# 품질 게이트 자동화 — CLAUDE.md 의 커밋 전 게이트와 동일한 검사를 수행한다.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: 의존성 설치
+        run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+      - name: pytest (SQLite in-memory, PG 불필요)
+        run: python -m pytest test
+      - name: ruff
+        run: ruff check backend test
+      - name: radon (복잡도 C 이상 없어야 함)
+        run: |
+          OUT=$(radon cc backend/app -n C -s)
+          if [ -n "$OUT" ]; then echo "$OUT"; exit 1; fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 의존성 설치
+        run: npm ci
+      - name: vitest
+        run: npx vitest run
+      - name: eslint (src + test)
+        run: npm run lint
+      - name: build
+        run: npm run build
+
+  duplication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: jscpd (클론 0 유지)
+        run: |
+          OUT=$(npx --yes jscpd --min-tokens 40 2>&1)
+          echo "$OUT"
+          echo "$OUT" | grep -q "Found 0 clones" || exit 1

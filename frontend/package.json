@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.js",
-    "lint": "eslint src",
+    "lint": "cd .. && frontend/node_modules/.bin/eslint --config frontend/eslint.config.js frontend/src test/frontend test/e2e",
     "e2e": "playwright test"
   },
   "dependencies": {
