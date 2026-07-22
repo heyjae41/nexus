@@ -140,53 +140,72 @@ export default function ArticleDetail() {
   const [apiArticle, setApiArticle] = useState(null)
   const [relatedFromApi, setRelatedFromApi] = useState([])
   const [apiLoading, setApiLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const loadSeq = useRef(0) // id 연속 전환 시 늦게 도착한 이전 응답(stale)을 무시
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const likeInFlight = useRef(false)
+  const hasCounted = useRef(false) // 이 글에 이미 +1 을 보냈는지 (증가 전용 API 어뷰징 방지)
 
   useReadingProgress()
 
   const staticArt = EDITORIAL_ARTICLES.find(a => a.id === id)
 
   const loadArticle = useCallback(async () => {
+    const seq = ++loadSeq.current
     setApiLoading(true)
+    setLoadError(false)
     try {
       const [artData, listData] = await Promise.all([
         fetchArticle(id),
         fetchArticles({ category: 'curation', page: 1, size: 20 }).catch(() => ({ data: [], articles: [] })),
       ])
+      if (seq !== loadSeq.current) return // 이미 다른 글로 이동함 — stale 응답 폐기
       setApiArticle(artData)
       setLikeCount(artData.likesCount ?? (staticArt?.rawLikes || 0))
       const items = listData.data ?? listData.articles ?? []
-      setRelatedFromApi(items.filter(a => a.id !== id).slice(0, 2))
+      // API 의 id 는 숫자, useParams 의 id 는 문자열 — 타입 정규화 후 자기 자신 제외
+      setRelatedFromApi(items.filter(a => String(a.id) !== String(id)).slice(0, 2))
     } catch {
+      if (seq !== loadSeq.current) return
+      setLoadError(true)
       setLikeCount(staticArt?.rawLikes || 0)
     } finally {
-      setApiLoading(false)
+      if (seq === loadSeq.current) setApiLoading(false)
     }
   }, [id, staticArt?.rawLikes])
 
   useEffect(() => {
     setLiked(false)
     setSaved(false)
+    hasCounted.current = false
     loadArticle()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [id, loadArticle])
 
   const article = { ...staticArt, ...apiArticle }
-  const displayLikeCount = fmtEn(likeCount + (liked ? 1 : 0))
+  const displayLikeCount = fmtEn(likeCount)
 
   const handleLike = async () => {
     if (likeInFlight.current) return
+    if (liked) {
+      // 취소 — 백엔드는 증가 전용(감소 API 없음)이므로 로컬 표시만 되돌린다
+      setLiked(false)
+      setLikeCount(c => Math.max(0, c - 1))
+      return
+    }
+    setLiked(true)
+    setLikeCount(c => c + 1) // 옵티미스틱 +1 (서버 확정값으로 곧 대체)
+    if (hasCounted.current) return // 재좋아요 — 서버 카운트 중복 증가 방지 (세션당 1회)
     likeInFlight.current = true
-    const next = !liked
-    setLiked(next)
     try {
       const data = await likeArticle(id)
+      hasCounted.current = true
       if (data?.likesCount !== undefined) setLikeCount(data.likesCount)
     } catch {
-      setLiked(!next)
+      setLiked(false)
+      setLikeCount(c => Math.max(0, c - 1))
     } finally {
       likeInFlight.current = false
     }
@@ -200,6 +219,25 @@ export default function ArticleDetail() {
     color: active ? '#F4788F' : '#c9c9d2',
     cursor: 'pointer', transition: 'all .15s',
   })
+
+  // API 실패 + 정적 폴백도 없으면 빈 화면 대신 명확한 에러 안내 (다른 뷰와 동일한 UX)
+  if (loadError && !staticArt && !apiArticle) {
+    return (
+      <main style={{ padding: '80px 20px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <p style={{ fontSize: 16, color: '#9a9aa4', marginBottom: 24 }}>글을 불러오지 못했습니다.</p>
+        <button
+          className="btn"
+          onClick={loadArticle}
+          style={{
+            background: '#E8123C', color: '#fff',
+            padding: '10px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+          }}
+        >
+          다시 시도
+        </button>
+      </main>
+    )
+  }
 
   const readW = 720
   const related = relatedFromApi.length > 0

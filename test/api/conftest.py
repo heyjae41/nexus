@@ -63,7 +63,7 @@ def _seed(client):
         published_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
     )
     a2 = create_article(
-        db, category_id=curation.id, article_type="brunch",
+        db, category_id=curation.id, article_type="column",
         title="브런치 인기글", summary="요약2", source_type="brunch",
         source_url="https://brunch.co.kr/@writer/1",
         thumbnail_url="https://t1.kakaocdn.net/brunch/cover.png",

@@ -1,9 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import ArticleCard from '../components/ArticleCard'
 import { ArticleListSkeleton } from '../components/Skeleton'
 import { fetchArticles } from '../api/client'
 
 const PAGE_SIZE = 20
+const FORMAT_FILTERS = [
+  { value: null, label: '전체' },
+  { value: 'newsletter', label: '뉴스레터' },
+  { value: 'column', label: '컬럼' },
+  { value: 'guide', label: '가이드' },
+]
 
 export default function Curation() {
   const [articles, setArticles] = useState([])
@@ -11,23 +17,27 @@ export default function Curation() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [articleType, setArticleType] = useState(null)
+  const latestRequest = useRef(0)
 
-  const load = useCallback(async (p = 1) => {
+  const load = useCallback(async (p = 1, type = articleType) => {
+    const requestId = ++latestRequest.current
     setLoading(true)
     setError(null)
     try {
-      const json = await fetchArticles({ category: 'curation', page: p, size: PAGE_SIZE })
+      const json = await fetchArticles({ category: 'curation', type, page: p, size: PAGE_SIZE })
+      if (requestId !== latestRequest.current) return
       const items = json.data ?? json.articles ?? []
       const metaInfo = json.meta ?? null
       setArticles(items)
       setMeta(metaInfo)
       setPage(p)
     } catch (err) {
-      setError(err.message)
+      if (requestId === latestRequest.current) setError(err.message)
     } finally {
-      setLoading(false)
+      if (requestId === latestRequest.current) setLoading(false)
     }
-  }, [])
+  }, [articleType])
 
   useEffect(() => { load(1) }, [load])
 
@@ -53,6 +63,36 @@ export default function Curation() {
         <p style={{ fontSize: 15, color: '#9a9aa4', margin: 0 }}>
           매일 업데이트되는 AI 테크 강좌와 금융·커리어 인사이트. 출근길에 한 편씩.
         </p>
+      </div>
+
+      <div
+        aria-label="글 포맷 필터"
+        style={{
+          display: 'flex', gap: 8, flexWrap: 'wrap',
+          margin: '-8px 0 28px',
+        }}
+      >
+        {FORMAT_FILTERS.map(({ value, label }) => {
+          const active = articleType === value
+          return (
+            <button
+              key={label}
+              type="button"
+              className="btn chip"
+              aria-pressed={active}
+              onClick={() => setArticleType(value)}
+              style={{
+                padding: '8px 16px', borderRadius: 20,
+                border: active ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
+                background: active ? '#E8123C' : '#15151A',
+                color: active ? '#fff' : '#b4b4be',
+                fontSize: 13, fontWeight: 700,
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Article list */}
