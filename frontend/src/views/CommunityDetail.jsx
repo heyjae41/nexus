@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchPost, createComment, likePost, registerMember } from '../api/client'
+import { fetchPost, createComment, likePost } from '../api/client'
 import { communityAvatarGrad, fmtKo, initial } from '../utils/grads'
 import { timeAgo } from '../utils/timeAgo'
 
-export default function CommunityDetail({ user, setUser }) {
+export default function CommunityDetail({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const commentRef = useRef()
@@ -32,14 +32,6 @@ export default function CommunityDetail({ user, setUser }) {
 
   useEffect(() => { loadPost() }, [loadPost])
 
-  const resolveMemberId = async () => {
-    if (!user) return null
-    if (typeof user === 'object') return user.id
-    // 레거시 문자열 유저 → 회원 등록 후 객체로 마이그레이션
-    const member = await registerMember({ nickname: user })
-    setUser({ id: member.id, nickname: member.nickname, role: member.role })
-    return member.id
-  }
 
   const handleLike = async () => {
     if (likeInFlight.current) return
@@ -49,8 +41,7 @@ export default function CommunityDetail({ user, setUser }) {
     setLiked(nextLiked)
     setLikeCount(v => nextLiked ? v + 1 : v - 1)
     try {
-      const memberId = await resolveMemberId()
-      const data = await likePost(id, memberId)
+      const data = await likePost(id, user.id)
       if (data?.likesCount !== undefined) setLikeCount(data.likesCount)
       if (data?.liked !== undefined) setLiked(data.liked)
     } catch {
@@ -65,20 +56,8 @@ export default function CommunityDetail({ user, setUser }) {
     const val = commentRef.current?.value?.trim()
     if (!val || !user) return
 
-    let memberId = typeof user === 'object' ? user.id : null
-
-    if (!memberId && typeof user === 'string') {
-      try {
-        const member = await registerMember({ nickname: user })
-        setUser({ id: member.id, nickname: member.nickname, role: member.role })
-        memberId = member.id
-      } catch {
-        return
-      }
-    }
-
     try {
-      await createComment(id, { memberId, body: val })
+      await createComment(id, { memberId: user.id, body: val })
       commentRef.current.value = ''
       setCommentError(null)
       await loadPost()

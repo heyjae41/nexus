@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Community from '@/views/Community'
 
@@ -54,6 +54,55 @@ describe('Community list', () => {
       expect(screen.getByText('RAG 도입 후기')).toBeInTheDocument()
     })
     expect(screen.getByText('gemma 27B 로컬 구동 스펙')).toBeInTheDocument()
+  })
+
+  it('정의된 커뮤니티 배지를 표시하고 선택한 배지로 서버 필터링한다', async () => {
+    wrap(<Community user={null} />)
+    await waitFor(() => expect(screen.getByText('RAG 도입 후기')).toBeInTheDocument())
+
+    for (const badge of ['전체', '자료', '노하우', '팁', '기술자료']) {
+      expect(screen.getByRole('button', { name: badge })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: '질문' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '자료' }))
+    await waitFor(() => {
+      expect(fetchPosts).toHaveBeenLastCalledWith({ tag: '자료', page: 1, size: 20 })
+    })
+  })
+
+  it('느린 이전 응답이 최신 배지 필터 결과를 덮어쓰지 않는다', async () => {
+    const deferred = () => {
+      let resolve
+      const promise = new Promise(done => { resolve = done })
+      return { promise, resolve }
+    }
+    const allRequest = deferred()
+    const tipRequest = deferred()
+    fetchPosts
+      .mockReset()
+      .mockImplementationOnce(() => allRequest.promise)
+      .mockImplementationOnce(() => tipRequest.promise)
+
+    wrap(<Community user={null} />)
+    await waitFor(() => expect(fetchPosts).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: '팁' }))
+    await waitFor(() => expect(fetchPosts).toHaveBeenCalledTimes(2))
+
+    await act(async () => {
+      tipRequest.resolve({
+        data: [{ ...mockPostsData.data[0], id: 'tip', tag: '팁', title: '최신 팁 결과' }],
+      })
+    })
+    expect(await screen.findByText('최신 팁 결과')).toBeInTheDocument()
+
+    await act(async () => {
+      allRequest.resolve({
+        data: [{ ...mockPostsData.data[0], id: 'all', title: '늦은 전체 결과' }],
+      })
+    })
+    expect(screen.getByText('최신 팁 결과')).toBeInTheDocument()
+    expect(screen.queryByText('늦은 전체 결과')).not.toBeInTheDocument()
   })
 
   it('글쓰기 button navigates to /community/write when user is an object', async () => {

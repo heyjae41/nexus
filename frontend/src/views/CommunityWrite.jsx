@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createPost, registerMember } from '../api/client'
+import { createPost } from '../api/client'
 
-const ALLOWED_TAGS = ['노하우', '기술자료', '팁', '자료', '질문']
+const ALLOWED_TAGS = ['자료', '노하우', '팁', '기술자료']
 
-export default function CommunityWrite({ user, setUser }) {
+export default function CommunityWrite({ user }) {
   const navigate = useNavigate()
   const [tag, setTag] = useState(ALLOWED_TAGS[0])
   const [title, setTitle] = useState('')
@@ -13,12 +13,12 @@ export default function CommunityWrite({ user, setUser }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!user) {
+    if (!user || typeof user !== 'object' || !user.id) {
       navigate('/onboarding', { replace: true })
     }
   }, [user, navigate])
 
-  if (!user) return null
+  if (!user || typeof user !== 'object' || !user.id) return null
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim()) {
@@ -28,22 +28,8 @@ export default function CommunityWrite({ user, setUser }) {
     setSubmitting(true)
     setError(null)
 
-    let memberId = typeof user === 'object' ? user.id : null
-
-    if (!memberId && typeof user === 'string') {
-      try {
-        const member = await registerMember({ nickname: user })
-        setUser({ id: member.id, nickname: member.nickname, role: member.role })
-        memberId = member.id
-      } catch (err) {
-        setError(err.message)
-        setSubmitting(false)
-        return
-      }
-    }
-
     try {
-      const post = await createPost({ memberId, tag, title: title.trim(), body: body.trim() })
+      const post = await createPost({ memberId: user.id, tag, title: title.trim(), body: body.trim() })
       navigate(`/community/${post.id}`)
     } catch (err) {
       setError(err.message)

@@ -10,7 +10,7 @@ from app.repositories.members import register_member
 
 
 def member(db, nickname="김크레딧"):
-    return register_member(db, nickname=nickname)
+    return register_member(db, nickname=nickname, password="Nexus1!pw")
 
 
 def test_create_post_and_list(db):
@@ -51,6 +51,38 @@ def test_list_posts_newest_first_with_pagination(db):
     assert [p.title for p in page1.items] == ["글4", "글3"]
 
 
+def test_list_posts_filters_by_tag(db):
+    m = member(db)
+    create_post(db, member_id=m.id, tag="자료", title="공유 자료", body="b")
+    create_post(db, member_id=m.id, tag="노하우", title="업무 노하우", body="b")
+
+    page = list_posts(db, tag="자료")
+
+    assert page.total == 1
+    assert [post.title for post in page.items] == ["공유 자료"]
+
+
+def test_list_posts_excludes_legacy_question_badges(db):
+    from datetime import datetime, timezone
+
+    from app.models import CommunityPost
+
+    m = member(db)
+    db.add(
+        CommunityPost(
+            member_id=m.id,
+            author_name=m.nickname,
+            tag="질문",
+            title="레거시 질문",
+            body="본문",
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    assert list_posts(db).total == 0
+
+
 def test_comments_flow_updates_count(db):
     m = member(db)
     post = create_post(db, member_id=m.id, tag="자료", title="t", body="b")
@@ -88,6 +120,89 @@ def test_toggle_post_like_per_member(db):
     assert toggle_post_like(db, post_id=post.id, member_id=m2.id) == (2, True)   # 회원별 1개
 
 
+def test_unlike_clears_stale_identity_before_relike(db):
+    """삭제 전 객체 참조가 남아 있어도 같은 세션의 다음 토글은 재좋아요로 동작한다."""
+    from app.models import CommunityPostLike
+
+    m = member(db)
+    post = create_post(db, member_id=m.id, tag="팁", title="t", body="b")
+    assert toggle_post_like(db, post_id=post.id, member_id=m.id) == (1, True)
+    retained = db.get(CommunityPostLike, (post.id, m.id))
+    assert retained is not None
+
+    assert toggle_post_like(db, post_id=post.id, member_id=m.id) == (0, False)
+    assert retained not in db
+    assert toggle_post_like(db, post_id=post.id, member_id=m.id) == (1, True)
+
+
+def test_toggle_post_like_race_is_idempotent(db, monkeypatch):
+    """동시 좋아요 레이스: 커밋 시 PK 충돌(IntegrityError)이 나도 500 대신 멱등 결과로 수렴한다."""
+    from app.models import CommunityPostLike
+
+    m = member(db)
+    post = create_post(db, member_id=m.id, tag="팁", title="t", body="b")
+    toggle_post_like(db, post_id=post.id, member_id=m.id)  # 좋아요 반영 (count=1)
+
+    # 레이스 재현: 첫 존재 확인만 None 을 보게 해(다른 요청의 INSERT 를 아직 못 본 상태)
+    # 중복 INSERT → 커밋 시 IntegrityError 경로로 유도한다.
+    real_get = db.get
+    seen = {"n": 0}
+
+    def racy_get(entity, ident, **kw):
+        if entity is CommunityPostLike:
+            seen["n"] += 1
+            if seen["n"] == 1:
+                return None
+        return real_get(entity, ident, **kw)
+
+    monkeypatch.setattr(db, "get", racy_get)
+    likes, liked = toggle_post_like(db, post_id=post.id, member_id=m.id)
+    assert (likes, liked) == (1, True)  # 이미 좋아요 상태 그대로 — 카운트 중복 증가 없음
+
+
+def test_concurrent_unlike_does_not_decrement_count_twice(tmp_path):
+    """두 세션이 같은 좋아요를 해제해도 실제 삭제한 요청만 카운트를 감소시킨다."""
+    from sqlalchemy import create_engine, delete, update
+    from sqlalchemy.orm import sessionmaker
+
+    from app.models import Base, CommunityPost, CommunityPostLike
+
+    engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'unlike-race.db'}", future=True)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False, future=True)
+    first, second = factory(), factory()
+    try:
+        m = member(first)
+        post = create_post(first, member_id=m.id, tag="팁", title="t", body="b")
+        assert toggle_post_like(first, post_id=post.id, member_id=m.id) == (1, True)
+
+        # 첫 요청이 좋아요 행과 글을 읽은 직후, 두 번째 요청이 먼저 해제를 완료한다.
+        stale_like = first.get(CommunityPostLike, (post.id, m.id))
+        assert stale_like is not None
+        first.get(CommunityPost, post.id)
+        first.commit()
+        second.execute(
+            delete(CommunityPostLike).where(
+                CommunityPostLike.post_id == post.id,
+                CommunityPostLike.member_id == m.id,
+            )
+        )
+        second.execute(
+            update(CommunityPost)
+            .where(CommunityPost.id == post.id)
+            .values(likes_count=CommunityPost.likes_count - 1)
+        )
+        second.commit()
+
+        assert toggle_post_like(first, post_id=post.id, member_id=m.id) == (0, False)
+        second.expire_all()
+        assert second.get(CommunityPost, post.id).likes_count == 0
+    finally:
+        first.close()
+        second.close()
+        engine.dispose()
+
+
 def test_toggle_post_like_validations(db):
     import pytest
 
@@ -119,3 +234,35 @@ def test_comments_are_limited(db):
         add_comment(db, post_id=post.id, member_id=m.id, body=f"댓글{i}")
     _, comments = get_post_with_comments(db, post.id)
     assert len(comments) == COMMENTS_LIMIT
+
+
+def test_delete_post_by_author_removes_comments_and_likes(db):
+    """본인 글 삭제 — 글과 함께 댓글/좋아요도 제거된다 (e2e 데이터 정리에도 사용)."""
+    from app.repositories.community import delete_post
+
+    m = member(db)
+    post = create_post(db, member_id=m.id, tag="팁", title="t", body="b")
+    add_comment(db, post_id=post.id, member_id=m.id, body="댓글")
+    toggle_post_like(db, post_id=post.id, member_id=m.id)
+
+    delete_post(db, post_id=post.id, member_id=m.id)
+
+    assert list_posts(db).total == 0
+    gone, comments = get_post_with_comments(db, post.id)
+    assert gone is None and comments == []
+
+
+def test_delete_post_only_by_author(db):
+    import pytest
+
+    from app.repositories.community import delete_post
+
+    m1 = member(db)
+    m2 = member(db, "다른회원")
+    post = create_post(db, member_id=m1.id, tag="팁", title="t", body="b")
+
+    with pytest.raises(ValueError):
+        delete_post(db, post_id=post.id, member_id=m2.id)  # 남의 글
+    with pytest.raises(LookupError):
+        delete_post(db, post_id=9999, member_id=m1.id)  # 없는 글
+    assert list_posts(db).total == 1
