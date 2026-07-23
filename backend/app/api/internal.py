@@ -5,7 +5,6 @@ import logging
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.routes import get_cache
@@ -55,10 +54,6 @@ def meetup_run(
                 category_api_id, label, window_days=settings.meetup_window_days
             )
         result = collect_meetups(db, cache, candidates=candidates)
-    except IntegrityError:
-        # 스케줄러와 동시 실행 경합 — 상대편이 이미 반영했으므로 정상 종료
-        logger.info("밋업 동시 수집 감지 — 스케줄러 반영분과 중복")
-        return api_response({"candidates": 0, "added": 0, "note": "동시 수집 감지"})
     except (httpx.HTTPError, ValueError) as exc:
         logger.exception("밋업 수동 수집 실패")
         raise HTTPException(status_code=502, detail="밋업 수집에 실패했습니다") from exc
@@ -71,12 +66,10 @@ def newsletter_run(
 ):
     from app.services.newsletter_collector import collect_recent_newsletters
 
+    # 동시 수집 레이스는 collect_batch 가 행 단위 SAVEPOINT 로 흡수한다.
+    # 여기까지 전파되는 IntegrityError 는 실제 결함이므로 삼키지 않는다.
     try:
         result = collect_recent_newsletters(db, cache)
-    except IntegrityError:
-        # 스케줄러와 동시 실행 경합 — 상대편이 이미 반영했으므로 정상 종료
-        logger.info("뉴스레터 동시 수집 감지 — 스케줄러 반영분과 중복")
-        return api_response({"candidates": 0, "added": 0, "note": "동시 수집 감지"})
     except (httpx.HTTPError, ValueError) as exc:
         logger.exception("뉴스레터 수동 수집 실패")
         raise HTTPException(status_code=502, detail="뉴스레터 수집에 실패했습니다") from exc

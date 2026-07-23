@@ -23,7 +23,7 @@ MERGE_TAG_RE = re.compile(r"\$%[^%$]*%\$")
 
 KMA_LIST_PATH = "/kr/usrs/eduRegMgnt/selectInsightSubList.do"
 KMA_DETAIL_PATH = "/kr/usrs/eduRegMgnt/eduRegMgntForm.do"
-# 목록 페이지 formList/formDetail hidden 필드와 동일한 값
+# 목록 페이지 formList/formDetail hidden 필드와 동일한 값 (sidx 후행 공백도 사이트 원본 그대로)
 KMA_LIST_PARAMS = {
     "sidx": "BRD_SEQ ",
     "sord": "DESC",
@@ -59,9 +59,12 @@ def _parse_iso(value) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
+    # 오프셋 없는 응답 방어: 스티비는 한국 서비스이므로 KST 로 간주한다
+    # (naive 그대로 두면 filter_recent 의 aware 비교에서 TypeError)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=KST)
 
 
 def parse_stibee_emails(
@@ -109,6 +112,14 @@ def _parse_kma_reg_dt(value) -> datetime | None:
         return None
 
 
+def _safe_filename(value) -> str:
+    """썸네일 경로에 붙일 파일명 — 경로 조작 문자가 섞이면 버린다 (응답 오염 방어)."""
+    filename = (value or "").strip()
+    if any(token in filename for token in ("/", "\\", "..", "?", "#")):
+        return ""
+    return filename
+
+
 def _kma_publisher(metatext) -> str:
     series = " ".join(part.strip() for part in (metatext or "").split(",") if part.strip())
     return f"KMA {series}" if series else "KMA 뉴스레터"
@@ -121,7 +132,7 @@ def parse_kma_rows(payload: dict, base_url: str) -> list[NewsletterCandidate]:
         title = (row.get("TTL") or "").strip()
         if not (seq and title):
             continue
-        filename = (row.get("SAVE_FILENM") or "").strip()
+        filename = _safe_filename(row.get("SAVE_FILENM"))
         candidates.append(
             NewsletterCandidate(
                 title=title,

@@ -56,6 +56,17 @@ def test_parse_stibee_emails_rejects_non_http_links():
     assert parse_stibee_emails(items, publisher="모두레터") == []
 
 
+def test_parse_stibee_naive_senttime_treated_as_kst():
+    """오프셋 없는 sentTime 도 aware(KST) 로 보정한다 — filter_recent 비교 안전."""
+    items = [{
+        "subject": "오프셋 없음", "permanentLink": "https://stib.ee/NAIVE",
+        "sentTime": "2026-07-20T07:00:00",
+    }]
+    [c] = parse_stibee_emails(items, publisher="모두레터")
+    assert c.published_at.tzinfo is not None
+    assert filter_recent([c], now=NOW, days=7) == [c]
+
+
 def test_parse_stibee_emails_skips_resend_duplicates():
     """"(재발송)" 메일은 원본과 내용이 같으므로 수집하지 않는다."""
     candidates = parse_stibee_emails(load("stibee_archive_emails.json"), publisher="모두레터")
@@ -97,6 +108,16 @@ def test_parse_kma_rows_maps_fields():
     assert c.published_at is not None
     assert c.published_at.tzinfo is not None
     assert c.published_at.astimezone(timezone.utc).date().isoformat() == "2026-07-09"
+
+
+def test_parse_kma_rows_drops_path_traversal_filename():
+    """SAVE_FILENM 에 경로 조작 문자가 섞이면 썸네일을 버린다 (응답 오염 방어)."""
+    payload = {"rows": [{
+        "BRD_SEQ": 900, "TTL": "제목", "REG_DT": "20260720090000",
+        "METATEXT": "", "SAVE_FILENM": "../../etc/passwd",
+    }]}
+    [c] = parse_kma_rows(payload, base_url="https://www.kma.or.kr")
+    assert c.thumbnail_url is None
 
 
 def test_parse_kma_rows_without_thumbnail_or_metatext():
