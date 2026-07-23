@@ -72,14 +72,14 @@ for_each_table() {
 
 is_nexus_table() {
   case "$1" in
-    categories|articles|members|auth_sessions|community_posts|community_post_likes|community_comments|meetup_events|meetup_collect_runs|courses|fastcampus_collect_runs|writer_sessions|writer_messages|brunch_collect_runs) return 0 ;;
+    categories|articles|members|auth_sessions|community_posts|community_post_likes|community_comments|meetup_events|meetup_collect_runs|courses|fastcampus_collect_runs|writer_sessions|writer_messages|brunch_collect_runs|newsletter_collect_runs) return 0 ;;
     *) return 1 ;;
   esac
 }
 
 is_nexus_sequence() {
   case "$1" in
-    articles_id_seq|auth_sessions_id_seq|brunch_collect_runs_id_seq|categories_id_seq|community_comments_id_seq|community_posts_id_seq|courses_id_seq|fastcampus_collect_runs_id_seq|meetup_collect_runs_id_seq|meetup_events_id_seq|members_id_seq|writer_messages_id_seq|writer_sessions_telegram_user_id_seq) return 0 ;;
+    articles_id_seq|auth_sessions_id_seq|brunch_collect_runs_id_seq|categories_id_seq|community_comments_id_seq|community_posts_id_seq|courses_id_seq|fastcampus_collect_runs_id_seq|meetup_collect_runs_id_seq|meetup_events_id_seq|members_id_seq|newsletter_collect_runs_id_seq|writer_messages_id_seq|writer_sessions_telegram_user_id_seq) return 0 ;;
     *) return 1 ;;
   esac
 }

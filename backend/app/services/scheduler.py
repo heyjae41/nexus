@@ -53,6 +53,16 @@ def run_brunch_job(cache: VersionedCache) -> None:
             logger.exception("브런치 수집 작업 실패")
 
 
+def run_newsletter_job(cache: VersionedCache) -> None:
+    from app.services.newsletter_collector import collect_recent_newsletters
+
+    with _session() as db:
+        try:
+            collect_recent_newsletters(db, cache)
+        except Exception:
+            logger.exception("뉴스레터 수집 작업 실패")
+
+
 def run_meetup_job(cache: VersionedCache) -> None:
     from app.services.meetup_collector import collect_meetups
     from app.services.meetup_fetcher import fetch_meetup_candidates
@@ -126,6 +136,7 @@ def run_collect_chain_job(cache: VersionedCache) -> None:
     settings = get_settings()
     steps = [
         ("brunch", lambda: run_brunch_job(cache)),
+        ("newsletter", lambda: run_newsletter_job(cache)),
         ("event-us", lambda: run_meetup_job(cache)),
     ]
     steps += [

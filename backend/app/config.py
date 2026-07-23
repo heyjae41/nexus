@@ -4,6 +4,16 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _split_pairs(raw: str) -> list[tuple[str, str]]:
+    """"키:라벨" 쉼표 구분 문자열 → (키, 라벨) 목록 (형식 밖 항목은 무시)."""
+    pairs = []
+    for token in raw.split(","):
+        if ":" in token:
+            key, label = token.split(":", 1)
+            pairs.append((key.strip(), label.strip()))
+    return pairs
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -44,18 +54,23 @@ class Settings(BaseSettings):
     # Meetup collector (luma.com) — "카테고리ID:표시라벨" 쉼표 구분
     luma_categories: str = "cat-ai:AI,cat-tech:TECH"
 
+    # Newsletter collector — 스티비 아카이브 "listId:뉴스레터이름" 쉼표 구분 + KMA 인사이트
+    newsletter_stibee_lists: str = "297134:테크잇슈,212479:셀렉트 다이제스트,181723:모두레터"
+    stibee_page_base_url: str = "https://page.stibee.com"
+    newsletter_kma_base_url: str = "https://www.kma.or.kr"
+    newsletter_window_days: int = 7
+
     @property
     def meetup_category_list(self) -> list[str]:
         return [c.strip() for c in self.meetup_categories.split(",") if c.strip()]
 
     @property
     def luma_category_pairs(self) -> list[tuple[str, str]]:
-        pairs = []
-        for token in self.luma_categories.split(","):
-            if ":" in token:
-                cid, label = token.split(":", 1)
-                pairs.append((cid.strip(), label.strip()))
-        return pairs
+        return _split_pairs(self.luma_categories)
+
+    @property
+    def newsletter_stibee_pairs(self) -> list[tuple[str, str]]:
+        return _split_pairs(self.newsletter_stibee_lists)
 
     @property
     def database_url(self) -> str:

@@ -65,6 +65,24 @@ def meetup_run(
     return api_response({"candidates": result.candidates, "added": result.added})
 
 
+@router.post("/newsletter/run")
+def newsletter_run(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    from app.services.newsletter_collector import collect_recent_newsletters
+
+    try:
+        result = collect_recent_newsletters(db, cache)
+    except IntegrityError:
+        # 스케줄러와 동시 실행 경합 — 상대편이 이미 반영했으므로 정상 종료
+        logger.info("뉴스레터 동시 수집 감지 — 스케줄러 반영분과 중복")
+        return api_response({"candidates": 0, "added": 0, "note": "동시 수집 감지"})
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.exception("뉴스레터 수동 수집 실패")
+        raise HTTPException(status_code=502, detail="뉴스레터 수집에 실패했습니다") from exc
+    return api_response({"candidates": result.candidates, "added": result.added})
+
+
 @router.post("/classes/run")
 def classes_run(
     db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)

@@ -49,8 +49,8 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | body_html | TEXT | 본문(내부 글). 브런치 글은 NULL |
 | key_visual_html | TEXT | 개념 애니메이션 키비주얼(내부 글 필수) |
 | author_name | VARCHAR(100) | |
-| source_type | VARCHAR(20) NOT NULL | 수집 출처: internal / brunch (UI 뱃지로 사용하지 않음) |
-| source_url | VARCHAR(1000) UNIQUE | 브런치 원글 URL (동시 수집 중복 방지 키) |
+| source_type | VARCHAR(20) NOT NULL | 수집 출처: internal / brunch / stibee / kma (UI 뱃지로 사용하지 않음) |
+| source_url | VARCHAR(1000) UNIQUE | 수집 원문 URL (동시 수집 중복 방지 키) |
 | thumbnail_url | VARCHAR(1000) | 목록 카드 대표 이미지 |
 | content_filename | VARCHAR(300) UNIQUE | 인제스트 파일명(중복 방지 키) |
 | read_minutes | INT NOT NULL DEFAULT 4 | |
@@ -61,7 +61,7 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | published_at | TIMESTAMPTZ NOT NULL | 목록 정렬 기준 |
 | created_at / updated_at | TIMESTAMPTZ | |
 
-- 링크 규칙: `source_type='brunch'` → 클릭 시 `source_url + '?ref=nexus.bccard.ai'`(기존 쿼리 있으면 `&`)로 이동. `internal` → `/articles/{id}` 상세.
+- 링크 규칙: 수집 출처(`brunch`/`stibee`/`kma`) → 클릭 시 `source_url + '?ref=nexus.bccard.ai'`(기존 쿼리 있으면 `&`)로 이동. `internal` → `/articles/{id}` 상세.
 - 인덱스: `(category_id, status, published_at DESC)`, `(article_type, published_at DESC)`.
 
 ### brunch_collect_runs — 브런치 수집 이력(12시간 주기)
@@ -76,6 +76,22 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | created_at | TIMESTAMPTZ DEFAULT now() | |
 
 선정 규칙: 기간 내 AI 관련 글 중 `댓글수 + 좋아요수` 최대 글 1건 → articles(source_type='brunch')로 저장.
+
+### newsletter_collect_runs — 뉴스레터 수집 이력(12시간 주기, 수집 체인 2단계)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | SERIAL PK | |
+| status | VARCHAR(20) NOT NULL | success / empty / failed |
+| candidates_count / added_count | INT NOT NULL DEFAULT 0 | 최근 기간 후보 수 / 신규 반영 수 |
+| error_message | TEXT | |
+| created_at | TIMESTAMPTZ DEFAULT now() | |
+
+수집 규칙: 스티비 아카이브 3종(`page.stibee.com/archives/{listId}/emails` JSON, 목록은
+`NEWSLETTER_STIBEE_LISTS`="listId:이름" 설정) + KMA 인사이트 뉴스레터
+(`selectInsightSubList.do` JSON)에서 최근 `NEWSLETTER_WINDOW_DAYS`(기본 7일) 발행분 전체를
+articles(article_type='newsletter', source_type='stibee'/'kma')로 저장한다.
+`source_url`(스티비 stib.ee 영구 링크 / KMA 상세 페이지 URL) 기준으로 중복을 제거하고,
+스티비 "(재발송)" 메일은 원본과 중복이므로 건너뛴다. 소스 단위 실패는 다른 소스 수집을 막지 않는다.
 
 ### members — 회원(닉네임 식별 + 비밀번호 인증)
 | 컬럼 | 타입 | 설명 |
@@ -184,7 +200,7 @@ updated_count, hidden_count, error_message, created_at`.
 - `POST /api/community/posts/{id}/comments` · `POST /api/community/posts/{id}/like` — 댓글/토글 좋아요
 - 오류 시맨틱: 온보딩 미완료 403 / 대상 리소스 없음 404 / 검증 실패 400
 - `POST /api/internal/ingest/run` — 인제스트 수동 실행(스케줄러와 동일 코드 경로, 테스트용)
-- `POST /api/internal/brunch/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
+- `POST /api/internal/brunch/run` · `POST /api/internal/newsletter/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
 
 ## 테스트 전략 (TDD)
 

@@ -22,3 +22,21 @@ def test_settings_defaults(monkeypatch):
     assert s.ingest_interval_seconds == 60
     assert s.brunch_collect_interval_hours == 12
     assert s.brunch_ref_query == "ref=nexus.bccard.ai"
+
+
+def test_settings_newsletter_sources():
+    s = Settings(_env_file=None)
+    assert s.newsletter_window_days == 7
+    assert s.newsletter_kma_base_url == "https://www.kma.or.kr"
+    assert s.stibee_page_base_url == "https://page.stibee.com"
+    assert s.newsletter_stibee_pairs == [
+        ("297134", "테크잇슈"),
+        ("212479", "셀렉트 다이제스트"),
+        ("181723", "모두레터"),
+    ]
+
+
+def test_settings_stibee_pairs_from_env(monkeypatch):
+    monkeypatch.setenv("NEWSLETTER_STIBEE_LISTS", "111:레터A, 222:레터B ,깨진항목")
+    s = Settings(_env_file=None)
+    assert s.newsletter_stibee_pairs == [("111", "레터A"), ("222", "레터B")]

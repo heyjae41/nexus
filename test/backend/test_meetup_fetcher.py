@@ -76,19 +76,7 @@ def test_parse_search_response_skips_broken_items():
     assert len(candidates) == 3  # 필수 필드 없는 항목은 건너뜀
 
 
-class FakeResponse:
-    def __init__(self, payload, fail=False):
-        self._payload = payload
-        self._fail = fail
-
-    def raise_for_status(self):
-        if self._fail:
-            import httpx
-
-            raise httpx.HTTPStatusError("500", request=None, response=None)
-
-    def json(self):
-        return self._payload
+from shared import FakeResponse  # noqa: E402 — fetcher 테스트 공용 스텁
 
 
 class FakeClient:

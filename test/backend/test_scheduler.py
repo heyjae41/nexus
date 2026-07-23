@@ -17,11 +17,15 @@ def test_scheduler_has_ingest_and_collect_chain():
 
 
 def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
-    """브런치 → 밋업 → FastCampus → Daker → DACON. 실패해도 다음 단계 진행."""
+    """브런치 → 뉴스레터 → 밋업 → FastCampus → Daker → DACON. 실패해도 다음 단계 진행."""
     calls = []
     monkeypatch.setattr(
         scheduler_module, "run_brunch_job",
         lambda cache: calls.append("brunch"),
+    )
+    monkeypatch.setattr(
+        scheduler_module, "run_newsletter_job",
+        lambda cache: calls.append("newsletter"),
     )
 
     def fake_meetup(cache):
@@ -48,7 +52,7 @@ def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
 
     run_collect_chain_job(make_cache())
     assert calls == [
-        "brunch", "eventus", "luma:AI", "luma:TECH",
+        "brunch", "newsletter", "eventus", "luma:AI", "luma:TECH",
         "fastcampus", "daker", "dacon",
     ]
 
@@ -121,6 +125,38 @@ def test_run_brunch_job_swallows_fetch_failure(db, monkeypatch):
 
     monkeypatch.setattr(scheduler_module, "fetch_candidates", boom)
     scheduler_module.run_brunch_job(_cache())  # 예외 전파 없음
+
+
+def test_run_newsletter_job_fetches_recent_and_collects(db, monkeypatch):
+    """뉴스레터 잡: 후보 수집 → 최근 기간 필터 → collect_newsletters 전달, 실패는 삼킨다."""
+    monkeypatch.setattr(scheduler_module, "_session", lambda: db)
+    from app.services import newsletter_collector, newsletter_fetcher
+
+    monkeypatch.setattr(
+        newsletter_fetcher,
+        "fetch_newsletter_candidates",
+        lambda **kw: ["전체후보"],
+    )
+    monkeypatch.setattr(
+        newsletter_fetcher,
+        "filter_recent",
+        lambda cands, *, now, days: [f"최근:{cands[0]}:{days}일"],
+    )
+    collected = []
+    monkeypatch.setattr(
+        newsletter_collector,
+        "collect_newsletters",
+        lambda db_, cache_, *, candidates: collected.append(candidates),
+    )
+    scheduler_module.run_newsletter_job(_cache())
+    assert collected == [["최근:전체후보:7일"]]
+
+    monkeypatch.setattr(
+        newsletter_fetcher,
+        "fetch_newsletter_candidates",
+        lambda **kw: (_ for _ in ()).throw(RuntimeError("네트워크")),
+    )
+    scheduler_module.run_newsletter_job(_cache())  # 예외 전파 없음
 
 
 def test_run_meetup_and_luma_jobs_collect(db, monkeypatch):

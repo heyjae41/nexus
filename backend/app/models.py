@@ -259,10 +259,8 @@ class MeetupEvent(Base):
     collected_at: Mapped[datetime] = _ts_now_col()
 
 
-class MeetupCollectRun(Base):
-    """밋업 수집 이력."""
-
-    __tablename__ = "meetup_collect_runs"
+class CollectRunColumns:
+    """'후보 전체 저장' 수집 이력 공통 컬럼 (밋업/뉴스레터)."""
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -270,6 +268,12 @@ class MeetupCollectRun(Base):
     added_count: Mapped[int] = _int_zero_col()
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _ts_now_col()
+
+
+class MeetupCollectRun(CollectRunColumns, Base):
+    """밋업 수집 이력."""
+
+    __tablename__ = "meetup_collect_runs"
 
 
 class WriterSession(Base):
@@ -295,6 +299,12 @@ class WriterMessage(Base):
     role: Mapped[str] = mapped_column(String(12), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _ts_now_col()
+
+
+class NewsletterCollectRun(CollectRunColumns, Base):
+    """뉴스레터 수집 이력 (스티비 아카이브 + KMA 인사이트)."""
+
+    __tablename__ = "newsletter_collect_runs"
 
 
 class BrunchCollectRun(Base):

@@ -1,0 +1,66 @@
+[
+  {
+    "id": 3495048,
+    "pid": 215,
+    "listId": 181723,
+    "subject": "📮 에이전트 여럿을 한 번에 굴린다면?",
+    "previewText": "#GPT5.6 #Inkling I $%name%$님, 모두레터가 왔어요😺",
+    "permanentLink": "https://stib.ee/kWWM",
+    "sentTime": "2026-07-20T07:00:03.211509954+09:00",
+    "contentType": "",
+    "accessControlLevel": 2,
+    "MergeVariables": {
+      "subscribers_count": 20881
+    }
+  },
+  {
+    "id": 3504099,
+    "pid": 164,
+    "listId": 181723,
+    "subject": "🚀 (재발송) 34만 명이 읽는 요즘IT, 인사이트를 평가에서 뺀 이유",
+    "previewText": "재발송분은 원본과 중복이므로 수집하지 않는다",
+    "permanentLink": "https://stib.ee/RESEND",
+    "sentTime": "2026-07-22T08:45:50+09:00",
+    "contentType": "",
+    "accessControlLevel": 2,
+    "MergeVariables": {}
+  },
+  {
+    "id": 3504021,
+    "pid": 163,
+    "listId": 181723,
+    "subject": "🚀 34만 명이 읽는 요즘IT, 인사이트를 평가에서 뺀 이유",
+    "previewText": " 통찰마저 AI가 흉내 내는 시대, 남는 건 사람의 경험뿐",
+    "permanentLink": "https://stib.ee/CBbM",
+    "sentTime": "2026-07-22T07:45:50.034792287+09:00",
+    "contentType": "",
+    "accessControlLevel": 2,
+    "MergeVariables": {
+      "subscribers_count": 2791
+    }
+  },
+  {
+    "id": 3491000,
+    "pid": 160,
+    "listId": 181723,
+    "subject": "링크 없는 항목",
+    "previewText": "permanentLink 가 없어 건너뛰어야 한다",
+    "permanentLink": "",
+    "sentTime": "2026-07-19T08:00:00+09:00",
+    "contentType": "",
+    "accessControlLevel": 2,
+    "MergeVariables": {}
+  },
+  {
+    "id": 3364045,
+    "pid": 120,
+    "listId": 181723,
+    "subject": "🗞️ 오래된 이슈 (기간 밖)",
+    "previewText": "한참 전에 발송된 뉴스레터",
+    "permanentLink": "https://stib.ee/OLD1",
+    "sentTime": "2026-05-01T08:00:00+09:00",
+    "contentType": "",
+    "accessControlLevel": 2,
+    "MergeVariables": {}
+  }
+]

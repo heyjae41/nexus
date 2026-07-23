@@ -12,6 +12,23 @@ def seed_curation(db):
     db.commit()
 
 
+class FakeResponse:
+    """실패 흉내를 지원하는 JSON 응답 스텁 (fetcher 테스트 공용)."""
+
+    def __init__(self, payload, fail=False):
+        self._payload = payload
+        self._fail = fail
+
+    def raise_for_status(self):
+        if self._fail:
+            import httpx
+
+            raise httpx.HTTPStatusError("500", request=None, response=None)
+
+    def json(self):
+        return self._payload
+
+
 class JsonResponse:
     def __init__(self, data):
         self.data = data
