@@ -85,6 +85,16 @@ def test_classes_api_orders_by_rank_first_across_categories(client):
     ]
 
 
+def test_classes_api_pushes_nonpositive_rank_to_back(client):
+    """rank 는 관례상 1부터지만, 0 이하 행이 생겨도 전체 상단을 장악하지 못하게 뒤로 보낸다."""
+    add_course(client, "ds-1", "DATASCIENCEDL", ["BEST"], rank=1)
+    add_course(client, "broken", "AICREATIVE", ["NEW"], rank=0)
+
+    res = client.get("/api/classes?page=1&size=10")
+
+    assert [x["sourceId"] for x in res.json()["data"]] == ["ds-1", "broken"]
+
+
 def test_classes_api_category_filter_keeps_rank_order(client):
     add_course(client, "ds-2", "DATASCIENCEDL", ["NEW"], rank=2)
     add_course(client, "ds-1", "DATASCIENCEDL", ["BEST"], rank=1)
