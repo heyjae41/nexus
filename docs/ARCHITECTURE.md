@@ -76,6 +76,8 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | created_at | TIMESTAMPTZ DEFAULT now() | |
 
 선정 규칙: 기간 내 AI 관련 글 중 `댓글수 + 좋아요수` 최대 글 1건 → articles(source_type='brunch')로 저장.
+`published_at` 은 원글 발행시각을 그대로 저장한다 (없으면 window_end 폴백) — 수집 글이 포맷과
+무관하게 같은 기준으로 시간순 정렬되게 하기 위함. 목록 정렬은 전 구간 `published_at DESC` 단일 기준.
 
 ### newsletter_collect_runs — 뉴스레터 수집 이력(12시간 주기, 수집 체인 2단계)
 | 컬럼 | 타입 | 설명 |
@@ -192,7 +194,8 @@ updated_count, hidden_count, error_message, created_at`.
 - `GET /api/articles?category=&type=&page=&size=` — 목록(카드 필드 포함)
 - `GET /api/articles/{id}` — 상세(view_count 증가)
 - `POST /api/articles/{id}/like` — 익명 증가 전용(위 '좋아요 정책' 참고)
-- `GET /api/classes?category=&page=&size=` — 수집형 클래스·참가 기회 목록. 카테고리 코드: `DATASCIENCEDL`, `AICREATIVE`, `BIZ`, `DAKER`, `DACON`
+- `GET /api/classes?category=&page=&size=` — 수집형 클래스·참가 기회 목록. 카테고리 코드: `DATASCIENCEDL`, `AICREATIVE`, `BIZ`, `DAKER`, `DACON`.
+  정렬은 `source_rank` 우선(카테고리별 1위들이 섞여 상단 노출, 동률은 카테고리 우선순위) — 홈 '지금 뜨는 클래스'도 이 순서의 상위 4건.
 - `GET /api/events?category=&page=&size=` — 밋업 목록(배지: `IT/프로그래밍`, `AI`, `경제/금융`; 미지정 시 전체)
 - `POST /api/members` — 가입 또는 로그인(닉네임+비밀번호, 위 members 정책 참고) · `GET/PATCH/DELETE /api/members/{id}` — 프로필/탈회
 - `GET /api/community/posts?tag=&page=&size=` · `POST /api/community/posts` · `GET /api/community/posts/{id}` — 커뮤니티 글
