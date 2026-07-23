@@ -67,5 +67,32 @@ def test_classes_api_lists_opportunity_categories_with_source_type(client):
     assert dacon["data"][0]["sourceCategoryName"] == "경진대회"
 
 
+def test_classes_api_orders_by_rank_first_across_categories(client):
+    """전체 목록은 source_rank 우선 정렬 — 각 카테고리 1위들이 섞여 상단에 온다.
+
+    (홈 '지금 뜨는 클래스'가 한 카테고리 상위권으로 고정되지 않게 하는 기준.
+    rank 동률은 카테고리 우선순위: DATASCIENCEDL → AICREATIVE → BIZ → DAKER → DACON)"""
+    add_course(client, "ds-1", "DATASCIENCEDL", ["BEST"], rank=1)
+    add_course(client, "ds-2", "DATASCIENCEDL", ["NEW"], rank=2)
+    add_course(client, "cr-1", "AICREATIVE", ["NEW"], rank=1)
+    add_course(client, "biz-1", "BIZ", ["얼리버드"], rank=1)
+    add_course(client, "daker:1", "DAKER", ["모집중"], rank=1)
+
+    res = client.get("/api/classes?page=1&size=4")
+
+    assert [x["sourceId"] for x in res.json()["data"]] == [
+        "ds-1", "cr-1", "biz-1", "daker:1",
+    ]
+
+
+def test_classes_api_category_filter_keeps_rank_order(client):
+    add_course(client, "ds-2", "DATASCIENCEDL", ["NEW"], rank=2)
+    add_course(client, "ds-1", "DATASCIENCEDL", ["BEST"], rank=1)
+
+    res = client.get("/api/classes?category=DATASCIENCEDL")
+
+    assert [x["sourceId"] for x in res.json()["data"]] == ["ds-1", "ds-2"]
+
+
 def test_classes_api_rejects_unknown_category(client):
     assert client.get("/api/classes?category=UNKNOWN").status_code == 422
