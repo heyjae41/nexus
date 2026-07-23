@@ -94,7 +94,11 @@ def collect_and_pick(
     if top is None:
         _record_run(db, run)
         return None
-    return _publish_top(db, cache, run=run, top=top, published_at=window_end)
+    # 원글 발행시각을 그대로 저장한다 — 수집 글(브런치/뉴스레터)이 같은 기준으로
+    # 시간순 정렬되게 한다. 발행시각 없는 후보만 수집 기간 종료 시각으로 폴백.
+    return _publish_top(
+        db, cache, run=run, top=top, published_at=top.published_at or window_end
+    )
 
 
 def _publish_top(

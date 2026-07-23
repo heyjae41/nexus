@@ -76,6 +76,8 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | created_at | TIMESTAMPTZ DEFAULT now() | |
 
 선정 규칙: 기간 내 AI 관련 글 중 `댓글수 + 좋아요수` 최대 글 1건 → articles(source_type='brunch')로 저장.
+`published_at` 은 원글 발행시각을 그대로 저장한다 (없으면 window_end 폴백) — 수집 글이 포맷과
+무관하게 같은 기준으로 시간순 정렬되게 하기 위함. 목록 정렬은 전 구간 `published_at DESC` 단일 기준.
 
 ### newsletter_collect_runs — 뉴스레터 수집 이력(12시간 주기, 수집 체인 2단계)
 | 컬럼 | 타입 | 설명 |

@@ -107,6 +107,33 @@ def test_collect_and_pick_saves_thumbnail(db):
     assert picked.thumbnail_url == "https://t1.kakaocdn.net/brunch/cover.png"
 
 
+def test_collect_and_pick_stores_original_publish_time(db):
+    """저장되는 published_at 은 수집 시각(window_end)이 아니라 원글 발행시각이다 —
+    수집 글(브런치/뉴스레터)이 같은 기준으로 시간순 정렬되게 한다."""
+    seed_curation(db)
+    cache = make_cache()
+    original = datetime(2026, 7, 7, 3, 30, tzinfo=timezone.utc)
+    picked = collect_and_pick(
+        db, cache,
+        candidates=[cand(published_at=original)],
+        window_start=WINDOW[0], window_end=WINDOW[1],
+    )
+    # SQLite 테스트 DB 는 tzinfo 를 벗겨 돌려주므로 UTC 로 보정해 비교한다
+    assert picked.published_at.replace(tzinfo=timezone.utc) == original
+
+
+def test_collect_and_pick_falls_back_to_window_end_without_publish_time(db):
+    """발행시각 없는 후보(방어)는 기존처럼 수집 기간 종료 시각으로 저장한다."""
+    seed_curation(db)
+    cache = make_cache()
+    picked = collect_and_pick(
+        db, cache,
+        candidates=[cand(published_at=None)],
+        window_start=WINDOW[0], window_end=WINDOW[1],
+    )
+    assert picked.published_at.replace(tzinfo=timezone.utc) == WINDOW[1]
+
+
 def test_collect_and_pick_saves_brunch_article(db):
     seed_curation(db)
     cache = make_cache()
