@@ -7,12 +7,11 @@ import logging
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
-from app.db import is_unique_violation
 from app.models import MeetupCollectRun, MeetupEvent
+from app.services.collect_batch import apply_collect_batch
 from app.services.meetup_fetcher import MeetupCandidate
 
 logger = logging.getLogger(__name__)
@@ -39,6 +38,26 @@ def _existing_keys(db: Session, candidates: list[MeetupCandidate]) -> tuple[set[
     return existing_urls, existing_ids
 
 
+def _event_row(c: MeetupCandidate) -> MeetupEvent:
+    return MeetupEvent(
+        source_id=c.source_id,
+        title=c.title,
+        host_name=c.host_name,
+        source_url=c.source_url,
+        event_start=c.event_start,
+        event_end=c.event_end,
+        place=c.place,
+        area=c.area,
+        address=c.address,
+        price_min=c.price_min,
+        is_free=c.is_free,
+        view_count=c.view_count,
+        event_system_type=c.event_system_type,
+        category=c.category,
+        cover_image_url=c.cover_image_url,
+    )
+
+
 def collect_meetups(
     db: Session,
     cache: VersionedCache,
@@ -55,58 +74,13 @@ def collect_meetups(
         existing_ids.add(c.source_id)
         fresh.append(c)
 
-    added = 0
-    try:
-        for c in fresh:
-            try:
-                # SAVEPOINT: 동시 수집 레이스로 1건이 UNIQUE 충돌해도
-                # 배치의 나머지 신규 이벤트는 유실하지 않는다
-                with db.begin_nested():
-                    db.add(
-                        MeetupEvent(
-                            source_id=c.source_id,
-                            title=c.title,
-                            host_name=c.host_name,
-                            source_url=c.source_url,
-                            event_start=c.event_start,
-                            event_end=c.event_end,
-                            place=c.place,
-                            area=c.area,
-                            address=c.address,
-                            price_min=c.price_min,
-                            is_free=c.is_free,
-                            view_count=c.view_count,
-                            event_system_type=c.event_system_type,
-                            category=c.category,
-                            cover_image_url=c.cover_image_url,
-                        )
-                    )
-                    db.flush()
-                added += 1
-            except IntegrityError as exc:
-                if not is_unique_violation(exc):
-                    raise  # NOT NULL/FK 등 실제 결함은 배치 실패로 전파
-                logger.info("밋업 동시 수집 감지 — 건너뜀: %s", c.source_url)
-        db.add(
-            MeetupCollectRun(
-                status="empty" if not candidates else "success",
-                candidates_count=len(candidates),
-                added_count=added,
-            )
-        )
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        db.add(
-            MeetupCollectRun(
-                status="failed",
-                candidates_count=len(candidates),
-                error_message=str(exc),
-            )
-        )
-        db.commit()
-        raise
-
+    added = apply_collect_batch(
+        db,
+        rows=((c.source_url, _event_row(c)) for c in fresh),
+        run_model=MeetupCollectRun,
+        candidates_count=len(candidates),
+        label="밋업",
+    )
     if added:
         cache.bump_version()
         logger.info("밋업 %d건 신규 반영 → 캐시 무효화", added)

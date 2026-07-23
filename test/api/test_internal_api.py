@@ -70,6 +70,46 @@ def test_internal_brunch_run_picks_one_article_per_keyword(client, seed, monkeyp
     assert {article["title"] for article in brunch_cards} >= expected_titles
 
 
+def test_internal_newsletter_run_adds_recent_issues(client, seed, monkeypatch):
+    seed(client)
+    from datetime import datetime, timedelta, timezone
+
+    from app.services.newsletter_fetcher import NewsletterCandidate
+
+    recent = datetime.now(timezone.utc) - timedelta(days=1)
+    old = datetime.now(timezone.utc) - timedelta(days=30)
+
+    def fake_fetch(**kwargs):
+        return [
+            NewsletterCandidate(
+                title="이번 주 AI 소식", url="https://stib.ee/NEW1",
+                publisher="모두레터", source_type="stibee",
+                summary="요약", published_at=recent,
+            ),
+            NewsletterCandidate(
+                title="한 달 전 소식", url="https://stib.ee/OLD1",
+                publisher="모두레터", source_type="stibee",
+                published_at=old,
+            ),
+        ]
+
+    monkeypatch.setattr(
+        "app.services.newsletter_fetcher.fetch_newsletter_candidates", fake_fetch
+    )
+    res = client.post("/api/internal/newsletter/run")
+
+    assert res.status_code == 200
+    assert res.json()["data"] == {"candidates": 1, "added": 1}
+
+    listed = client.get("/api/articles?category=curation&type=newsletter").json()
+    cards = {a["title"]: a for a in listed["data"]}
+    assert "이번 주 AI 소식" in cards
+    assert "한 달 전 소식" not in cards  # 기간 밖 후보는 제외
+    card = cards["이번 주 AI 소식"]
+    assert card["isExternal"] is True
+    assert card["linkUrl"] == "https://stib.ee/NEW1?ref=nexus.bccard.ai"
+
+
 def test_internal_classes_run_with_stubbed_fetch(client, monkeypatch):
     from app.services.fastcampus_fetcher import FastCampusCandidate
 

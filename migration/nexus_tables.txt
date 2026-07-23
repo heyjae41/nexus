@@ -13,3 +13,4 @@ fastcampus_collect_runs
 writer_sessions
 writer_messages
 brunch_collect_runs
+newsletter_collect_runs
