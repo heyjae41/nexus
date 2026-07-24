@@ -4,14 +4,17 @@
   상세 이동 URL 은 각 항목의 permanentLink(stib.ee 단축 주소)다.
 - KMA 인사이트 뉴스레터: /kr/usrs/eduRegMgnt/selectInsightSubList.do POST 가
   게시판 rows JSON 을 반환한다. 상세 URL 은 formDetail 파라미터로 조립한다.
+- AI타임스: 메인 페이지 대표기사 블록(grid-1)을 CSS selector 로 추출한다.
+  발행시각은 기사 상세의 article:published_time 메타로 보강한다.
 """
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,16 @@ KMA_LIST_PARAMS = {
     "p_srch_text": "",
 }
 KMA_DETAIL_QUERY = "p_menu_id=50&mkey=50&cateNm=insNewsletterDtl&p_hmpgcd=30&p_assct_cdclsf_id=1"
+
+# AI타임스 메인 대표기사 블록 (요청 스펙의 CSS selector 그대로)
+AITIMES_FEATURED_SELECTOR = (
+    "#idx-default > div.index-grid-container.cs01__global.cs01__ly01"
+    " > div > div > div.index-item.grid-1 > article"
+)
+AITIMES_PUBLISHER = "AI타임스"
+PUBLISHED_TIME_META_RE = re.compile(
+    r'property="article:published_time"\s+content="([^"]+)"'
+)
 
 
 @dataclass(frozen=True)
@@ -146,6 +159,54 @@ def parse_kma_rows(payload: dict, base_url: str) -> list[NewsletterCandidate]:
     return candidates
 
 
+def _aitimes_host_url(url, base_url: str) -> str | None:
+    """aitimes.com 도메인의 http(s) URL 만 허용한다 (상대경로는 base 로 절대화)."""
+    if not url or not isinstance(url, str):
+        return None
+    absolute = urljoin(f"{base_url}/", url)
+    parts = urlsplit(absolute)
+    hostname = parts.hostname or ""
+    if parts.scheme not in ("http", "https"):
+        return None
+    if hostname != "aitimes.com" and not hostname.endswith(".aitimes.com"):
+        return None
+    return absolute
+
+
+def parse_aitimes_featured(html: str, base_url: str) -> list[NewsletterCandidate]:
+    """메인 대표기사 블록에서 후보를 추출한다 — 발행시각은 상세 메타로 나중에 보강."""
+    soup = BeautifulSoup(html, "html.parser")
+    candidates = []
+    for block in soup.select(AITIMES_FEATURED_SELECTOR):
+        for link in block.select("a.photo-titbg"):
+            url = _aitimes_host_url(link.get("href"), base_url)
+            heading = link.select_one("h2")
+            title = heading.get_text(strip=True) if heading else ""
+            if not (url and title):
+                continue
+            summary_el = link.select_one(".auto-sums")
+            item = link.find_parent(class_="item") or block
+            image = item.select_one("img")
+            candidates.append(
+                NewsletterCandidate(
+                    title=title,
+                    url=url,
+                    publisher=AITIMES_PUBLISHER,
+                    source_type="aitimes",
+                    summary=summary_el.get_text(" ", strip=True) if summary_el else "",
+                    thumbnail_url=_aitimes_host_url(
+                        image.get("src") if image else None, base_url
+                    ),
+                )
+            )
+    return candidates
+
+
+def parse_published_time_meta(html: str) -> datetime | None:
+    match = PUBLISHED_TIME_META_RE.search(html or "")
+    return _parse_iso(match.group(1)) if match else None
+
+
 def filter_recent(
     candidates: list[NewsletterCandidate],
     *,
@@ -174,11 +235,31 @@ def _fetch_stibee_list(
     return parse_stibee_emails(res.json(), publisher=publisher, thumbnail_url=thumbnail)
 
 
+def _fetch_aitimes(http, base_url: str) -> list[NewsletterCandidate]:
+    res = http.get(base_url)
+    res.raise_for_status()
+    enriched = []
+    for c in parse_aitimes_featured(res.text, base_url=base_url):
+        published = None
+        try:
+            detail = http.get(c.url)
+            detail.raise_for_status()
+            published = parse_published_time_meta(detail.text)
+        except httpx.HTTPError as exc:
+            logger.warning("AI타임스 상세 조회 실패(%s): %s", c.url, exc)
+        # 메타가 없거나 상세 실패 시 수집 시각 폴백 — 대표기사는 통상 당일 발행이라 오차가 작다
+        enriched.append(
+            replace(c, published_at=published or datetime.now(timezone.utc))
+        )
+    return enriched
+
+
 def fetch_newsletter_candidates(
     *,
     stibee_pairs: list[tuple[str, str]],
     stibee_base_url: str = "https://page.stibee.com",
     kma_base_url: str = "https://www.kma.or.kr",
+    aitimes_base_url: str = "https://www.aitimes.com",
     client: httpx.Client | None = None,
 ) -> list[NewsletterCandidate]:
     """전체 소스를 조회해 후보를 모은다 — 소스 단위 실패는 건너뛴다 (URL 중복 제거)."""
@@ -199,6 +280,10 @@ def fetch_newsletter_candidates(
                 extend(_fetch_stibee_list(http, stibee_base_url, list_id, publisher))
             except (httpx.HTTPError, ValueError) as exc:
                 logger.warning("스티비 아카이브 조회 실패(%s): %s", list_id, exc)
+        try:
+            extend(_fetch_aitimes(http, aitimes_base_url))
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("AI타임스 대표기사 조회 실패: %s", exc)
         try:
             res = http.post(f"{kma_base_url}{KMA_LIST_PATH}", data=KMA_LIST_PARAMS)
             res.raise_for_status()

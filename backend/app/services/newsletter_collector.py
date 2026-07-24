@@ -97,6 +97,7 @@ def collect_recent_newsletters(db: Session, cache: VersionedCache) -> Newsletter
         stibee_pairs=settings.newsletter_stibee_pairs,
         stibee_base_url=settings.stibee_page_base_url,
         kma_base_url=settings.newsletter_kma_base_url,
+        aitimes_base_url=settings.aitimes_base_url,
     )
     recent = newsletter_fetcher.filter_recent(
         candidates,

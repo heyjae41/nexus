@@ -13,7 +13,9 @@ from app.services.newsletter_fetcher import (
     clean_preview,
     fetch_newsletter_candidates,
     filter_recent,
+    parse_aitimes_featured,
     parse_kma_rows,
+    parse_published_time_meta,
     parse_stibee_emails,
 )
 
@@ -127,6 +129,48 @@ def test_parse_kma_rows_without_thumbnail_or_metatext():
     assert plain.publisher == "KMA 뉴스레터"
 
 
+# --- AI타임스 메인 대표기사 파싱 ---
+
+AITIMES_BASE = "https://www.aitimes.com"
+
+
+def load_text(name):
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+def test_parse_aitimes_featured_maps_fields():
+    candidates = parse_aitimes_featured(load_text("aitimes_main.html"), base_url=AITIMES_BASE)
+    c = candidates[0]
+    assert c.title == "앤트로픽 '클로드 오퍼스 5' 출시 임박…개발 도구·버텍스서 정황 포착"
+    assert c.url == "https://www.aitimes.com/news/articleView.html?idxno=213127"
+    assert c.publisher == "AI타임스"
+    assert c.source_type == "aitimes"
+    assert c.summary.startswith("앤트로픽의 차세대 플래그십")
+    assert c.thumbnail_url == "https://cdn.aitimes.com/news/thumbnail/custom/20260724/213127_216531_139_600.jpg"
+    assert c.published_at is None  # 발행시각은 상세 페이지 메타에서 보강
+
+
+def test_parse_aitimes_featured_resolves_relative_links():
+    candidates = parse_aitimes_featured(load_text("aitimes_main.html"), base_url=AITIMES_BASE)
+    urls = [c.url for c in candidates]
+    assert "https://www.aitimes.com/news/articleView.html?idxno=213099" in urls
+
+
+def test_parse_aitimes_featured_only_selector_block_and_skips_broken():
+    """지정 selector(grid-1) 밖의 기사, 외부 도메인 링크, 제목 없는 항목은 제외한다."""
+    candidates = parse_aitimes_featured(load_text("aitimes_main.html"), base_url=AITIMES_BASE)
+    titles = [c.title for c in candidates]
+    assert len(candidates) == 2
+    assert "grid-1 밖의 기사 — 수집 대상 아님" not in titles
+    assert "외부 도메인 링크 기사" not in titles
+
+
+def test_parse_published_time_meta():
+    published = parse_published_time_meta(load_text("aitimes_article_detail.html"))
+    assert published == datetime.fromisoformat("2026-07-24T12:21:21+09:00")
+    assert parse_published_time_meta("<html>메타 없음</html>") is None
+
+
 # --- 최근 기간 필터 ---
 
 def test_filter_recent_keeps_only_window():
@@ -169,13 +213,18 @@ KMA_BASE = "https://www.kma.or.kr"
 KMA_LIST_URL = f"{KMA_BASE}/kr/usrs/eduRegMgnt/selectInsightSubList.do"
 
 
-def make_client(stibee_fail=False, kma_fail=False):
+def make_client(stibee_fail=False, kma_fail=False, aitimes_fail=False):
     emails = load("stibee_archive_emails.json")
     values = {"formSettings": {"formHeaderImage": "https://img2.stibee.com/header.png"}}
     return FakeClient(
         get_routes={
             f"{STIBEE_BASE}/archives/181723/emails": FakeResponse(emails, fail=stibee_fail),
             f"{STIBEE_BASE}/archives/181723/values": FakeResponse(values),
+            AITIMES_BASE: FakeResponse(load_text("aitimes_main.html"), fail=aitimes_fail),
+            f"{AITIMES_BASE}/news/articleView.html?idxno=213127": FakeResponse(
+                load_text("aitimes_article_detail.html")
+            ),
+            # idxno=213099 상세 라우트는 의도적으로 없음 → 발행시각 폴백 경로 검증
         },
         post_routes={
             KMA_LIST_URL: FakeResponse(load("kma_insight_newsletter_list.json"), fail=kma_fail),
@@ -188,22 +237,46 @@ def fetch_with(client):
         stibee_pairs=[("181723", "모두레터")],
         stibee_base_url=STIBEE_BASE,
         kma_base_url=KMA_BASE,
+        aitimes_base_url=AITIMES_BASE,
         client=client,
     )
 
 
 def test_fetch_collects_all_sources():
     result = fetch_with(make_client())
-    assert len(result) == 5  # 스티비 3 + KMA 2
+    assert len(result) == 7  # 스티비 3 + AI타임스 2 + KMA 2
     stibee = [c for c in result if c.source_type == "stibee"]
     assert all(c.thumbnail_url == "https://img2.stibee.com/header.png" for c in stibee)
+
+
+def test_fetch_aitimes_published_at_from_detail_meta():
+    """AI타임스 대표기사의 발행시각은 상세 페이지 article:published_time 메타로 채운다."""
+    result = fetch_with(make_client())
+    featured = next(
+        c for c in result if c.url == f"{AITIMES_BASE}/news/articleView.html?idxno=213127"
+    )
+    assert featured.published_at == datetime.fromisoformat("2026-07-24T12:21:21+09:00")
+
+
+def test_fetch_aitimes_detail_failure_falls_back_to_fetch_time():
+    """상세 조회 실패 시 기사를 버리지 않고 수집 시각으로 폴백한다 (aware 보장)."""
+    result = fetch_with(make_client())
+    fallback = next(
+        c for c in result if c.url == f"{AITIMES_BASE}/news/articleView.html?idxno=213099"
+    )
+    assert fallback.published_at is not None
+    assert fallback.published_at.tzinfo is not None
 
 
 def test_fetch_continues_when_one_source_fails():
     """한 소스 실패는 다른 소스 수집을 막지 않는다 (부분 성공)."""
     result = fetch_with(make_client(stibee_fail=True))
-    assert {c.source_type for c in result} == {"kma"}
-    assert len(result) == 2
+    assert {c.source_type for c in result} == {"aitimes", "kma"}
+    assert len(result) == 4
+
+    result = fetch_with(make_client(aitimes_fail=True))
+    assert {c.source_type for c in result} == {"stibee", "kma"}
+    assert len(result) == 5
 
 
 def test_fetch_stibee_values_failure_only_drops_thumbnail():

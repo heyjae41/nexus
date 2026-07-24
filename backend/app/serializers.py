@@ -33,7 +33,7 @@ def serialize_category(cat: Category) -> dict:
 
 
 # 외부에서 수집한 콘텐츠 출처 — 카드가 원문으로 이동한다
-COLLECTED_SOURCE_TYPES = {"brunch", "stibee", "kma"}
+COLLECTED_SOURCE_TYPES = {"brunch", "stibee", "kma", "aitimes"}
 
 
 def article_link(article: Article) -> tuple[str, bool]:

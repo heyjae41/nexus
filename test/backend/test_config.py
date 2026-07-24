@@ -29,6 +29,7 @@ def test_settings_newsletter_sources():
     assert s.newsletter_window_days == 7
     assert s.newsletter_kma_base_url == "https://www.kma.or.kr"
     assert s.stibee_page_base_url == "https://page.stibee.com"
+    assert s.aitimes_base_url == "https://www.aitimes.com"
     assert s.newsletter_stibee_pairs == [
         ("297134", "테크잇슈"),
         ("212479", "셀렉트 다이제스트"),
