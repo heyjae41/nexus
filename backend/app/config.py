@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     contents_dir: str = "./contents"
     ingest_interval_seconds: int = 60
 
+    # Media (인제스트 글의 key-visual 대표 이미지를 파일로 저장·서빙)
+    media_dir: str = "./media"
+
     # Brunch collector
     brunch_collect_interval_hours: int = 12
     brunch_ref_query: str = "ref=nexus.bccard.ai"

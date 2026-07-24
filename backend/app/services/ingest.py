@@ -18,6 +18,7 @@ from app.models import Article
 from app.repositories.categories import get_category_by_slug
 from app.services.content_extract import extract_content
 from app.services.ingest_parser import parse_content_filename
+from app.services.thumbnails import save_key_visual_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,17 @@ def _existing_filenames(db: Session, names: list[str]) -> set[str]:
     return set(db.scalars(stmt))
 
 
-def scan_contents_dir(db: Session, cache: VersionedCache, contents_dir: str) -> IngestResult:
+def scan_contents_dir(
+    db: Session,
+    cache: VersionedCache,
+    contents_dir: str,
+    media_dir: str | None = None,
+) -> IngestResult:
     """폴더의 신규 html 을 DB 에 입력하고, 입력이 있었으면 캐시를 무효화한다."""
+    if media_dir is None:
+        from app.config import get_settings
+
+        media_dir = get_settings().media_dir
     directory = Path(contents_dir)
     if not directory.is_dir():
         logger.warning("컨텐츠 폴더가 없습니다: %s", contents_dir)
@@ -59,7 +69,9 @@ def scan_contents_dir(db: Session, cache: VersionedCache, contents_dir: str) -> 
             already += 1
             continue
         try:
-            _ingest_file(db, directory / disk_name, canonical_name=canonical)
+            _ingest_file(
+                db, directory / disk_name, canonical_name=canonical, media_dir=media_dir
+            )
             ingested += 1
         except ValueError as exc:
             skipped += 1
@@ -107,12 +119,21 @@ def ingest_now(
         return None
 
 
-def _ingest_file(db: Session, path: Path, canonical_name: str | None = None) -> None:
+def _ingest_file(
+    db: Session,
+    path: Path,
+    canonical_name: str | None = None,
+    media_dir: str | None = None,
+) -> None:
     canonical_name = canonical_name or unicodedata.normalize("NFC", path.name)
     parsed = parse_content_filename(canonical_name)
     category = get_category_by_slug(db, INGEST_CATEGORY_SLUG)
     if category is None:
         raise ValueError(f"기본 카테고리({INGEST_CATEGORY_SLUG})가 없습니다")
+    if media_dir is None:
+        from app.config import get_settings
+
+        media_dir = get_settings().media_dir
 
     html = path.read_text(encoding="utf-8")
     content = extract_content(html)
@@ -123,6 +144,7 @@ def _ingest_file(db: Session, path: Path, canonical_name: str | None = None) -> 
         summary=content.summary,
         body_html=content.body_html,
         key_visual_html=content.key_visual_html,
+        thumbnail_url=save_key_visual_thumbnail(content.key_visual_html, media_dir),
         author_name=content.author or "BC카드 AI사업팀",
         source_type="internal",
         content_filename=canonical_name,

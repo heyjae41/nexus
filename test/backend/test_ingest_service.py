@@ -170,10 +170,12 @@ def test_ingest_survives_concurrent_duplicate(db, tmp_path, monkeypatch):
 
     real_ingest_file = ingest_module._ingest_file
 
-    def racy_ingest_file(session, path, canonical_name=None):
+    def racy_ingest_file(session, path, canonical_name=None, media_dir=None):
         if "경합파일" in path.name:
             raise IntegrityError("INSERT", {}, Exception("duplicate key"))
-        return real_ingest_file(session, path, canonical_name=canonical_name)
+        return real_ingest_file(
+            session, path, canonical_name=canonical_name, media_dir=media_dir
+        )
 
     monkeypatch.setattr(ingest_module, "_ingest_file", racy_ingest_file)
 
@@ -191,3 +193,27 @@ def test_ingest_extracts_key_visual(db, tmp_path):
     scan_contents_dir(db, cache, str(tmp_path))
     art = list_articles(db).items[0]
     assert "svg" in (art.key_visual_html or "")
+
+
+_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+
+def test_ingest_sets_thumbnail_url_from_key_visual(db, tmp_path):
+    """목록/홈 카드용 thumbnail_url 을 key-visual 대표 이미지에서 채운다."""
+    seed_curation(db)
+    cache = make_cache()
+    media = tmp_path / "media"
+    html = (
+        "<!doctype html><html><body><article>"
+        f'<div class="key-visual"><img src="data:image/png;base64,{_PNG}"></div>'
+        "<p>대표 이미지가 있는 가이드 본문입니다.</p>"
+        "</article></body></html>"
+    )
+    write_file(tmp_path, "20260707_가이드_대표이미지.html", html)
+
+    scan_contents_dir(db, cache, str(tmp_path), media_dir=str(media))
+
+    art = list_articles(db).items[0]
+    assert art.thumbnail_url is not None
+    assert art.thumbnail_url.startswith("/api/media/thumbnails/")
+    assert (media / art.thumbnail_url.removeprefix("/api/media/")).is_file()

@@ -1,9 +1,11 @@
 """FastAPI 앱 팩토리."""
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.community import router as community_router
 from app.api.auth import router as auth_router
@@ -48,6 +50,12 @@ def create_app(
     app.include_router(auth_router)
     app.include_router(community_router)
     app.include_router(internal_router)
+
+    # 인제스트 글의 key-visual 대표 이미지 서빙 — nginx·vite 모두 /api/ 를 백엔드로
+    # 프록시하므로 /api/media 로 마운트하면 별도 프록시 설정이 필요 없다.
+    media_dir = Path(settings.media_dir)
+    media_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/media", StaticFiles(directory=str(media_dir)), name="media")
 
     @app.exception_handler(HTTPException)
     async def http_exc_handler(request: Request, exc: HTTPException):
