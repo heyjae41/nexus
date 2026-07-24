@@ -2,5 +2,5 @@
 pytest>=8.2
 pytest-cov>=5.0
 pytest-asyncio>=0.23
-ruff>=0.5
+ruff>=0.5,<0.16
 radon>=6.0
