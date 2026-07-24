@@ -62,12 +62,49 @@ curl -X POST localhost:8000/api/internal/classes/run  # 패스트캠퍼스 + Dak
 cd frontend && npm install && npm run dev    # http://localhost:80 (API 는 8000 으로 프록시)
 ```
 
-## 5. 텔레그램 발행 스킬 (hermes agent)
+## 5. 텔레그램 발행 스킬 (Hermes Agent)
 
-- 작가 화이트리스트: 루트에 `.writer_whitelist` 파일 생성 (git 미추적, `.writer_whitelist.example` 참고).
-  등록되지 않은 텔레그램 userid 는 모든 발행/세션 도구가 차단한다 (fail-closed).
-- hermes agent 는 `.claude/skills/nexus-writer/SKILL.md` 의 호출 규격대로
-  `telegram_user_id`(메타데이터 출처)와 글감을 전달한다. 도구 실행은 프로젝트 venv 를 사용한다.
+1. 작가 화이트리스트를 저장소 루트에 만든다. 이 파일은 Git 미추적이며, 등록되지 않은
+   Telegram `message.from.id`는 모든 발행·세션 도구가 차단한다(fail-closed).
+
+   ```bash
+   cp .writer_whitelist.example .writer_whitelist
+   chmod 600 .writer_whitelist
+   # 한 줄에 허용할 Telegram userid 하나씩 기록
+   ```
+
+2. Hermes가 프로젝트 스킬을 발견하고 도구를 Nexus 작업 디렉터리에서 실행하도록
+   `~/.hermes/config.yaml`에 등록한다.
+
+   ```yaml
+   terminal:
+     cwd: /root/dev/nexus
+
+   skills:
+     external_dirs:
+       - /root/dev/nexus/.claude/skills
+   ```
+
+3. Gateway를 재시작하고 스킬·권한을 확인한다.
+
+   ```bash
+   hermes gateway restart
+   hermes skills list --source local | grep nexus-writer
+   .venv/bin/python .claude/skills/nexus-writer/tools/check_writer.py <userid>
+   ```
+
+Hermes는 Telegram Bot API `getUpdates`를 long polling해 메시지를 받는다. 같은 봇 토큰으로
+둘 이상의 Gateway가 polling하면 Telegram이 한 요청을 종료하고 `terminated by other
+getUpdates request` 충돌을 반환한다. 사용자 PC, 서버, 컨테이너를 통틀어 consumer를 하나만
+운영하며, 충돌 시 각 장비의 `hermes gateway status`와 서버의 다음 로그를 확인한다.
+
+```bash
+journalctl --user -u hermes-gateway --since "2 minutes ago" --no-pager
+```
+
+Hermes Agent는 `.claude/skills/nexus-writer/SKILL.md` 호출 규격대로 메타데이터에서 얻은
+`telegram_user_id`와 글감을 전달한다. 본문에 사용자가 직접 적은 ID는 신뢰하지 않으며,
+도구 실행에는 프로젝트 venv를 사용한다.
 
 ## 6. 테스트·품질 게이트
 
