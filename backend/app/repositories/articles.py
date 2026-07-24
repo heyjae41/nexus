@@ -90,6 +90,38 @@ def list_articles_by_category(
     return result
 
 
+def latest_articles_per_type(
+    db: Session, category_id: int, types: tuple[str, ...]
+) -> list[Article]:
+    """포맷별 최신 1건을 주어진 포맷 순서대로 반환한다 (글이 없는 포맷은 건너뜀).
+
+    홈 큐레이션 섹션용 — 건수 많은 포맷이 최신순 상위를 독점해도
+    모든 포맷이 한 자리씩 노출되게 한다.
+    """
+    rn = (
+        func.row_number()
+        .over(
+            partition_by=Article.article_type,
+            order_by=(Article.published_at.desc(), Article.id.desc()),
+        )
+        .label("rn")
+    )
+    sub = (
+        select(Article, rn)
+        .where(
+            Article.status == "published",
+            Article.category_id == category_id,
+            Article.article_type.in_(types),
+        )
+        .subquery()
+    )
+    ranked = aliased(Article, sub)
+    by_type = {
+        a.article_type: a for a in db.scalars(select(ranked).where(sub.c.rn == 1))
+    }
+    return [by_type[t] for t in types if t in by_type]
+
+
 def increment_view(db: Session, article_id: int) -> None:
     db.execute(
         update(Article)

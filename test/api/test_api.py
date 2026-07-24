@@ -92,6 +92,50 @@ def test_home_bundle_sections(client, seed):
     assert len(curation_section["articles"]) == 2
 
 
+def test_home_curation_shows_latest_article_per_format(client, seed):
+    """홈 큐레이션 섹션: 컬럼 → 뉴스레터 → 가이드 순으로 포맷별 최신 1건씩 노출한다.
+
+    건수가 많은 컬럼이 최신순 상위를 독점해도 뉴스레터/가이드가 밀려나지 않는다.
+    (큐레이션 목록 페이지의 시간순 정렬은 그대로 — 홈 섹션만의 규칙)"""
+    seed(client)  # newsletter 7/1, column 7/2
+    from app.services.publish import publish_article
+
+    db = client.session_factory()
+    for day in (5, 6, 7):  # 뉴스레터보다 최신인 컬럼이 여러 건 쌓인 상황
+        publish_article(
+            db, client.cache,
+            category_slug="curation", article_type="column",
+            title=f"컬럼 {day}일", source_type="brunch",
+            source_url=f"https://brunch.co.kr/@w/{day}",
+            published_at=datetime(2026, 7, day, tzinfo=timezone.utc),
+        )
+    publish_article(
+        db, client.cache,
+        category_slug="curation", article_type="guide",
+        title="가이드 4일", source_type="internal", body_html="<p>g</p>",
+        published_at=datetime(2026, 7, 4, tzinfo=timezone.utc),
+    )
+    db.close()
+
+    section = client.get("/api/home").json()["data"]["sections"][0]
+
+    assert [(a["articleType"], a["title"]) for a in section["articles"]] == [
+        ("column", "컬럼 7일"),
+        ("newsletter", "AI가 바꾸는 결제"),
+        ("guide", "가이드 4일"),
+    ]
+    assert section["total"] == 6  # 총 개수는 섹션 노출 규칙과 무관하게 전체 기준
+
+
+def test_home_curation_skips_missing_format(client, seed):
+    """글이 없는 포맷은 빈 자리 없이 건너뛴다 (시드: 컬럼+뉴스레터만, 가이드 없음)."""
+    seed(client)
+
+    section = client.get("/api/home").json()["data"]["sections"][0]
+
+    assert [a["articleType"] for a in section["articles"]] == ["column", "newsletter"]
+
+
 def test_home_cache_invalidated_on_new_article(client, seed):
     """캐시 정책: 신규 글 등록(쓰기) 후 홈 조회는 즉시 최신을 반영해야 한다."""
     seed(client)
