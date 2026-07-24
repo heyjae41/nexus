@@ -135,6 +135,15 @@ def test_parse_kma_rows_unescapes_html_entities_in_title():
     assert candidates[1].title == "'썸네일' 없는 항목 & 엔티티 포함"
 
 
+def test_parse_kma_rows_unescapes_html_entities_in_publisher():
+    payload = {"rows": [{
+        "BRD_SEQ": 901, "TTL": "제목", "REG_DT": "20260720090000",
+        "METATEXT": "BC카드 &amp; AI", "SAVE_FILENM": "",
+    }]}
+    [c] = parse_kma_rows(payload, base_url="https://www.kma.or.kr")
+    assert c.publisher == "KMA BC카드 & AI"
+
+
 # --- AI타임스 메인 대표기사 파싱 ---
 
 AITIMES_BASE = "https://www.aitimes.com"
