@@ -329,6 +329,8 @@
 
 /* Body blocks — §4.4 */
 .art-body { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+/* 인제스트 원고(bodyHtml)의 원본 크기 이미지가 문단 폭을 넘지 않게 한다 */
+.art-body img { max-width: 100%; height: auto; }
 .art-p {
   font-size: 17px;
   font-weight: 400;
