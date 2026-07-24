@@ -190,7 +190,8 @@ updated_count, hidden_count, error_message, created_at`.
 
 - `GET /api/health`
 - `GET /api/categories` — 활성 메뉴(노출 순서)
-- `GET /api/home` — 섹션별 최신 글 번들(메인화면 1회 호출)
+- `GET /api/home` — 섹션별 최신 글 번들(메인화면 1회 호출). 큐레이션 섹션은 포맷별
+  (컬럼→뉴스레터→가이드) 최신 1건씩 노출 — 건수 많은 포맷의 독점 방지 (목록 페이지는 시간순 그대로)
 - `GET /api/articles?category=&type=&page=&size=` — 목록(카드 필드 포함)
 - `GET /api/articles/{id}` — 상세(view_count 증가)
 - `POST /api/articles/{id}/like` — 익명 증가 전용(위 '좋아요 정책' 참고)

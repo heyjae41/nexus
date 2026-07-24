@@ -11,6 +11,7 @@ from app.repositories.articles import (
     get_article,
     increment_like,
     increment_view,
+    latest_articles_per_type,
     list_articles,
     list_articles_by_category,
 )
@@ -27,6 +28,8 @@ from app.serializers import (
 router = APIRouter(prefix="/api")
 
 HOME_SECTION_SIZE = 6
+# 홈 큐레이션 섹션 노출 순서 — 포맷별 최신 1건씩
+HOME_CURATION_FORMATS = ("column", "newsletter", "guide")
 EventCategory = Literal["IT/프로그래밍", "AI", "경제/금융"]
 ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ", "DAKER", "DACON"]
 
@@ -52,12 +55,17 @@ def categories(db: Session = Depends(get_db), cache: VersionedCache = Depends(ge
 @router.get("/home")
 def home(db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)):
     def load():
-        # 카테고리 수와 무관하게 2쿼리(카테고리 + 윈도우 함수)로 로드 — N+1형 방지
+        # 카테고리 수와 무관하게 고정 쿼리 수로 로드 — N+1형 방지
+        # (카테고리 목록 + 섹션 윈도우 + 큐레이션 포맷별 윈도우 1회)
         cats = list_active_categories(db)
         by_cat = list_articles_by_category(db, [c.id for c in cats], HOME_SECTION_SIZE)
         sections = []
         for cat in cats:
             items, total = by_cat.get(cat.id, ([], 0))
+            if cat.slug == "curation":
+                # 홈 큐레이션 섹션은 포맷별(컬럼→뉴스레터→가이드) 최신 1건씩 —
+                # 건수 많은 컬럼이 독점하지 않게 한다. 목록 페이지는 시간순 그대로.
+                items = latest_articles_per_type(db, cat.id, HOME_CURATION_FORMATS)
             sections.append(
                 {
                     "category": serialize_category(cat),
