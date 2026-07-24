@@ -6,9 +6,10 @@
 공개 URL(/api/media/thumbnails/<내용해시>.<ext>)을 돌려준다.
 
 - data-URI 이미지: 디코드해 파일로 저장 → 로컬 URL 반환
-- 인라인 svg: 마크업을 .svg 파일로 저장 (xmlns 보강해 독립 렌더 가능)
+- 인라인 svg: 위험요소(script/foreignObject/on*/javascript:) 제거 후 .svg 저장
+  (xmlns 보강해 독립 렌더 가능). /api/media 응답 CSP 하드닝(main.py)과 함께 이중 방어.
 - 외부 URL 이미지: 저장하지 않고 그 URL 을 그대로 반환
-- 이미지 없음/디코드 실패: None
+- 이미지 없음/디코드 실패/용량 초과: None
 """
 import base64
 import binascii
@@ -20,6 +21,8 @@ from bs4 import BeautifulSoup
 
 MEDIA_URL_PREFIX = "/api/media"
 THUMBNAIL_SUBDIR = "thumbnails"
+# 대표 이미지 최대 크기(디스크필 방지). 콘텐츠 파일은 신뢰되지만 상한을 둔다.
+MAX_THUMBNAIL_BYTES = 10 * 1024 * 1024
 _SVG_XMLNS = "http://www.w3.org/2000/svg"
 
 _DATA_URI_RE = re.compile(
@@ -45,14 +48,22 @@ def save_key_visual_thumbnail(key_visual_html: str | None, media_dir: str) -> st
     soup = BeautifulSoup(key_visual_html, "html.parser")
 
     img = soup.find("img")
-    if img is not None and img.get("src"):
-        return _from_img_src(img["src"].strip(), media_dir)
+    if img is not None:
+        src = (img.get("src") or "").strip()
+        if src:
+            url = _from_img_src(src, media_dir)
+            if url is not None:
+                return url
 
     svg = soup.find("svg")
     if svg is not None:
+        _sanitize_svg(svg)
         if not svg.get("xmlns"):
             svg["xmlns"] = _SVG_XMLNS
-        return _store(svg.encode(), "svg", media_dir)
+        data = svg.encode()
+        if len(data) > MAX_THUMBNAIL_BYTES:
+            return None
+        return _store(data, "svg", media_dir)
 
     return None
 
@@ -70,7 +81,40 @@ def _from_img_src(src: str, media_dir: str) -> str | None:
         data = base64.b64decode(payload, validate=True)
     except (binascii.Error, ValueError):
         return None
+    if not data or len(data) > MAX_THUMBNAIL_BYTES:
+        return None
+    if ext == "svg":
+        # data-URI 로 실려온 svg 도 인라인 svg 와 동일하게 위생처리한다
+        return _store(_sanitized_svg_bytes(data), "svg", media_dir)
     return _store(data, ext, media_dir)
+
+
+def _sanitize_svg(svg) -> None:
+    """svg 요소에서 스크립트 실행 벡터를 제거한다 (in-place)."""
+    for tag in svg.find_all(
+        lambda t: t.name is not None and t.name.lower() in {"script", "foreignobject"}
+    ):
+        tag.decompose()
+    for tag in [svg, *svg.find_all(True)]:
+        for attr in list(tag.attrs):
+            low = attr.lower()
+            value = tag.get(attr)
+            if low.startswith("on"):
+                del tag[attr]
+            elif low in {"href", "xlink:href"} and isinstance(value, str) and (
+                value.strip().lower().startswith("javascript:")
+            ):
+                del tag[attr]
+
+
+def _sanitized_svg_bytes(data: bytes) -> bytes:
+    svg = BeautifulSoup(data, "html.parser").find("svg")
+    if svg is None:
+        return data
+    _sanitize_svg(svg)
+    if not svg.get("xmlns"):
+        svg["xmlns"] = _SVG_XMLNS
+    return svg.encode()
 
 
 def _store(data: bytes, ext: str, media_dir: str) -> str:

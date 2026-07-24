@@ -45,11 +45,9 @@ def scan_contents_dir(
     contents_dir: str,
     media_dir: str | None = None,
 ) -> IngestResult:
-    """폴더의 신규 html 을 DB 에 입력하고, 입력이 있었으면 캐시를 무효화한다."""
-    if media_dir is None:
-        from app.config import get_settings
+    """폴더의 신규 html 을 DB 에 입력하고, 입력이 있었으면 캐시를 무효화한다.
 
-        media_dir = get_settings().media_dir
+    media_dir 미지정 시 _ingest_file 이 settings.media_dir 로 폴백한다."""
     directory = Path(contents_dir)
     if not directory.is_dir():
         logger.warning("컨텐츠 폴더가 없습니다: %s", contents_dir)

@@ -65,3 +65,32 @@ def test_same_image_is_deduplicated(tmp_path):
 def test_corrupt_base64_returns_none(tmp_path):
     kv = '<div class="key-visual"><img src="data:image/png;base64,@@@not-base64@@@"></div>'
     assert save_key_visual_thumbnail(kv, str(tmp_path)) is None
+
+
+def test_blank_img_src_returns_none(tmp_path):
+    # 공백뿐인 src 는 빈 문자열 URL 을 저장하면 안 된다 (카드가 <img src=""> 재요청)
+    kv = '<div class="key-visual"><img src="   "></div>'
+    assert save_key_visual_thumbnail(kv, str(tmp_path)) is None
+
+
+def test_svg_script_and_handlers_are_stripped(tmp_path):
+    kv = (
+        '<div class="key-visual"><svg viewBox="0 0 10 10" onload="alert(1)">'
+        '<script>alert(2)</script><rect onclick="evil()"/>'
+        '<a xlink:href="javascript:evil()">x</a></svg></div>'
+    )
+    url = save_key_visual_thumbnail(kv, str(tmp_path))
+    assert url is not None and url.endswith(".svg")
+    content = (tmp_path / url.removeprefix("/api/media/")).read_text(encoding="utf-8")
+    assert "<script" not in content.lower()
+    assert "onload" not in content.lower()
+    assert "onclick" not in content.lower()
+    assert "javascript:" not in content.lower()
+
+
+def test_oversized_image_returns_none(tmp_path, monkeypatch):
+    import app.services.thumbnails as th
+
+    monkeypatch.setattr(th, "MAX_THUMBNAIL_BYTES", 8)
+    kv = f'<div class="key-visual"><img src="data:image/png;base64,{_PNG}"></div>'
+    assert save_key_visual_thumbnail(kv, str(tmp_path)) is None
