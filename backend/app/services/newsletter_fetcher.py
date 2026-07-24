@@ -46,9 +46,6 @@ AITIMES_FEATURED_SELECTOR = (
     " > div > div > div.index-item.grid-1 > article"
 )
 AITIMES_PUBLISHER = "AI타임스"
-PUBLISHED_TIME_META_RE = re.compile(
-    r'property="article:published_time"\s+content="([^"]+)"'
-)
 
 
 @dataclass(frozen=True)
@@ -186,7 +183,8 @@ def parse_aitimes_featured(html: str, base_url: str) -> list[NewsletterCandidate
                 continue
             summary_el = link.select_one(".auto-sums")
             item = link.find_parent(class_="item") or block
-            image = item.select_one("img")
+            # 대표 썸네일 영역(.auto-images)을 우선 — item 내 다른 이미지(아바타 등) 오채택 방지
+            image = item.select_one(".auto-images img") or item.select_one("img")
             candidates.append(
                 NewsletterCandidate(
                     title=title,
@@ -203,8 +201,11 @@ def parse_aitimes_featured(html: str, base_url: str) -> list[NewsletterCandidate
 
 
 def parse_published_time_meta(html: str) -> datetime | None:
-    match = PUBLISHED_TIME_META_RE.search(html or "")
-    return _parse_iso(match.group(1)) if match else None
+    """기사 상세의 article:published_time 메타 — 속성 순서에 의존하지 않게 bs4 로 찾는다."""
+    meta = BeautifulSoup(html or "", "html.parser").find(
+        "meta", attrs={"property": "article:published_time"}
+    )
+    return _parse_iso(meta.get("content")) if meta else None
 
 
 def filter_recent(
@@ -245,12 +246,13 @@ def _fetch_aitimes(http, base_url: str) -> list[NewsletterCandidate]:
             detail = http.get(c.url)
             detail.raise_for_status()
             published = parse_published_time_meta(detail.text)
-        except httpx.HTTPError as exc:
+        except Exception as exc:  # 기사 단위 격리 — 상세 실패가 대표기사 수집을 막지 않게
             logger.warning("AI타임스 상세 조회 실패(%s): %s", c.url, exc)
-        # 메타가 없거나 상세 실패 시 수집 시각 폴백 — 대표기사는 통상 당일 발행이라 오차가 작다
-        enriched.append(
-            replace(c, published_at=published or datetime.now(timezone.utc))
-        )
+        if published is None:
+            # 수집 시각 폴백 — 대표기사는 통상 당일 발행이라 오차가 작다
+            logger.warning("AI타임스 발행시각 미확인 — 수집 시각으로 폴백: %s", c.url)
+            published = datetime.now(timezone.utc)
+        enriched.append(replace(c, published_at=published))
     return enriched
 
 

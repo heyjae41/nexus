@@ -171,6 +171,12 @@ def test_parse_published_time_meta():
     assert parse_published_time_meta("<html>메타 없음</html>") is None
 
 
+def test_parse_published_time_meta_ignores_attribute_order():
+    """템플릿이 속성 순서를 바꾸거나 사이에 다른 속성을 넣어도 파싱된다."""
+    html = '<meta content="2026-07-24T09:00:00+09:00" data-x="1" property="article:published_time"/>'
+    assert parse_published_time_meta(html) == datetime.fromisoformat("2026-07-24T09:00:00+09:00")
+
+
 # --- 최근 기간 필터 ---
 
 def test_filter_recent_keeps_only_window():
