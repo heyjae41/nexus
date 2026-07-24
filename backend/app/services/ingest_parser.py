@@ -5,6 +5,7 @@
 - 글유형: 뉴스레터 | 컬럼 | 가이드
 - 제목: 붙여쓴 글 제목 (제목 내 '_' 허용)
 """
+import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -19,6 +20,8 @@ class ParsedContentFile:
 
 
 def parse_content_filename(filename: str) -> ParsedContentFile:
+    # macOS 저장 파일은 NFD(분해형) 한글일 수 있다 — 글유형 비교 전에 NFC 로 정규화
+    filename = unicodedata.normalize("NFC", filename)
     if not filename.endswith(".html"):
         raise ValueError(f"확장자는 .html 이어야 합니다: {filename}")
     stem = filename[: -len(".html")]

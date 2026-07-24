@@ -4,6 +4,7 @@
 스케줄러가 1분 주기로 scan_contents_dir 를 호출한다.
 """
 import logging
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
 from pathlib import Path
@@ -44,25 +45,30 @@ def scan_contents_dir(db: Session, cache: VersionedCache, contents_dir: str) -> 
         logger.warning("컨텐츠 폴더가 없습니다: %s", contents_dir)
         return IngestResult()
 
-    files = sorted(p.name for p in directory.glob("*.html"))
-    existing = _existing_filenames(db, files)
+    # (디스크 파일명, 정준 NFC 파일명) — macOS 저장 파일은 NFD 라 IO 는 원본 이름,
+    # 파싱·중복 판정·DB 저장은 NFC 로 통일한다 (리눅스는 경로를 바이트로 다뤄 변환 불가)
+    entries = sorted(
+        (p.name, unicodedata.normalize("NFC", p.name))
+        for p in directory.glob("*.html")
+    )
+    existing = _existing_filenames(db, [canonical for _, canonical in entries])
     ingested = already = skipped = 0
 
-    for name in files:
-        if name in existing:
+    for disk_name, canonical in entries:
+        if canonical in existing:
             already += 1
             continue
         try:
-            _ingest_file(db, directory / name)
+            _ingest_file(db, directory / disk_name, canonical_name=canonical)
             ingested += 1
         except ValueError as exc:
             skipped += 1
-            logger.warning("인제스트 건너뜀 (%s): %s", name, exc)
+            logger.warning("인제스트 건너뜀 (%s): %s", canonical, exc)
         except IntegrityError:
             # 즉시 인제스트와 스케줄러가 경합한 경우 — 이미 반영된 파일
             db.rollback()
             already += 1
-            logger.debug("동시 인제스트 감지 (%s)", name)
+            logger.debug("동시 인제스트 감지 (%s)", canonical)
 
     if ingested:
         cache.bump_version()
@@ -101,8 +107,9 @@ def ingest_now(
         return None
 
 
-def _ingest_file(db: Session, path: Path) -> None:
-    parsed = parse_content_filename(path.name)
+def _ingest_file(db: Session, path: Path, canonical_name: str | None = None) -> None:
+    canonical_name = canonical_name or unicodedata.normalize("NFC", path.name)
+    parsed = parse_content_filename(canonical_name)
     category = get_category_by_slug(db, INGEST_CATEGORY_SLUG)
     if category is None:
         raise ValueError(f"기본 카테고리({INGEST_CATEGORY_SLUG})가 없습니다")
@@ -118,7 +125,7 @@ def _ingest_file(db: Session, path: Path) -> None:
         key_visual_html=content.key_visual_html,
         author_name=content.author or "BC카드 AI사업팀",
         source_type="internal",
-        content_filename=path.name,
+        content_filename=canonical_name,
         read_minutes=content.read_minutes or 4,
         published_at=datetime.combine(
             parsed.published_date, time(0, 0), tzinfo=timezone.utc
