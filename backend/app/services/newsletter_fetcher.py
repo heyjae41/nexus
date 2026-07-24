@@ -7,6 +7,7 @@
 - AI타임스: 메인 페이지 대표기사 블록(grid-1)을 CSS selector 로 추출한다.
   발행시각은 기사 상세의 article:published_time 메타로 보강한다.
 """
+import html
 import logging
 import re
 from dataclasses import dataclass, replace
@@ -131,7 +132,8 @@ def _safe_filename(value) -> str:
 
 
 def _kma_publisher(metatext) -> str:
-    series = " ".join(part.strip() for part in (metatext or "").split(",") if part.strip())
+    decoded = html.unescape(metatext or "")
+    series = " ".join(part.strip() for part in decoded.split(",") if part.strip())
     return f"KMA {series}" if series else "KMA 뉴스레터"
 
 
@@ -139,7 +141,8 @@ def parse_kma_rows(payload: dict, base_url: str) -> list[NewsletterCandidate]:
     candidates = []
     for row in (payload or {}).get("rows") or []:
         seq = row.get("BRD_SEQ")
-        title = (row.get("TTL") or "").strip()
+        # KMA API 는 제목을 HTML 엔티티(&#39; 등)로 인코딩해 준다 — 카드 노출용 디코드
+        title = html.unescape(row.get("TTL") or "").strip()
         if not (seq and title):
             continue
         filename = _safe_filename(row.get("SAVE_FILENM"))

@@ -129,6 +129,12 @@ def test_parse_kma_rows_without_thumbnail_or_metatext():
     assert plain.publisher == "KMA 뉴스레터"
 
 
+def test_parse_kma_rows_unescapes_html_entities_in_title():
+    """KMA API 는 제목을 HTML 엔티티로 주므로(&#39; 등) 디코드해 저장한다 — 카드 노출 텍스트."""
+    candidates = parse_kma_rows(load("kma_insight_newsletter_list.json"), base_url="https://www.kma.or.kr")
+    assert candidates[1].title == "'썸네일' 없는 항목 & 엔티티 포함"
+
+
 # --- AI타임스 메인 대표기사 파싱 ---
 
 AITIMES_BASE = "https://www.aitimes.com"
