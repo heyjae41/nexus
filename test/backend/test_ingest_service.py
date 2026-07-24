@@ -56,6 +56,35 @@ def test_ingest_is_idempotent(db, tmp_path):
     assert list_articles(db).total == 1
 
 
+def test_ingest_accepts_nfd_decomposed_filenames(db, tmp_path):
+    """macOS 에서 저장된 NFD(분해형) 파일명도 인제스트한다.
+
+    글유형 판정·중복 판정·DB 저장은 NFC 정규화본 기준, 파일 IO 는 원본 이름 그대로."""
+    import unicodedata
+
+    from app.models import Article
+
+    seed_curation(db)
+    cache = make_cache()
+    nfd_name = unicodedata.normalize("NFD", "20260724_가이드_맛집탐색결제데이터에맡기는법.html")
+    assert not unicodedata.is_normalized("NFC", nfd_name)  # 전제 확인
+    write_file(tmp_path, nfd_name)
+
+    first = scan_contents_dir(db, cache, str(tmp_path))
+    assert first.ingested == 1
+    assert first.skipped == 0
+
+    saved = db.query(Article).one()
+    assert saved.article_type == "guide"
+    # DB 에는 정준(NFC) 파일명으로 저장한다 — 중복 판정 키의 정규화 통일
+    assert unicodedata.is_normalized("NFC", saved.content_filename)
+
+    # 디스크 파일명은 NFD 그대로여도 재스캔 시 재인제스트하지 않는다
+    second = scan_contents_dir(db, cache, str(tmp_path))
+    assert second.ingested == 0
+    assert second.already == 1
+
+
 def test_ingest_skips_invalid_names_but_continues(db, tmp_path):
     seed_curation(db)
     cache = make_cache()
@@ -141,10 +170,10 @@ def test_ingest_survives_concurrent_duplicate(db, tmp_path, monkeypatch):
 
     real_ingest_file = ingest_module._ingest_file
 
-    def racy_ingest_file(session, path):
+    def racy_ingest_file(session, path, canonical_name=None):
         if "경합파일" in path.name:
             raise IntegrityError("INSERT", {}, Exception("duplicate key"))
-        return real_ingest_file(session, path)
+        return real_ingest_file(session, path, canonical_name=canonical_name)
 
     monkeypatch.setattr(ingest_module, "_ingest_file", racy_ingest_file)
 

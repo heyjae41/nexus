@@ -45,6 +45,16 @@ def test_parse_invalid_raises(bad):
         parse_content_filename(bad)
 
 
+def test_parse_nfd_decomposed_filename():
+    """NFD(분해형) 파일명도 글유형을 인식하고 제목을 NFC 로 돌려준다."""
+    import unicodedata
+
+    nfd = unicodedata.normalize("NFD", "20260724_가이드_맛집탐색.html")
+    parsed = parse_content_filename(nfd)
+    assert parsed.article_type == "guide"
+    assert parsed.title == "맛집탐색"  # NFC
+
+
 def test_parse_title_keeps_underscores_in_title():
     # 제목에 _가 포함되어도 앞 두 조각(날짜, 유형) 이후 전체를 제목으로 취급
     p = parse_content_filename("20260707_가이드_프롬프트_엔지니어링_입문.html")
