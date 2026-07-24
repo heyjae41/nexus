@@ -34,8 +34,10 @@ services:
       DB_PORT: "5432"
       REDIS_URL: redis://redis:6379/0
       CONTENTS_DIR: /app/contents
+      MEDIA_DIR: /app/media
     volumes:
       - ./contents:/app/contents
+      - ./media:/app/media
     depends_on:
       postgres:
         condition: service_healthy

@@ -38,3 +38,6 @@ NEXUS_article_detail.html
 
 # 작가 화이트리스트 (환경별 관리 - 텔레그램 userid 포함)
 .writer_whitelist
+
+# 인제스트 글의 key-visual 대표 이미지(런타임 생성물) — DB thumbnail_url 이 참조
+/media/
