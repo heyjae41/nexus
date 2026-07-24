@@ -89,10 +89,11 @@ NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테�
 | created_at | TIMESTAMPTZ DEFAULT now() | |
 
 수집 규칙: 스티비 아카이브 3종(`page.stibee.com/archives/{listId}/emails` JSON, 목록은
-`NEWSLETTER_STIBEE_LISTS`="listId:이름" 설정) + KMA 인사이트 뉴스레터
+`NEWSLETTER_STIBEE_LISTS`="listId:이름" 설정) + AI타임스 메인 대표기사(grid-1 블록 CSS selector,
+발행시각은 기사 상세 `article:published_time` 메타, 실패 시 수집 시각 폴백) + KMA 인사이트 뉴스레터
 (`selectInsightSubList.do` JSON)에서 최근 `NEWSLETTER_WINDOW_DAYS`(기본 7일) 발행분 전체를
-articles(article_type='newsletter', source_type='stibee'/'kma')로 저장한다.
-`source_url`(스티비 stib.ee 영구 링크 / KMA 상세 페이지 URL) 기준으로 중복을 제거하고,
+articles(article_type='newsletter', source_type='stibee'/'aitimes'/'kma')로 저장한다.
+`source_url`(스티비 stib.ee 영구 링크 / AI타임스·KMA 상세 페이지 URL) 기준으로 중복을 제거하고,
 스티비 "(재발송)" 메일은 원본과 중복이므로 건너뛴다. 소스 단위 실패는 다른 소스 수집을 막지 않는다.
 
 ### members — 회원(닉네임 식별 + 비밀번호 인증)

@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     newsletter_stibee_lists: str = "297134:테크잇슈,212479:셀렉트 다이제스트,181723:모두레터"
     stibee_page_base_url: str = "https://page.stibee.com"
     newsletter_kma_base_url: str = "https://www.kma.or.kr"
+    aitimes_base_url: str = "https://www.aitimes.com"
     newsletter_window_days: int = 7
 
     @property

@@ -154,6 +154,11 @@ def test_newsletter_card_links_to_source_with_ref(db):
                 source_type="kma",
                 url="https://www.kma.or.kr/kr/usrs/eduRegMgnt/eduRegMgntForm.do?p_brd_seq=894",
             ),
+            cand(
+                "aitimes-213127",
+                source_type="aitimes",
+                url="https://www.aitimes.com/news/articleView.html?idxno=213127",
+            ),
         ],
     )
     cards = [serialize_article_card(a) for a in db.query(Article).order_by(Article.id)]
@@ -162,3 +167,7 @@ def test_newsletter_card_links_to_source_with_ref(db):
     assert cards[1]["isExternal"] is True
     assert "ref=nexus.bccard.ai" in cards[1]["linkUrl"]
     assert "p_brd_seq=894" in cards[1]["linkUrl"]
+    assert cards[2]["isExternal"] is True
+    assert cards[2]["linkUrl"] == (
+        "https://www.aitimes.com/news/articleView.html?idxno=213127&ref=nexus.bccard.ai"
+    )
