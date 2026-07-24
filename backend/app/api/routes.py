@@ -55,7 +55,8 @@ def categories(db: Session = Depends(get_db), cache: VersionedCache = Depends(ge
 @router.get("/home")
 def home(db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)):
     def load():
-        # 카테고리 수와 무관하게 2쿼리(카테고리 + 윈도우 함수)로 로드 — N+1형 방지
+        # 카테고리 수와 무관하게 고정 쿼리 수로 로드 — N+1형 방지
+        # (카테고리 목록 + 섹션 윈도우 + 큐레이션 포맷별 윈도우 1회)
         cats = list_active_categories(db)
         by_cat = list_articles_by_category(db, [c.id for c in cats], HOME_SECTION_SIZE)
         sections = []
