@@ -1205,7 +1205,9 @@ def fetch_bc_candidates(
         res = client.get(
             "/web/evnt/lst-evnt-data",
             params={
-                "reqType": "init", "inqrDv": "ING", "pgeNo": 1, "pgeCnt": 20,
+                # 서버는 현재 pgeCnt 를 무시하고 진행중 전체(~72건)를 반환하지만,
+                # 페이징이 켜질 경우를 대비해 여유 있는 페이지 크기를 요청한다
+                "reqType": "init", "inqrDv": "ING", "pgeNo": 1, "pgeCnt": 200,
                 "evntMrktTypCd": "", "ordering": "RECENT",
             },
             headers={"Referer": f"{BC_BASE}/web/evnt/main"},
