@@ -4,7 +4,8 @@
 수집 이력 기록)에 더해, 진행 중 이벤트의 기간/이미지/대상카드 변경을 갱신한다.
 """
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -106,12 +107,30 @@ def _split_fresh_and_update(
     return fresh, updated
 
 
+def _with_default_dates(c: CardBenefitCandidate) -> CardBenefitCandidate:
+    """날짜 정보가 없으면 시작=수집일, 종료=당해년도 12/31 로 채운다.
+
+    '진행 중만 노출' 조회가 날짜 미상 이벤트를 놓치지 않게 하기 위한 규칙."""
+    if c.event_start_date and c.event_end_date:
+        return c
+    today = date.today()
+    start = c.event_start_date or today
+    end = c.event_end_date or date(today.year, 12, 31)
+    period = c.event_period or " ~ ".join(
+        d.strftime("%Y.%m.%d") for d in (start, end)
+    )
+    return replace(
+        c, event_start_date=start, event_end_date=end, event_period=period
+    )
+
+
 def collect_card_benefits(
     db: Session,
     cache: VersionedCache,
     *,
     candidates: list[CardBenefitCandidate],
 ) -> CardBenefitCollectResult:
+    candidates = [_with_default_dates(c) for c in candidates]
     existing_by_id, existing_urls = _load_existing(db, candidates)
     fresh, updated = _split_fresh_and_update(candidates, existing_by_id, existing_urls)
 

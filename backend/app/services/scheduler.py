@@ -157,10 +157,11 @@ def run_collect_chain_job(cache: VersionedCache) -> None:
         for cid, label in settings.luma_category_pairs
     ]
     steps.extend([
+        # card.Pick 은 meet.pl(event-us+luma) 바로 뒤에 실행한다
+        ("cardpick", lambda: run_card_benefit_job(cache)),
         ("fastcampus", lambda: run_fastcampus_job(cache)),
         ("daker", lambda: run_daker_job(cache)),
         ("dacon", lambda: run_dacon_job(cache)),
-        ("cardpick", lambda: run_card_benefit_job(cache)),
     ])
     for name, step in steps:
         try:

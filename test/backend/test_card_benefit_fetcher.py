@@ -703,3 +703,43 @@ def test_parse_lotte_detail_sections():
     detail = parse_lotte_detail(html)
     assert detail.target_cards.startswith("비자(Visa) 개인 신용카드")
     assert "최대 50% 할인" in detail.benefit_summary
+
+
+def test_parse_hyundai_period_invalid_date_does_not_crash():
+    """2월 30일 같은 비정상 날짜가 와도 현대카드 수집 전체가 죽지 않는다 (리뷰 MEDIUM)."""
+    from app.services.card_benefit_fetcher import _parse_hyundai_period, parse_hyundai_list
+
+    assert _parse_hyundai_period("2026.02.30 ~ 2026.13.01") == (None, None)
+
+    html = HYUNDAI_LIST_HTML.replace("2026. 1. 1 ~ 2026. 12. 31", "2026. 2. 30 ~ 2026. 13. 1")
+    items = parse_hyundai_list(html)
+    assert len(items) == 2  # 날짜만 비고 나머지 항목은 유지
+    assert items[0].event_start_date is None
+
+
+def test_static_detail_parser_exception_falls_back_to_list_info():
+    """상세 파서가 예기치 못한 예외를 던져도 해당 건만 목록 정보로 폴백한다 (리뷰 MEDIUM)."""
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import CardBenefitCandidate, _with_static_detail
+
+    class FakeRes:
+        text = "<html></html>"
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def get(self, url):
+            return FakeRes()
+
+    def broken_parser(html):
+        raise AttributeError("정찰 스펙과 다른 마크업")
+
+    c = CardBenefitCandidate(
+        source_id="kb:1", card_company="KB국민카드", title="여행 5% 할인",
+        event_period="2026.08.01 ~", event_start_date=date_cls(2026, 8, 1),
+        event_end_date=None, detail_url="https://ex.com/1", image_url=None,
+    )
+    result = _with_static_detail(FakeClient(), c, broken_parser, "KB국민카드")
+    assert result.title == "여행 5% 할인"  # 목록 정보 유지
+    assert result.benefit_tags == "할인"

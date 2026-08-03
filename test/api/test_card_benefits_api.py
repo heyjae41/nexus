@@ -103,3 +103,22 @@ def test_card_benefits_cached_until_version_bump(client):
 
     client.cache.bump_version()
     assert len(client.get("/api/card-benefits").json()["data"]) == 2
+
+
+def test_card_benefits_excludes_not_started_events(client):
+    """시작일이 미래인 이벤트는 '진행 중'이 아니므로 노출하지 않는다."""
+    db = client.session_factory()
+    db.add(
+        CardBenefit(
+            source_id="hana:future", card_company="하나카드", title="다음달 혜택",
+            event_period="미래", event_start_date=date.today() + timedelta(days=10),
+            event_end_date=date.today() + timedelta(days=40),
+            detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=future",
+        )
+    )
+    db.commit()
+    db.close()
+
+    res = client.get("/api/card-benefits")
+    titles = [x["title"] for x in res.json()["data"]]
+    assert "다음달 혜택" not in titles

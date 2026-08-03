@@ -160,11 +160,11 @@ def _extract_reward(text: str) -> str:
     core = re.split(r"\s*[*※]\s*", text)[0]
     core = re.sub(r"\([^)]*\)", " ", core)
     core = _CTA_TAIL_RE.sub("", core)
-    core = re.sub(r"\s+", " ", core).strip(" ,·-((")
+    core = re.sub(r"\s+", " ", core).strip(" ,·-(")
     match = _LEADING_CONDITION_RE.match(core)
     if match is None:
         return core
-    prefix, rest = core[: match.end()], core[match.end():].strip(" ,·-((")
+    prefix, rest = core[: match.end()], core[match.end():].strip(" ,·-(")
     # 걷어낼 앞부분에 이미 보상(금액+혜택동사)이 있으면 보상-선행 문장이므로 유지
     if _AMOUNT_RE.search(prefix) and _STRONG_BENEFIT_RE.search(prefix):
         return core
@@ -760,13 +760,21 @@ def _hyundai_ssl_context():
     return ctx
 
 
+def _safe_date(year, month, day) -> date | None:
+    """비정상 날짜(2월 30일 등)는 None — 한 항목 때문에 수집 전체가 죽지 않게."""
+    try:
+        return date(int(year), int(month), int(day))
+    except ValueError:
+        return None
+
+
 def _parse_hyundai_period(raw: str) -> tuple[date | None, date | None]:
     """'2026. 1. 1 ~ 2026. 12. 31' (종료연도 생략 가능) → (시작, 종료)."""
     parts = raw.split("~")
     start = end = None
     matched = _HYUNDAI_DATE_RE.search(parts[0]) if parts else None
     if matched and matched.group(1):
-        start = date(int(matched.group(1)), int(matched.group(2)), int(matched.group(3)))
+        start = _safe_date(matched.group(1), matched.group(2), matched.group(3))
     if len(parts) > 1:
         matched = _HYUNDAI_DATE_RE.search(parts[1])
         if matched:
@@ -774,7 +782,7 @@ def _parse_hyundai_period(raw: str) -> tuple[date | None, date | None]:
                 start.year if start else None
             )
             if year:
-                end = date(year, int(matched.group(2)), int(matched.group(3)))
+                end = _safe_date(year, matched.group(2), matched.group(3))
     return start, end
 
 
@@ -961,6 +969,8 @@ def fetch_samsung_candidates(
             res.raise_for_status()
             data = res.json()
             total = int(data.get("evtRsCount") or 0)
+            if not data.get("evtRsList"):
+                break  # 페이지 크기 가정(10)이 틀려도 빈 페이지에서 종료
             candidates += parse_samsung_list(data)
             page += 1
     finally:
@@ -1125,7 +1135,7 @@ def _with_static_detail(
         res = client.get(c.detail_url)
         res.raise_for_status()
         return _apply_detail(c, parser(res.text))
-    except httpx.HTTPError:
+    except Exception:  # noqa: BLE001 — 스펙과 다른 마크업의 파서 예외도 한 건만 폴백
         logger.warning("%s 상세 조회 실패 — 목록 정보만 사용: %s", label, c.detail_url)
         return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
 

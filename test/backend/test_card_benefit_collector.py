@@ -92,3 +92,33 @@ def test_collect_updates_period_and_image_on_change(db):
     assert row.target_cards == "JADE, MULTI 카드"
     assert row.benefit_summary == "연장! 최대 20만 하나머니 적립"
     assert row.image_url == "https://m.hanacard.co.kr/b.png"
+
+
+def test_collect_fills_missing_dates_with_defaults(db):
+    """날짜 정보가 없으면 시작=수집일, 종료=당해년도 12월 31일로 채운다."""
+    from datetime import date as date_cls
+
+    cache = make_cache()
+    no_dates = make_candidate(
+        source_id="hana:nodate", detail_url="https://ex.com/nodate",
+        event_period="", event_start_date=None, event_end_date=None,
+    )
+    collect_card_benefits(db, cache, candidates=[no_dates])
+
+    row = db.query(CardBenefit).filter_by(source_id="hana:nodate").one()
+    today = date_cls.today()
+    assert row.event_start_date == today
+    assert row.event_end_date == date_cls(today.year, 12, 31)
+    # 표시용 기간 문자열도 기본값으로 구성된다
+    assert row.event_period == (
+        f"{today.strftime('%Y.%m.%d')} ~ {today.year}.12.31"
+    )
+
+
+def test_collect_keeps_existing_dates(db):
+    """날짜가 있으면 기본값을 덮어쓰지 않는다."""
+    cache = make_cache()
+    collect_card_benefits(db, cache, candidates=[make_candidate()])
+    row = db.query(CardBenefit).one()
+    assert row.event_start_date == date(2026, 8, 1)
+    assert row.event_period == "2026.08.01 ~ 2026.09.30"
