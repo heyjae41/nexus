@@ -32,7 +32,8 @@ HOME_SECTION_SIZE = 6
 HOME_CURATION_FORMATS = ("column", "newsletter", "guide")
 EventCategory = Literal["IT/프로그래밍", "AI", "경제/금융"]
 CARD_COMPANIES = (
-    "하나카드", "우리카드", "KB국민카드", "현대카드", "삼성카드", "신한카드", "롯데카드",
+    "BC카드", "하나카드", "우리카드", "KB국민카드", "현대카드", "삼성카드",
+    "신한카드", "롯데카드",
 )
 ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ", "DAKER", "DACON"]
 

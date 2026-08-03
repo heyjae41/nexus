@@ -46,6 +46,7 @@ const HERO_SERVICES = [
   { emoji: '💬', name: '커뮤니티', desc: '현직자 팁·Q&A', to: '/community' },
   { emoji: '⚡', name: 'AI핫딜', desc: '오늘의 특가 수집', to: '/hotdeal' },
   { emoji: '🍜', name: 'eat.pl', desc: '회사 근처 맛집 검색', href: 'https://web.paybooc.ai/place/what-to-eat' },
+  { emoji: '💳', name: 'card.Pick', desc: '카드사 여행혜택 모음', to: '/cardpick' },
 ]
 
 function ServiceChip({ service }) {

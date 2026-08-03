@@ -743,3 +743,87 @@ def test_static_detail_parser_exception_falls_back_to_list_info():
     result = _with_static_detail(FakeClient(), c, broken_parser, "KB국민카드")
     assert result.title == "여행 5% 할인"  # 목록 정보 유지
     assert result.benefit_tags == "할인"
+
+
+# ---------------------------------------------------------------- BC카드 (페이북)
+
+BC_LIST_DATA = {
+    "data": {
+        "evntInqrList": [
+            {
+                "pybcUnifEvntNo": "2026070035",
+                "pybcUnifEvntNm1": "마이리얼트립",
+                "pybcUnifEvntNm2": "20만원 이상 결제 시",
+                "pybcUnifEvntNm3": "최대 6만원 즉시 할인",
+                "evntBltnStrtDtm": "20260731160000",
+                "evntBltnEndDtm": "20260831235959",
+                "evntBsImgUrlAddr": "https://cdn.paybooc.co.kr/cbf/bannerimage/x.png",
+                "evntMrktTypCd": "03",
+            },
+            {  # 여행/해외(03) 아님 — 제외
+                "pybcUnifEvntNo": "2026070017",
+                "pybcUnifEvntNm2": "컬리 3천원 즉시적립",
+                "pybcUnifEvntNm3": "",
+                "evntBltnStrtDtm": "20260803100000",
+                "evntBltnEndDtm": "20260831235959",
+                "evntMrktTypCd": "04",
+            },
+        ]
+    }
+}
+
+
+def test_parse_bc_list_filters_travel_category():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_bc_list
+
+    items = parse_bc_list(BC_LIST_DATA)
+    assert len(items) == 1  # 여행/해외(03)만
+    first = items[0]
+    assert first.card_company == "BC카드"
+    assert first.source_id == "bc:2026070035"
+    assert first.title == "마이리얼트립 20만원 이상 결제 시 최대 6만원 즉시 할인"
+    assert first.event_period == "2026.07.31 ~ 2026.08.31"
+    assert first.event_start_date == date_cls(2026, 7, 31)
+    assert first.event_end_date == date_cls(2026, 8, 31)
+    assert first.detail_url == (
+        "https://web.paybooc.co.kr/web/evnt/evnt-dts?pybcUnifEvntNo=2026070035"
+    )
+    assert first.image_url == "https://cdn.paybooc.co.kr/cbf/bannerimage/x.png"
+
+
+def test_parse_bc_list_empty():
+    from app.services.card_benefit_fetcher import parse_bc_list
+
+    assert parse_bc_list({}) == []
+    assert parse_bc_list({"data": {"evntInqrList": []}}) == []
+
+
+BC_DETAIL_HTML = """
+<html><body><script>
+const eventData = {"pybcUnifEvntNo":"2026070035","eventDetailsGroupBaseDtoList":[
+ {"evntDtGrpNm":"혜택","eventDetailGroupContentDtoList":[
+   {"cntnTitlNm":"마이리얼트립에서 여행상품 BC카드로 결제 시, 최대 6만원 즉시 할인",
+    "cntnDtCtnt":"<ul><li>20만원 이상 결제 시 7천원 즉시 할인</li><li>200만원 이상 결제 시 6만원 즉시 할인</li></ul>"}]},
+ {"evntDtGrpNm":"대상카드","eventDetailGroupContentDtoList":[
+   {"cntnTitlNm":"","cntnDtCtnt":"BC 개인 신용카드 대상<br>※ 단, 법인•선불•기프트카드 및 간편결제 제외"}]}
+]};
+</script></body></html>
+"""
+
+
+def test_parse_bc_detail_groups():
+    from app.services.card_benefit_fetcher import parse_bc_detail
+
+    detail = parse_bc_detail(BC_DETAIL_HTML)
+    assert detail.target_cards.startswith("BC 개인 신용카드 대상")
+    assert "즉시 할인" in detail.benefit_summary
+
+
+def test_parse_bc_detail_without_event_data_returns_none_fields():
+    from app.services.card_benefit_fetcher import parse_bc_detail
+
+    detail = parse_bc_detail("<html><body>없음</body></html>")
+    assert detail.target_cards is None
+    assert detail.benefit_summary is None

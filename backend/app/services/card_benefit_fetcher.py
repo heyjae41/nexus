@@ -1114,6 +1114,117 @@ def fetch_lotte_candidates(
             client.close()
 
 
+# ---------------------------------------------------------------- BC카드 (페이북)
+
+BC_BASE = "https://web.paybooc.co.kr"
+BC_TRAVEL_CATEGORY = "03"  # 여행/해외 (evntMrktTypCd) — 서버 미필터라 로컬 필터
+_BC_EVENT_DATA_RE = re.compile(r"const\s+eventData\s*=\s*")
+
+
+def _bc_title(it: dict) -> str:
+    parts = ((it.get(f"pybcUnifEvntNm{i}") or "").strip() for i in (1, 2, 3))
+    return " ".join(p for p in parts if p)
+
+
+def _bc_item(it: dict) -> CardBenefitCandidate | None:
+    no = str(it.get("pybcUnifEvntNo") or "").strip()
+    title = _bc_title(it)
+    if not no or not title:
+        return None
+    start = _parse_ymd(str(it.get("evntBltnStrtDtm") or "")[:8])
+    end = _parse_ymd(str(it.get("evntBltnEndDtm") or "")[:8])
+    return CardBenefitCandidate(
+        source_id=f"bc:{no}",
+        card_company="BC카드",
+        title=title,
+        event_period=_ymd_period(start, end),
+        event_start_date=start,
+        event_end_date=end,
+        detail_url=f"{BC_BASE}/web/evnt/evnt-dts?pybcUnifEvntNo={no}",
+        image_url=(it.get("evntBsImgUrlAddr") or "").strip() or None,
+    )
+
+
+def parse_bc_list(payload: dict, category: str = BC_TRAVEL_CATEGORY) -> list[CardBenefitCandidate]:
+    """lst-evnt-data 응답에서 여행/해외 카테고리 이벤트 후보를 만든다."""
+    items = (payload.get("data") or {}).get("evntInqrList") or []
+    picked = (
+        _bc_item(it) for it in items if (it.get("evntMrktTypCd") or "") == category
+    )
+    return [c for c in picked if c is not None]
+
+
+def parse_bc_detail(html: str) -> BenefitDetail:
+    """상세 페이지에 임베드된 eventData JSON 의 그룹(혜택/대상카드)을 파싱한다."""
+    match = _BC_EVENT_DATA_RE.search(html or "")
+    if not match:
+        return BenefitDetail(target_cards=None, benefit_summary=None)
+    try:
+        # raw_decode 로 JSON 의 정확한 끝을 찾는다 (개행/후속 코드에 견고)
+        data, _ = json.JSONDecoder().raw_decode(html[match.end():])
+    except ValueError:
+        return BenefitDetail(target_cards=None, benefit_summary=None)
+
+    target = None
+    benefit_texts: list[str] = []
+    for group in data.get("eventDetailsGroupBaseDtoList") or []:
+        name = (group.get("evntDtGrpNm") or "").replace(" ", "")
+        texts = _bc_group_texts(group)
+        if name == "대상카드" and texts:
+            target = texts[0]
+        elif name == "혜택":
+            benefit_texts += texts
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summarize_benefit_texts(benefit_texts)
+    )
+
+
+def _bc_group_texts(group: dict) -> list[str]:
+    """그룹 콘텐츠(제목+본문 HTML)를 평문 리스트로 펼친다."""
+    contents = group.get("eventDetailGroupContentDtoList") or []
+    fields = (
+        value
+        for c in contents
+        for value in (c.get("cntnTitlNm"), c.get("cntnDtCtnt"))
+    )
+    cleaned = (_clean_summary(v) for v in fields)
+    return [t for t in cleaned if t]
+
+
+def fetch_bc_candidates(
+    client: httpx.Client | None = None,
+    category: str = BC_TRAVEL_CATEGORY,
+    with_details: bool = True,
+) -> list[CardBenefitCandidate]:
+    """BC카드(페이북) 여행/해외 이벤트를 수집한다 (순수 HTTP).
+
+    목록 API 는 카테고리 파라미터를 무시하고 진행중 전체를 반환하므로 로컬 필터."""
+    own = client is None
+    client = client or _issuer_client(BC_BASE)
+    try:
+        res = client.get(
+            "/web/evnt/lst-evnt-data",
+            params={
+                # 서버는 현재 pgeCnt 를 무시하고 진행중 전체(~72건)를 반환하지만,
+                # 페이징이 켜질 경우를 대비해 여유 있는 페이지 크기를 요청한다
+                "reqType": "init", "inqrDv": "ING", "pgeNo": 1, "pgeCnt": 200,
+                "evntMrktTypCd": "", "ordering": "RECENT",
+            },
+            headers={"Referer": f"{BC_BASE}/web/evnt/main"},
+        )
+        res.raise_for_status()
+        candidates = parse_bc_list(res.json(), category=category)
+        if with_details:
+            candidates = [
+                _with_static_detail(client, c, parse_bc_detail, "BC카드")
+                for c in candidates
+            ]
+        return candidates
+    finally:
+        if own:
+            client.close()
+
+
 # ------------------------------------------------------------ 공용 상세 보강
 
 
@@ -1150,4 +1261,5 @@ ISSUER_FETCHERS = {
     "samsung": fetch_samsung_candidates,
     "shinhan": fetch_shinhan_candidates,
     "lotte": fetch_lotte_candidates,
+    "bc": fetch_bc_candidates,
 }

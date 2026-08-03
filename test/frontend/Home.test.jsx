@@ -274,3 +274,9 @@ describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () =
     expect(screen.queryByText('다가오는 밋업')).not.toBeInTheDocument()
   })
 })
+
+it('히어로 서비스 링크에 card.Pick 이 포함된다 (eat.pl 다음)', async () => {
+  renderHome()
+  const cardPick = await screen.findByText('card.Pick')
+  expect(cardPick.closest('a')).toHaveAttribute('href', '/cardpick')
+})
