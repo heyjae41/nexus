@@ -130,15 +130,12 @@ def cardpick_run(
     db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
 ):
     from app.services.card_benefit_collector import collect_card_benefits
-    from app.services.card_benefit_fetcher import (
-        fetch_hana_candidates,
-        fetch_woori_candidates,
-    )
+    from app.services.card_benefit_fetcher import ISSUER_FETCHERS
 
     sources: dict[str, dict] = {}
     failures: list[str] = []
     # 한 카드사 실패가 다른 카드사 수집을 막지 않는다 (스케줄러와 동일 정책)
-    for name, fetch in (("hana", fetch_hana_candidates), ("woori", fetch_woori_candidates)):
+    for name, fetch in ISSUER_FETCHERS.items():
         try:
             result = collect_card_benefits(db, cache, candidates=fetch())
             sources[name] = {

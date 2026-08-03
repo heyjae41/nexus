@@ -70,6 +70,43 @@ def _period(sdt, edt) -> str:
     return f"{sdt} ~ {edt}".strip(" ~") if (sdt or edt) else ""
 
 
+def _ymd_period(start: date | None, end: date | None) -> str:
+    """date 쌍 → 'YYYY.MM.DD ~ YYYY.MM.DD' (없는 쪽은 생략)."""
+    return " ~ ".join(d.strftime("%Y.%m.%d") for d in (start, end) if d is not None)
+
+
+def _split_dot_period(raw: str) -> tuple[date | None, date | None]:
+    """'2026.07.01 ~ 2026.08.31' 형 문자열 → (시작, 종료)."""
+    parts = [p.strip() for p in (raw or "").split("~")]
+    start = _parse_dot_date(parts[0]) if parts else None
+    end = _parse_dot_date(parts[1]) if len(parts) > 1 else None
+    return start, end
+
+
+def _sel_text(node, selector: str) -> str:
+    """CSS 셀렉터 첫 매칭의 정규화 텍스트 (없으면 빈 문자열)."""
+    el = node.select_one(selector)
+    return el.get_text(" ", strip=True) if el else ""
+
+
+def _img_src(node) -> str | None:
+    """첫 <img> 의 src — 프로토콜 상대(//)면 https 로 절대화 (없으면 None)."""
+    img = node.select_one("img")
+    src = (img.get("src") or "").strip() if img else ""
+    if src.startswith("//"):
+        src = f"https:{src}"
+    return src or None
+
+
+def _issuer_client(base_url: str, **kwargs) -> httpx.Client:
+    """카드사 공통 httpx 클라이언트 (모바일 UA, 리다이렉트 추적)."""
+    kwargs.setdefault("timeout", 15)
+    return httpx.Client(
+        base_url=base_url, headers={"User-Agent": MOBILE_UA},
+        follow_redirects=True, **kwargs,
+    )
+
+
 def extract_benefit_tags(text: str | None) -> list[str]:
     if not text:
         return []
@@ -123,11 +160,11 @@ def _extract_reward(text: str) -> str:
     core = re.split(r"\s*[*※]\s*", text)[0]
     core = re.sub(r"\([^)]*\)", " ", core)
     core = _CTA_TAIL_RE.sub("", core)
-    core = re.sub(r"\s+", " ", core).strip(" ,·-")
+    core = re.sub(r"\s+", " ", core).strip(" ,·-(")
     match = _LEADING_CONDITION_RE.match(core)
     if match is None:
         return core
-    prefix, rest = core[: match.end()], core[match.end():].strip(" ,·-")
+    prefix, rest = core[: match.end()], core[match.end():].strip(" ,·-(")
     # 걷어낼 앞부분에 이미 보상(금액+혜택동사)이 있으면 보상-선행 문장이므로 유지
     if _AMOUNT_RE.search(prefix) and _STRONG_BENEFIT_RE.search(prefix):
         return core
@@ -271,10 +308,7 @@ def fetch_hana_candidates(
 ) -> list[CardBenefitCandidate]:
     """하나카드 여행/해외 이벤트 전체 페이지를 수집한다."""
     own = client is None
-    client = client or httpx.Client(
-        base_url=HANA_BASE, headers={"User-Agent": MOBILE_UA}, timeout=15,
-        follow_redirects=True,
-    )
+    client = client or _issuer_client(HANA_BASE)
     try:
         candidates: list[CardBenefitCandidate] = []
         page, total_pages = 1, 1
@@ -500,3 +534,620 @@ def _with_woori_detail(post, c: CardBenefitCandidate) -> CardBenefitCandidate:
     except Exception:  # noqa: BLE001 — 상세 보강 실패는 목록 정보로 폴백
         logger.warning("우리카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
         return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
+
+
+# ---------------------------------------------------------------- KB국민카드
+
+KB_BASE = "https://m.kbcard.com"
+KB_TRAVEL_CATEGORIES = ("04", "05")  # 여행, 해외
+
+
+@dataclass(frozen=True)
+class BenefitDetail:
+    """상세 페이지에서 보강하는 공통 필드 (KB/신한/현대/삼성)."""
+
+    target_cards: str | None
+    benefit_summary: str | None
+
+
+def _parse_ymd(value) -> date | None:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), "%Y%m%d").date()
+    except ValueError:
+        return None
+
+
+def parse_kb_list(data: dict) -> list[CardBenefitCandidate]:
+    """MBBA0005 응답(evntList[])에서 이벤트 후보를 만든다."""
+    out: list[CardBenefitCandidate] = []
+    for it in data.get("evntList") or []:
+        evnt_id = str(it.get("evntId") or "").strip()
+        title = (it.get("evntTit") or "").strip()
+        if not evnt_id or evnt_id == "None" or not title:
+            continue
+        start = _parse_ymd(it.get("evtStYmd"))
+        end = _parse_ymd(it.get("evtEdYmd"))
+        period = _ymd_period(start, end)
+        image = (it.get("evntTmnlImgPthNm") or "").strip() or None
+        out.append(
+            CardBenefitCandidate(
+                source_id=f"kb:{evnt_id}",
+                card_company="KB국민카드",
+                title=title,
+                event_period=period,
+                event_start_date=start,
+                event_end_date=end,
+                detail_url=f"{KB_BASE}/BON/DVIEW/MBBMCXHIABNC0026?evntSerno={evnt_id}",
+                image_url=image,
+            )
+        )
+    return out
+
+
+def parse_kb_detail(html: str) -> BenefitDetail:
+    """상세 HTML 의 h3 라벨(대상/내용) 섹션에서 대상카드·혜택 요약을 뽑는다.
+
+    h3 구조가 없는 상세는 본문 문단 전체를 점수화해 혜택 문장을 찾는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    sections: dict[str, str] = {}
+    for h3 in soup.find_all("h3"):
+        label = h3.get_text(strip=True)
+        body = h3.find_next_sibling("p")
+        if label and body is not None:
+            sections.setdefault(label, body.get_text(" ", strip=True))
+    target = sections.get("대상")
+    if target:
+        target = re.sub(r"\([^)]*\)", "", target).strip() or None
+
+    content = sections.get("내용")
+    if content:
+        # 긴 안내문은 문장 단위로 쪼개 실질 혜택 문장을 고른다
+        sentences = re.split(r"(?<=[.!?])\s+", content)
+        summary = summarize_benefit_texts(sentences) or content
+    else:
+        texts = [el.get_text(" ", strip=True) for el in soup.find_all(["p", "li"])]
+        summary = summarize_benefit_texts(texts)
+    return BenefitDetail(target_cards=target, benefit_summary=summary)
+
+
+def fetch_kb_candidates(
+    client: httpx.Client | None = None,
+    categories: tuple[str, ...] = KB_TRAVEL_CATEGORIES,
+    max_pages: int = 10,
+    with_details: bool = True,
+) -> list[CardBenefitCandidate]:
+    """KB국민카드 여행(04)·해외(05) 이벤트를 수집한다 (순수 HTTP)."""
+    own = client is None
+    client = client or _issuer_client(KB_BASE)
+    try:
+        candidates: list[CardBenefitCandidate] = []
+        seen: set[str] = set()
+        for category in categories:
+            page, total_pages = 1, 1
+            while page <= min(total_pages, max_pages):
+                res = client.post(
+                    "/BON/API/MBBA0005",
+                    data={
+                        # mblOsDtcd/osCode 는 모바일웹 노출분 필터 — 빼면 앱전용까지 과다수집
+                        "mblOsDtcd": "02", "osCode": "I", "evntBonTag": "ALL",
+                        "evtServieCgryCd": category, "evntStsDtcd": "A01",
+                        "pageNo": page, "pageSize": 20,
+                    },
+                )
+                res.raise_for_status()
+                data = res.json()
+                total_pages = int(data.get("totalPage") or 1)
+                for c in parse_kb_list(data):
+                    if c.source_id in seen:  # 여행/해외 양쪽에 걸린 이벤트
+                        continue
+                    seen.add(c.source_id)
+                    candidates.append(c)
+                page += 1
+
+        if with_details:
+            candidates = [
+                _with_static_detail(client, c, parse_kb_detail, "KB국민카드")
+                for c in candidates
+            ]
+        return candidates
+    finally:
+        if own:
+            client.close()
+
+
+
+# ---------------------------------------------------------------- 신한카드
+
+SHINHAN_BASE = "https://www.shinhancard.com"
+SHINHAN_LIST_JSON = "/mob/static/json/vendor/evnPgsList01.json"  # 진행중 전체
+SHINHAN_TRAVEL_CATEGORY = "53"  # 여행·숙박 (mobWbBnfCagVl)
+
+
+def _shinhan_item(it: dict) -> CardBenefitCandidate | None:
+    rvn = str(it.get("mobWbEvtRvN") or "").strip()
+    main = (it.get("mobWbEvtNm") or "").strip()
+    detail_path = (it.get("hpgEvtDlPgeUrlAr") or "").strip()
+    if not (rvn and main and detail_path):
+        return None
+    sub = (it.get("evtImgSlTilNm") or "").strip()
+    image = (it.get("hpgEvtCtgImgUrlAr") or "").strip()
+    start, end = _parse_ymd(it.get("mobWbEvtStd")), _parse_ymd(it.get("mobWbEvtEdd"))
+    return CardBenefitCandidate(
+        source_id=f"shinhan:{rvn}",
+        card_company="신한카드",
+        title=f"{sub} {main}".strip(),
+        event_period=_ymd_period(start, end),
+        event_start_date=start,
+        event_end_date=end,
+        detail_url=f"{SHINHAN_BASE}{detail_path}",
+        image_url=f"{SHINHAN_BASE}{image}" if image else None,
+    )
+
+
+def parse_shinhan_list(
+    data: dict, category: str = SHINHAN_TRAVEL_CATEGORY
+) -> list[CardBenefitCandidate]:
+    """evnPgsList01.json 에서 여행·숙박 카테고리 이벤트 후보를 만든다."""
+    items = (data.get("root") or {}).get("evnlist") or []
+    picked = (
+        _shinhan_item(it) for it in items
+        if (it.get("mobWbBnfCagVl") or "") == category
+    )
+    return [c for c in picked if c is not None]
+
+
+def parse_shinhan_detail(html: str) -> BenefitDetail:
+    """상세 HTML 의 h3 섹션(행사대상/행사내용)에서 대상카드·혜택 요약을 뽑는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    sections: dict[str, str] = {}
+    for h3 in soup.find_all("h3"):
+        label = h3.get_text(strip=True).replace(" ", "")
+        body = h3.find_next_sibling("p")
+        if label and body is not None:
+            sections.setdefault(label, body.get_text(" ", strip=True))
+    target = sections.get("행사대상") or None
+    content = sections.get("행사내용")
+    if content:
+        summary = summarize_benefit_texts(re.split(r"(?<=[.!?])\s+", content)) or content
+    else:
+        # 이벤트별 마크업 편차가 커서 섹션이 없으면 본문 전체를 점수화한다
+        texts = [
+            el.get_text(" ", strip=True)
+            for el in soup.find_all(["h2", "p", "li", "dd"])
+        ]
+        summary = summarize_benefit_texts(texts)
+    return BenefitDetail(target_cards=target, benefit_summary=summary)
+
+
+def fetch_shinhan_candidates(
+    client: httpx.Client | None = None,
+    category: str = SHINHAN_TRAVEL_CATEGORY,
+    with_details: bool = True,
+) -> list[CardBenefitCandidate]:
+    """신한카드 여행·숙박 이벤트를 수집한다 (정적 JSON + 정적 상세 HTML)."""
+    own = client is None
+    client = client or _issuer_client(SHINHAN_BASE)
+    try:
+        res = client.get(SHINHAN_LIST_JSON)
+        res.raise_for_status()
+        candidates = parse_shinhan_list(res.json(), category=category)
+        if with_details:
+            candidates = [
+                _with_static_detail(client, c, parse_shinhan_detail, "신한카드")
+                for c in candidates
+            ]
+        return candidates
+    finally:
+        if own:
+            client.close()
+
+
+# ---------------------------------------------------------------- 현대카드
+
+HYUNDAI_BASE = "https://www.hyundaicard.com"
+HYUNDAI_SEARCH_WORD = "여행"
+_HYUNDAI_DATE_RE = re.compile(r"(?:(\d{4})\s*\.)?\s*(\d{1,2})\s*\.\s*(\d{1,2})")
+
+
+def _hyundai_ssl_context():
+    """현대카드 서버는 legacy TLS renegotiation 을 요구한다 (봇 차단 아님)."""
+    import ssl
+
+    ctx = ssl.create_default_context()
+    ctx.options |= ssl.OP_LEGACY_SERVER_CONNECT
+    return ctx
+
+
+def _safe_date(year, month, day) -> date | None:
+    """비정상 날짜(2월 30일 등)는 None — 한 항목 때문에 수집 전체가 죽지 않게."""
+    try:
+        return date(int(year), int(month), int(day))
+    except ValueError:
+        return None
+
+
+def _parse_hyundai_period(raw: str) -> tuple[date | None, date | None]:
+    """'2026. 1. 1 ~ 2026. 12. 31' (종료연도 생략 가능) → (시작, 종료)."""
+    parts = raw.split("~")
+    start = end = None
+    matched = _HYUNDAI_DATE_RE.search(parts[0]) if parts else None
+    if matched and matched.group(1):
+        start = _safe_date(matched.group(1), matched.group(2), matched.group(3))
+    if len(parts) > 1:
+        matched = _HYUNDAI_DATE_RE.search(parts[1])
+        if matched:
+            year = int(matched.group(1)) if matched.group(1) else (
+                start.year if start else None
+            )
+            if year:
+                end = _safe_date(year, matched.group(2), matched.group(3))
+    return start, end
+
+
+def _hyundai_item(li) -> CardBenefitCandidate | None:
+    from urllib.parse import quote
+
+    code_match = re.search(
+        r"bnftWebEvntCd=([A-Za-z0-9]+)|goDetail\('([A-Za-z0-9]+)'\)", li.decode()
+    )
+    code = (code_match.group(1) or code_match.group(2)) if code_match else None
+    title = _sel_text(li, "h3")
+    if not code or not title:
+        return None
+    raw_period = _sel_text(li, "p.p2_m_lt_1ln") or _sel_text(li, "p")
+    start, end = _parse_hyundai_period(raw_period)
+    img = li.select_one("img")
+    src = (img.get("src") or "").strip() if img else ""
+    return CardBenefitCandidate(
+        source_id=f"hyundai:{code}",
+        card_company="현대카드",
+        title=title,
+        event_period=_ymd_period(start, end) or raw_period,
+        event_start_date=start,
+        event_end_date=end,
+        detail_url=f"{HYUNDAI_BASE}/cpb/ev/CPBEV0101_06.hc?bnftWebEvntCd={code}",
+        # 파일명에 공백이 섞여 오므로 URL 인코딩해 절대화한다
+        image_url=f"{HYUNDAI_BASE}{quote(src, safe='/:?=&%')}" if src else None,
+    )
+
+
+def parse_hyundai_list(html: str) -> list[CardBenefitCandidate]:
+    """검색 결과 목록 HTML(ul#event_list1 > li)에서 이벤트 후보를 만든다."""
+    soup = BeautifulSoup(html, "html.parser")
+    items = (_hyundai_item(li) for li in soup.select("#event_list1 li"))
+    return [c for c in items if c is not None]
+
+
+def parse_hyundai_detail(html: str) -> BenefitDetail:
+    """상세 div.content 인라인 텍스트에서 대상카드·혜택 요약을 뽑는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    content = soup.select_one("div.content")
+    if content is None:
+        return BenefitDetail(target_cards=None, benefit_summary=None)
+    text = content.get_text("\n", strip=True)
+    target_match = re.search(
+        r"대상\s*카드\s*[::]?\s*(.+?)(?=\s*(?:이용\s*방법|유의|신청|대상\s*(?!카드)|$))",
+        text, re.S,
+    )
+    target = None
+    if target_match:
+        target = re.sub(r"\s+", " ", target_match.group(1)).strip() or None
+    lines = [re.sub(r"^(?:혜택|내용)\s+", "", ln) for ln in text.splitlines()]
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summarize_benefit_texts(lines)
+    )
+
+
+def fetch_hyundai_candidates(
+    client: httpx.Client | None = None,
+    search_word: str = HYUNDAI_SEARCH_WORD,
+    with_details: bool = True,
+) -> list[CardBenefitCandidate]:
+    """현대카드 여행 검색 이벤트를 수집한다 (legacy-TLS httpx, 목록은 서버렌더)."""
+    own = client is None
+    client = client or _issuer_client(HYUNDAI_BASE, timeout=25, verify=_hyundai_ssl_context())
+    try:
+        res = client.get(
+            "/cpb/ev/CPBEV0101_01.hc",
+            params={"evntCtgrVl": "", "searchWord": search_word},
+        )
+        res.raise_for_status()
+        candidates = parse_hyundai_list(res.text)
+        if with_details:
+            candidates = [
+                _with_static_detail(client, c, parse_hyundai_detail, "현대카드")
+                for c in candidates
+            ]
+        return candidates
+    finally:
+        if own:
+            client.close()
+
+
+# ---------------------------------------------------------------- 삼성카드
+
+SAMSUNG_BASE = "https://www.samsungcard.com"
+_SAMSUNG_HL_RE = re.compile(r"<!HS>|<!HE>")
+
+
+def _samsung_item(it: dict) -> CardBenefitCandidate | None:
+    content_id = str(it.get("contentID") or "").strip()
+    title = _SAMSUNG_HL_RE.sub("", (it.get("eventTitle") or "")).strip()
+    if not content_id or not title:
+        return None
+    start = _parse_samsung_date(it.get("startDate"))
+    end = _parse_samsung_date(it.get("endDate"))
+    image = (it.get("imagePath") or "").strip()
+    if image.startswith("//"):
+        image = f"https:{image}"
+    return CardBenefitCandidate(
+        source_id=f"samsung:{content_id}",
+        card_company="삼성카드",
+        title=title,
+        event_period=_ymd_period(start, end),
+        event_start_date=start,
+        event_end_date=end,
+        detail_url=(
+            f"{SAMSUNG_BASE}/personal/event/ing/UHPPBE1403M0.jsp?cms_id={content_id}"
+        ),
+        image_url=image or None,
+    )
+
+
+def parse_samsung_list(data: dict) -> list[CardBenefitCandidate]:
+    """SHPPCO2107S01 검색 응답(evtRsList[])에서 진행중 이벤트 후보를 만든다."""
+    items = (
+        _samsung_item(it) for it in data.get("evtRsList") or []
+        if (it.get("eventIngYN") or "") == "진행중"
+    )
+    return [c for c in items if c is not None]
+
+
+def _parse_samsung_date(value) -> date | None:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), "%y.%m.%d").date()
+    except ValueError:
+        return None
+
+
+def parse_samsung_detail(html: str) -> BenefitDetail:
+    """상세의 dl.new_dl(dt/dd: 행사기간/대상카드/혜택)에서 보강 필드를 뽑는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    sections: dict[str, str] = {}
+    for dl in soup.select("dl.new_dl"):
+        for dt in dl.find_all("dt"):
+            dd = dt.find_next_sibling("dd")
+            if dd is not None:
+                sections.setdefault(
+                    dt.get_text(strip=True).replace(" ", ""),
+                    dd.get_text(" ", strip=True),
+                )
+    target = sections.get("대상카드")
+    if target:
+        target = re.sub(r"\([^)]*\)", "", target).strip() or None
+    content = sections.get("혜택")
+    summary = None
+    if content:
+        summary = summarize_benefit_texts(re.split(r"(?<=[.!?])\s+", content)) or content
+    return BenefitDetail(target_cards=target, benefit_summary=summary)
+
+
+def fetch_samsung_candidates(
+    client: httpx.Client | None = None,
+    query: str = "여행",
+    max_pages: int = 10,
+    with_details: bool = True,
+    budget_seconds: float = 300,
+) -> list[CardBenefitCandidate]:
+    """삼성카드 여행 검색 이벤트를 수집한다.
+
+    목록은 순수 HTTP(JSON 검색 API), 상세 혜택 본문은 세션 게이트라
+    Playwright 로 상세 페이지를 렌더해 dl.new_dl 을 파싱한다."""
+    own = client is None
+    client = client or _issuer_client(SAMSUNG_BASE)
+    try:
+        candidates: list[CardBenefitCandidate] = []
+        page, total = 1, 1
+        while page <= max_pages and (page - 1) * 10 < total:
+            res = client.post(
+                "/frontservice/SHPPCO2107S01",
+                json={
+                    "query": query, "pageNum": page, "isTotalSearch": False,
+                    "isMobile": False, "siteDivision": "personal",
+                    "collection": "event", "onGoing": "0",
+                    "common": {
+                        "scrnId": "UHPPCO2112M0", "stdEtxtCrtSysNm": "M4615309",
+                        "stdEtxtSn": "nexus", "stdEtxtPrgDvNo": 0,
+                        "stdEtxtPrgNo": 0, "usid": "USERID0",
+                    },
+                },
+            )
+            res.raise_for_status()
+            data = res.json()
+            total = int(data.get("evtRsCount") or 0)
+            if not data.get("evtRsList"):
+                break  # 페이지 크기 가정(10)이 틀려도 빈 페이지에서 종료
+            candidates += parse_samsung_list(data)
+            page += 1
+    finally:
+        if own:
+            client.close()
+
+    if with_details and candidates:
+        candidates = _samsung_enrich_details(candidates, budget_seconds)
+    return candidates
+
+
+def _samsung_enrich_details(
+    candidates: list[CardBenefitCandidate], budget_seconds: float
+) -> list[CardBenefitCandidate]:
+    """Playwright 로 상세 페이지를 렌더해 대상카드·혜택을 보강한다 (시간 예산제)."""
+    from playwright.sync_api import sync_playwright
+
+    deadline = time.monotonic() + budget_seconds
+    enriched: list[CardBenefitCandidate] = []
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            page = browser.new_context(user_agent=MOBILE_UA).new_page()
+            for i, c in enumerate(candidates):
+                if time.monotonic() > deadline:
+                    logger.warning(
+                        "삼성카드 상세 보강 시간 예산 초과 — %d/%d 에서 중단",
+                        i, len(candidates),
+                    )
+                    enriched.extend(candidates[i:])
+                    break
+                enriched.append(_with_samsung_detail(page, c))
+        finally:
+            browser.close()
+    return enriched
+
+
+def _with_samsung_detail(page, c: CardBenefitCandidate) -> CardBenefitCandidate:
+    try:
+        page.goto(c.detail_url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(2500)
+        return _apply_detail(c, parse_samsung_detail(page.content()))
+    except Exception:  # noqa: BLE001 — 상세 보강 실패는 목록 정보로 폴백
+        logger.warning("삼성카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
+        return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
+
+
+# ---------------------------------------------------------------- 롯데카드
+
+LOTTE_BASE = "https://m.lottecard.co.kr"
+LOTTE_TRAVEL_TAB = "4"  # 레저·여행 (tabGubun=evnCtgSeq=4)
+
+
+def _lotte_item(li) -> CardBenefitCandidate | None:
+    """목록 Content HTML 의 <li> 하나 → 후보 (식별자/제목 없으면 None)."""
+    id_match = re.search(
+        r"\"cts_id\"\s*:\s*\"(\d+)\"|lnk_(\d+)|fnGoInqEvn\('[A-Z]',\s*'(\d+)'\)",
+        li.decode(),
+    )
+    seq = next((g for g in (id_match.groups() if id_match else ()) if g), None)
+    title = _sel_text(li, "strong.thumb-name")
+    if not seq or not title:
+        return None
+    raw = _sel_text(li, "span.thumb-date")
+    start, end = _split_dot_period(raw)
+    src = _img_src(li)
+    return CardBenefitCandidate(
+        source_id=f"lotte:{seq}",
+        card_company="롯데카드",
+        title=title,
+        event_period=_ymd_period(start, end) or raw,
+        event_start_date=start,
+        event_end_date=end,
+        detail_url=f"{LOTTE_BASE}/app/LPBNFDA_V300.lc?evnBultSeq={seq}",
+        image_url=src or None,
+    )
+
+
+def parse_lotte_list(payload: dict) -> list[CardBenefitCandidate]:
+    """LPBNFDA_A100.lc 응답의 Content(HTML 조각)에서 이벤트 후보를 만든다."""
+    content = payload.get("Content") or ""
+    if not content.strip():
+        return []
+    soup = BeautifulSoup(content, "html.parser")
+    items = (_lotte_item(li) for li in soup.find_all("li"))
+    return [c for c in items if c is not None]
+
+
+def parse_lotte_detail(html: str) -> BenefitDetail:
+    """상세 HTML(.sub-content) 의 섹션 헤딩에서 대상카드·혜택 요약을 뽑는다."""
+    soup = BeautifulSoup(html, "html.parser")
+    body = soup.select_one(".sub-content") or soup
+    target = None
+    for heading in body.select(".sub-title"):
+        if "대상카드" in heading.get_text(strip=True).replace(" ", ""):
+            para = heading.find_next_sibling("p")
+            if para is not None:
+                target = para.get_text(" ", strip=True) or None
+            break
+    texts = [el.get_text(" ", strip=True) for el in body.find_all(["p", "li", "dd"])]
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summarize_benefit_texts(texts)
+    )
+
+
+def fetch_lotte_candidates(
+    client: httpx.Client | None = None,
+    tab: str = LOTTE_TRAVEL_TAB,
+    max_pages: int = 10,
+    with_details: bool = True,
+) -> list[CardBenefitCandidate]:
+    """롯데카드 레저·여행 이벤트를 수집한다 (순수 HTTP, HTML 조각 응답)."""
+    own = client is None
+    client = client or _issuer_client(LOTTE_BASE)
+    try:
+        candidates: list[CardBenefitCandidate] = []
+        page, total_pages = 1, 1
+        while page <= min(total_pages, max_pages):
+            res = client.post(
+                "/app/LPBNFDA_A100.lc",
+                headers={"X-Requested-With": "XMLHttpRequest"},
+                data={
+                    "pageNo": page, "bigTabGubun": "2", "tabGubun": tab,
+                    "evnBultSeq": "", "finishYn": "N", "sort": "LATEST",
+                    "evnTc": "", "evnCtgSeq": tab, "isLogIn": "N",
+                },
+            )
+            res.raise_for_status()
+            payload = res.json()
+            total_pages = int((payload.get("Param") or {}).get("totalPage") or 1)
+            candidates += parse_lotte_list(payload)
+            page += 1
+        if with_details:
+            candidates = [
+                _with_static_detail(client, c, parse_lotte_detail, "롯데카드")
+                for c in candidates
+            ]
+        return candidates
+    finally:
+        if own:
+            client.close()
+
+
+# ------------------------------------------------------------ 공용 상세 보강
+
+
+def _apply_detail(c: CardBenefitCandidate, detail: BenefitDetail) -> CardBenefitCandidate:
+    """상세에서 얻은 대상카드·요약을 후보에 반영하고 혜택 태그를 재계산한다."""
+    tags = extract_benefit_tags(f"{c.title} {detail.benefit_summary or ''}")
+    return replace(
+        c, target_cards=detail.target_cards or c.target_cards,
+        benefit_summary=detail.benefit_summary or c.benefit_summary,
+        benefit_tags=",".join(tags) or None,
+    )
+
+
+def _with_static_detail(
+    client: httpx.Client, c: CardBenefitCandidate, parser, label: str
+) -> CardBenefitCandidate:
+    """정적 HTML 상세를 GET 해 대상카드·혜택 요약을 보강한다 (실패해도 목록 유지)."""
+    try:
+        res = client.get(c.detail_url)
+        res.raise_for_status()
+        return _apply_detail(c, parser(res.text))
+    except Exception:  # noqa: BLE001 — 스펙과 다른 마크업의 파서 예외도 한 건만 폴백
+        logger.warning("%s 상세 조회 실패 — 목록 정보만 사용: %s", label, c.detail_url)
+        return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
+
+
+# 카드사별 fetcher 레지스트리 — 스케줄러와 수동 트리거(internal)가 공유한다.
+# 새 카드사 추가 시 여기에만 등록하면 수집 경로 전체에 반영된다.
+ISSUER_FETCHERS = {
+    "hana": fetch_hana_candidates,
+    "woori": fetch_woori_candidates,
+    "kb": fetch_kb_candidates,
+    "hyundai": fetch_hyundai_candidates,
+    "samsung": fetch_samsung_candidates,
+    "shinhan": fetch_shinhan_candidates,
+    "lotte": fetch_lotte_candidates,
+}

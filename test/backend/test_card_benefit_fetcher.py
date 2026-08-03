@@ -317,6 +317,16 @@ def test_parse_woori_detail_benefit_summary_prefers_amount_lines():
     assert summary == "최대 8만원 할인"
 
 
+def test_issuer_fetcher_registry():
+    """스케줄러/수동 트리거가 공유하는 카드사 fetcher 레지스트리.
+
+    새 카드사는 여기에만 등록하면 수집 경로 전체에 반영된다."""
+    from app.services.card_benefit_fetcher import ISSUER_FETCHERS
+
+    assert "hana" in ISSUER_FETCHERS and "woori" in ISSUER_FETCHERS
+    assert all(callable(fn) for fn in ISSUER_FETCHERS.values())
+
+
 def test_extract_benefit_tags():
     text = "호텔 최대 25% 할인 + 캐시백, 라운지 무료 이용권 1+1 증정"
     tags = extract_benefit_tags(text)
@@ -326,3 +336,410 @@ def test_extract_benefit_tags():
     assert "1+1" in tags
     # 중복 없이, 매칭 없으면 빈 리스트
     assert extract_benefit_tags("일반 안내문") == []
+
+
+# ---------------------------------------------------------------- KB국민카드
+
+KB_LIST_DATA = {
+    "resultCode": "UCXH0000",
+    "totalCnt": 2,
+    "totalPage": 1,
+    "evntList": [
+        {
+            "evntId": 1001676,
+            "evntTit": "국제선 항공권 청구할인 With 와이페이모어",
+            "evtStYmd": "20260801",
+            "evtEdYmd": "20260831",
+            "evntTmnlImgPthNm": "https://img1.kbcard.com/ST/img/ubb/mgr/event/241220_whypaymore_orange.png",
+        },
+        {
+            "evntId": "1001623",
+            "evntTit": "해외결제는 1400원으로 고정환율 적용",
+            "evtStYmd": "20260801",
+            "evtEdYmd": "20260817",
+            "evntTmnlImgPthNm": None,
+        },
+    ],
+}
+
+
+def test_parse_kb_list_builds_candidates():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_kb_list
+
+    items = parse_kb_list(KB_LIST_DATA)
+    assert len(items) == 2
+    first = items[0]
+    assert first.card_company == "KB국민카드"
+    assert first.source_id == "kb:1001676"
+    assert first.event_period == "2026.08.01 ~ 2026.08.31"
+    assert first.event_start_date == date_cls(2026, 8, 1)
+    assert first.event_end_date == date_cls(2026, 8, 31)
+    assert first.detail_url == (
+        "https://m.kbcard.com/BON/DVIEW/MBBMCXHIABNC0026?evntSerno=1001676"
+    )
+    assert first.image_url.startswith("https://img1.kbcard.com/")
+    # 숫자/문자 evntId 모두 수용, 이미지 없으면 None
+    assert items[1].source_id == "kb:1001623"
+    assert items[1].image_url is None
+
+
+def test_parse_kb_list_empty_and_broken():
+    from app.services.card_benefit_fetcher import parse_kb_list
+
+    assert parse_kb_list({}) == []
+    assert parse_kb_list({"evntList": [{"evntId": None, "evntTit": "x"}]}) == []
+
+
+KB_DETAIL_HTML = """
+<html><body><div class="detail">
+<h3>기간</h3><p>예약 2026.8.3(월)~8.31(월)</p>
+<h3>대상</h3><p>KB국민 마스터 개인 신용/체크카드 기보유 고객 (KB국민 기업 제외)</p>
+<h3>내용</h3><p>프로모션 코드 입력하면 최대 10만원 할인 + 글로벌 eSIM 1GB 무료 제공</p>
+</div></body></html>
+"""
+
+
+def test_parse_kb_detail_sections():
+    from app.services.card_benefit_fetcher import parse_kb_detail
+
+    detail = parse_kb_detail(KB_DETAIL_HTML)
+    assert detail.target_cards == "KB국민 마스터 개인 신용/체크카드 기보유 고객"
+    assert "최대 10만원 할인" in detail.benefit_summary
+    assert "eSIM" in detail.benefit_summary
+
+
+def test_parse_kb_detail_missing_sections_returns_none_fields():
+    from app.services.card_benefit_fetcher import parse_kb_detail
+
+    detail = parse_kb_detail("<html><body>내용 없음</body></html>")
+    assert detail.target_cards is None
+    assert detail.benefit_summary is None
+
+
+def test_parse_kb_detail_falls_back_to_body_paragraphs():
+    """h3 라벨 구조가 없는 상세는 본문 문단에서 혜택 문장을 점수화해 뽑는다."""
+    from app.services.card_benefit_fetcher import parse_kb_detail
+
+    html = """
+    <html><body><div class="cont">
+    <p>이번 여름 특별한 혜택!</p>
+    <p>대상 카드로 해외 이용 시 최대 5만 포인트리 적립</p>
+    <p>자세한 내용은 앱에서 확인</p>
+    </div></body></html>
+    """
+    detail = parse_kb_detail(html)
+    assert detail.benefit_summary == "최대 5만 포인트리 적립"
+
+
+# ---------------------------------------------------------------- 신한카드
+
+SHINHAN_LIST = {
+    "root": {
+        "evnlist": [
+            {
+                "mobWbEvtNm": "호텔 최대 25% 할인",
+                "evtImgSlTilNm": "신한 비자카드x아고다",
+                "mobWbEvtStd": "20260722",
+                "mobWbEvtEdd": "20260930",
+                "hpgEvtCtgImgUrlAr": "/pconts/html/benefit/event/__icsFiles/afieldfile/2026/07/28/260115_agoda_list.png",
+                "hpgEvtDlPgeUrlAr": "/pconts/html/benefit/event/2013812_2239.html",
+                "mobWbEvtRvN": "2026071512HMPG",
+                "mobWbBnfCagVl": "53",
+            },
+            {  # 다른 카테고리(쇼핑) — 제외돼야 함
+                "mobWbEvtNm": "백화점 5% 캐시백",
+                "mobWbEvtStd": "20260701",
+                "mobWbEvtEdd": "20260931",
+                "hpgEvtDlPgeUrlAr": "/pconts/html/benefit/event/999_2239.html",
+                "mobWbEvtRvN": "2026070100SHOP",
+                "mobWbBnfCagVl": "51",
+            },
+        ]
+    }
+}
+
+
+def test_parse_shinhan_list_filters_travel_category():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_shinhan_list
+
+    items = parse_shinhan_list(SHINHAN_LIST)
+    assert len(items) == 1  # 여행숙박(53)만
+    first = items[0]
+    assert first.card_company == "신한카드"
+    assert first.source_id == "shinhan:2026071512HMPG"
+    assert first.title == "신한 비자카드x아고다 호텔 최대 25% 할인"
+    assert first.event_period == "2026.07.22 ~ 2026.09.30"
+    assert first.event_start_date == date_cls(2026, 7, 22)
+    assert first.detail_url == (
+        "https://www.shinhancard.com/pconts/html/benefit/event/2013812_2239.html"
+    )
+    assert first.image_url.startswith("https://www.shinhancard.com/pconts/")
+
+
+def test_parse_shinhan_list_empty():
+    from app.services.card_benefit_fetcher import parse_shinhan_list
+
+    assert parse_shinhan_list({}) == []
+    assert parse_shinhan_list({"root": {"evnlist": []}}) == []
+
+
+SHINHAN_DETAIL_HTML = """
+<html><body>
+<h1 class="headline--m">호텔 최대 25% 할인</h1>
+<h3 class="mt--6xl">행사대상</h3>
+<p class="bodyText">신한Visa 신용 소지 고객 ※ 법인/체크/BC/선불/기프트카드 제외</p>
+<h3 class="mt--6xl">행사내용</h3>
+<p class="bodyText">신한Visa 개인 신용 카드로 아고다에서 국내외 호텔 결제 시 최대 25% 할인</p>
+</body></html>
+"""
+
+
+def test_parse_shinhan_detail_sections():
+    from app.services.card_benefit_fetcher import parse_shinhan_detail
+
+    detail = parse_shinhan_detail(SHINHAN_DETAIL_HTML)
+    assert detail.target_cards.startswith("신한Visa 신용 소지 고객")
+    assert "최대 25% 할인" in detail.benefit_summary
+
+
+# ---------------------------------------------------------------- 현대카드
+
+HYUNDAI_LIST_HTML = """
+<html><body>
+<ul id="event_list1">
+  <li onclick="location.href='/cpb/ev/CPBEV0101_06.hc?bnftWebEvntCd=196954&searchWord=여행'">
+    <div class="eventimg"><img src="/upload/cpd/mb/MO 이벤트 리스트 이미지 등록_1704696963823.png"></div>
+    <h3 class="p1_m_lt_1ln">플래티넘카드 무료 해외여행자보험<br>가입 안내(2026년 기준)</h3>
+    <p class="p2_m_lt_1ln">2026. 1. 1 ~ 2026. 12. 31</p>
+  </li>
+  <li onclick="goDetail('OSH869')" data-code="bnftWebEvntCd=OSH869">
+    <div class="eventimg"><img src="/upload/cpd/mb/PCMOLogo_privia.png"></div>
+    <h3 class="p1_m_lt_1ln">PRIVIA 여행 국제선 항공권 10% M포인트 사용</h3>
+    <p class="p2_m_lt_1ln">2026. 1. 1 ~ 2026. 12. 30</p>
+  </li>
+</ul>
+</body></html>
+"""
+
+
+def test_parse_hyundai_list_from_html():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_hyundai_list
+
+    items = parse_hyundai_list(HYUNDAI_LIST_HTML)
+    assert len(items) == 2
+    first = items[0]
+    assert first.card_company == "현대카드"
+    assert first.source_id == "hyundai:196954"
+    assert first.title == "플래티넘카드 무료 해외여행자보험 가입 안내(2026년 기준)"
+    assert first.event_period == "2026.01.01 ~ 2026.12.31"
+    assert first.event_start_date == date_cls(2026, 1, 1)
+    assert first.event_end_date == date_cls(2026, 12, 31)
+    assert first.detail_url == (
+        "https://www.hyundaicard.com/cpb/ev/CPBEV0101_06.hc?bnftWebEvntCd=196954"
+    )
+    # 이미지 파일명의 공백은 URL 인코딩된다
+    assert " " not in first.image_url
+    assert first.image_url.startswith("https://www.hyundaicard.com/upload/")
+    assert items[1].source_id == "hyundai:OSH869"
+
+
+def test_parse_hyundai_list_empty():
+    from app.services.card_benefit_fetcher import parse_hyundai_list
+
+    assert parse_hyundai_list("<html><body>없음</body></html>") == []
+
+
+def test_parse_hyundai_detail_content():
+
+    html = """
+    <html><body><div class="content">
+    혜택 해외여행자보험 무료 가입 서비스 제공
+    기간 2026.1.1 ~ 12.31
+    대상 카드 현대카드M2 Platinum, M3 Platinum, T3 Platinum
+    이용방법 출국 전 신청
+    </div></body></html>
+    """
+    from app.services.card_benefit_fetcher import parse_hyundai_detail as p
+
+    detail = p(html)
+    assert "현대카드M2 Platinum" in (detail.target_cards or "")
+    assert "무료" in (detail.benefit_summary or "")
+
+
+# ---------------------------------------------------------------- 삼성카드
+
+SAMSUNG_LIST = {
+    "evtRsCount": 2,
+    "evtRsList": [
+        {
+            "eventTitle": "삼성카드와 떠나는 <!HS>여행<!HE>! 최대 5% 할인",
+            "startDate": "26.04.15",
+            "endDate": "26.08.31",
+            "imagePath": "//static11.samsungcard.com/wcms/event/P_thumb_15.png",
+            "contentID": "3744484",
+            "eventID": "M261104998",
+            "eventIngYN": "진행중",
+        },
+        {
+            "eventTitle": "지난 <!HS>여행<!HE> 이벤트",
+            "startDate": "26.01.01",
+            "endDate": "26.03.31",
+            "imagePath": None,
+            "contentID": "111",
+            "eventIngYN": "종료",
+        },
+    ],
+}
+
+
+def test_parse_samsung_list_filters_ongoing_and_cleans_title():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_samsung_list
+
+    items = parse_samsung_list(SAMSUNG_LIST)
+    assert len(items) == 1  # 종료 이벤트 제외
+    first = items[0]
+    assert first.card_company == "삼성카드"
+    assert first.source_id == "samsung:3744484"
+    assert first.title == "삼성카드와 떠나는 여행! 최대 5% 할인"  # 하이라이트 태그 제거
+    assert first.event_period == "2026.04.15 ~ 2026.08.31"
+    assert first.event_start_date == date_cls(2026, 4, 15)
+    assert first.detail_url == (
+        "https://www.samsungcard.com/personal/event/ing/UHPPBE1403M0.jsp?cms_id=3744484"
+    )
+    assert first.image_url == "https://static11.samsungcard.com/wcms/event/P_thumb_15.png"
+
+
+def test_parse_samsung_detail_dl():
+    from app.services.card_benefit_fetcher import parse_samsung_detail
+
+    html = """
+    <html><body><dl class="new_dl">
+    <dt>행사기간</dt><dd>2026.04.15 ~ 2026.08.31</dd>
+    <dt>대상카드</dt><dd>삼성 개인 신용카드 (가족카드 포함)</dd>
+    <dt>혜택</dt><dd>참좋은여행 해외여행 5% 즉시할인</dd>
+    </dl></body></html>
+    """
+    detail = parse_samsung_detail(html)
+    assert detail.target_cards == "삼성 개인 신용카드"
+    assert "5% 즉시할인" in detail.benefit_summary
+
+
+# ---------------------------------------------------------------- 롯데카드
+
+LOTTE_LIST_PAYLOAD = {
+    "Status": "200",
+    "Param": {"selectedCategoryName": "레저·여행", "pageNo": 1, "totalPage": 1, "totalRowCnt": 2},
+    "Content": """
+    <li>
+      <a href="#" onclick="fnGoInqEvn('E','11197');" class="lnk_11197"
+         data-gtm-body='{"cts_id":"11197","cts_name":"호텔스닷컴 최대 50% 할인"}'>
+        <img src="//image.lottecard.co.kr/UploadFiles/event/hotels.png">
+        <strong class="thumb-name">호텔스닷컴에서 아웃리거 리조트를<br>예약하면 최대 50% 할인</strong>
+        <span class="thumb-date">2026.07.01 ~ 2026.08.31</span>
+      </a>
+    </li>
+    <li>
+      <a href="#" onclick="fnGoInqEvn('E','11174');" class="lnk_11174"
+         data-gtm-body='{"cts_id":"11174","cts_name":"힐튼 포인트 적립"}'>
+        <strong class="thumb-name">힐튼 호텔 숙박하고 최대 4,000 포인트 적립</strong>
+        <span class="thumb-date">2026.07.01 ~ 2026.08.15</span>
+      </a>
+    </li>
+    """,
+}
+
+
+def test_parse_lotte_list_builds_candidates():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import parse_lotte_list
+
+    items = parse_lotte_list(LOTTE_LIST_PAYLOAD)
+    assert len(items) == 2
+    first = items[0]
+    assert first.card_company == "롯데카드"
+    assert first.source_id == "lotte:11197"
+    # 제목의 <br> 은 공백으로 정규화
+    assert first.title == "호텔스닷컴에서 아웃리거 리조트를 예약하면 최대 50% 할인"
+    assert first.event_period == "2026.07.01 ~ 2026.08.31"
+    assert first.event_start_date == date_cls(2026, 7, 1)
+    assert first.event_end_date == date_cls(2026, 8, 31)
+    assert first.detail_url == (
+        "https://m.lottecard.co.kr/app/LPBNFDA_V300.lc?evnBultSeq=11197"
+    )
+    # 프로토콜 상대경로 이미지는 https 로 절대화
+    assert first.image_url == "https://image.lottecard.co.kr/UploadFiles/event/hotels.png"
+    assert items[1].image_url is None
+
+
+def test_parse_lotte_list_empty():
+    from app.services.card_benefit_fetcher import parse_lotte_list
+
+    assert parse_lotte_list({}) == []
+    assert parse_lotte_list({"Content": ""}) == []
+
+
+def test_parse_lotte_detail_sections():
+    from app.services.card_benefit_fetcher import parse_lotte_detail
+
+    html = """
+    <html><body>
+    <div class="sub-content event-content">
+      <h4 class="sub-title title-depth4">혜택 안내</h4>
+      <p>호텔스닷컴에서 아웃리거 리조트 예약 시 최대 50% 할인</p>
+      <h4 class="sub-title title-depth4">대상카드</h4>
+      <p>비자(Visa) 개인 신용카드 중 카드번호 앞 6자리: 401585, 467007</p>
+    </div>
+    </body></html>
+    """
+    detail = parse_lotte_detail(html)
+    assert detail.target_cards.startswith("비자(Visa) 개인 신용카드")
+    assert "최대 50% 할인" in detail.benefit_summary
+
+
+def test_parse_hyundai_period_invalid_date_does_not_crash():
+    """2월 30일 같은 비정상 날짜가 와도 현대카드 수집 전체가 죽지 않는다 (리뷰 MEDIUM)."""
+    from app.services.card_benefit_fetcher import _parse_hyundai_period, parse_hyundai_list
+
+    assert _parse_hyundai_period("2026.02.30 ~ 2026.13.01") == (None, None)
+
+    html = HYUNDAI_LIST_HTML.replace("2026. 1. 1 ~ 2026. 12. 31", "2026. 2. 30 ~ 2026. 13. 1")
+    items = parse_hyundai_list(html)
+    assert len(items) == 2  # 날짜만 비고 나머지 항목은 유지
+    assert items[0].event_start_date is None
+
+
+def test_static_detail_parser_exception_falls_back_to_list_info():
+    """상세 파서가 예기치 못한 예외를 던져도 해당 건만 목록 정보로 폴백한다 (리뷰 MEDIUM)."""
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import CardBenefitCandidate, _with_static_detail
+
+    class FakeRes:
+        text = "<html></html>"
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def get(self, url):
+            return FakeRes()
+
+    def broken_parser(html):
+        raise AttributeError("정찰 스펙과 다른 마크업")
+
+    c = CardBenefitCandidate(
+        source_id="kb:1", card_company="KB국민카드", title="여행 5% 할인",
+        event_period="2026.08.01 ~", event_start_date=date_cls(2026, 8, 1),
+        event_end_date=None, detail_url="https://ex.com/1", image_url=None,
+    )
+    result = _with_static_detail(FakeClient(), c, broken_parser, "KB국민카드")
+    assert result.title == "여행 5% 할인"  # 목록 정보 유지
+    assert result.benefit_tags == "할인"

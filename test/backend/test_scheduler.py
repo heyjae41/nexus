@@ -17,7 +17,9 @@ def test_scheduler_has_ingest_and_collect_chain():
 
 
 def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
-    """브런치 → 뉴스레터 → 밋업 → FastCampus → Daker → DACON. 실패해도 다음 단계 진행."""
+    """브런치 → 뉴스레터 → 밋업(meet.pl) → card.Pick → FastCampus → Daker → DACON.
+
+    card.Pick 은 meet.pl(event-us+luma) 바로 뒤에 실행된다. 실패해도 다음 단계 진행."""
     calls = []
     monkeypatch.setattr(
         scheduler_module, "run_brunch_job",
@@ -38,6 +40,10 @@ def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
         lambda cache, category_api_id, label: calls.append(f"luma:{label}"),
     )
     monkeypatch.setattr(
+        scheduler_module, "run_card_benefit_job",
+        lambda cache: calls.append("cardpick"),
+    )
+    monkeypatch.setattr(
         scheduler_module, "run_fastcampus_job",
         lambda cache: calls.append("fastcampus"),
     )
@@ -53,7 +59,7 @@ def test_collect_chain_runs_brunch_first_then_meetups(monkeypatch):
     run_collect_chain_job(make_cache())
     assert calls == [
         "brunch", "newsletter", "eventus", "luma:AI", "luma:TECH",
-        "fastcampus", "daker", "dacon",
+        "cardpick", "fastcampus", "daker", "dacon",
     ]
 
 
