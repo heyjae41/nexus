@@ -70,6 +70,20 @@ describe('CardPick 뷰', () => {
     expect(screen.getByText('WON트래블 호텔 최대 25% 할인')).toBeInTheDocument()
   })
 
+  it('카드사 필터 버튼은 데이터에 있는 카드사로 동적 생성된다', async () => {
+    fetchCardBenefits.mockResolvedValueOnce([
+      ...benefits,
+      { id: 3, title: '신한 여행 이벤트', event_period: '2026.08.01 ~', card_company: '신한카드',
+        target_cards: null, benefit_summary: null, benefit_tags: [], detail_url: 'https://ex.com/3', image_url: null },
+    ])
+    renderView()
+    await screen.findByText('신한 여행 이벤트')
+    // 데이터에 있는 카드사(하나/우리/신한) 버튼이 모두 노출
+    expect(screen.getByRole('button', { name: '하나카드' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '우리카드' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '신한카드' })).toBeInTheDocument()
+  })
+
   it('로딩 실패 시 재시도 UI 를 보여준다 (browser dialog 금지)', async () => {
     fetchCardBenefits.mockRejectedValueOnce(new Error('네트워크 오류'))
     renderView()

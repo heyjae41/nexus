@@ -2,11 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { fetchCardBenefits } from '../api/client'
 
-const COMPANIES = ['전체', '하나카드', '우리카드']
+// 필터 노출 순서 기준 — 데이터에 있는 카드사만 이 순서로 보여주고, 목록에 없던
+// 신규 카드사는 뒤에 이어붙인다 (백엔드에 카드사가 추가돼도 프론트 수정 불필요)
+const COMPANY_ORDER = ['하나카드', '우리카드', '현대카드', '삼성카드', '롯데카드', 'KB국민카드', '신한카드']
 
 const COMPANY_COLORS = {
   하나카드: '#008485',
   우리카드: '#0067AC',
+  현대카드: '#111111',
+  삼성카드: '#1428A0',
+  롯데카드: '#DA291C',
+  KB국민카드: '#FFB300',
+  신한카드: '#0046FF',
 }
 
 function BenefitCard({ benefit }) {
@@ -129,9 +136,16 @@ export default function CardPick() {
     return () => controllerRef.current?.abort()
   }, [load, location.key])
 
-  const filtered = company === '전체'
+  const present = new Set(benefits.map(benefit => benefit.card_company))
+  const companies = [
+    '전체',
+    ...COMPANY_ORDER.filter(name => present.has(name)),
+    ...[...present].filter(name => !COMPANY_ORDER.includes(name)).sort(),
+  ]
+  const activeCompany = companies.includes(company) ? company : '전체'
+  const filtered = activeCompany === '전체'
     ? benefits
-    : benefits.filter(benefit => benefit.card_company === company)
+    : benefits.filter(benefit => benefit.card_company === activeCompany)
 
   return (
     <main style={{ background: '#0A0A12', minHeight: '100vh', padding: '40px 40px 64px' }}>
@@ -153,18 +167,18 @@ export default function CardPick() {
         </div>
 
         <div role="group" aria-label="카드사 필터" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 28 }}>
-          {COMPANIES.map(name => (
+          {companies.map(name => (
             <button
               key={name}
               className="btn"
-              aria-pressed={company === name}
+              aria-pressed={activeCompany === name}
               onClick={() => setCompany(name)}
               style={{
                 padding: '7px 14px', borderRadius: 20,
                 fontSize: 13.5, fontWeight: 600,
-                background: company === name ? '#3E3FD9' : '#15151A',
-                color: company === name ? '#fff' : '#b4b4be',
-                border: company === name ? '1px solid #3E3FD9' : '1px solid rgba(255,255,255,.08)',
+                background: activeCompany === name ? '#3E3FD9' : '#15151A',
+                color: activeCompany === name ? '#fff' : '#b4b4be',
+                border: activeCompany === name ? '1px solid #3E3FD9' : '1px solid rgba(255,255,255,.08)',
                 transition: 'all .15s',
               }}
             >
