@@ -98,6 +98,8 @@ pg_restore --exit-on-error --no-owner --no-privileges \
 cat > "$RESTORE_SQL" <<'SQL'
 SET lock_timeout = '10s';
 DROP TABLE IF EXISTS
+  public.card_benefit_collect_runs,
+  public.card_benefits,
   public.fastcampus_collect_runs,
   public.courses,
   public.newsletter_collect_runs,
@@ -157,7 +159,8 @@ BEGIN
      WHERE table_schema = 'public' AND table_name IN (
        'categories','articles','members','auth_sessions','community_posts','community_post_likes','community_comments',
        'meetup_events','meetup_collect_runs','courses','fastcampus_collect_runs',
-       'writer_sessions','writer_messages','brunch_collect_runs','newsletter_collect_runs'
+       'writer_sessions','writer_messages','brunch_collect_runs','newsletter_collect_runs',
+       'card_benefits','card_benefit_collect_runs'
      ))
     UNION ALL
     (SELECT table_name, ordinal_position, column_name, data_type, is_nullable, coalesce(column_default, '')
@@ -165,7 +168,8 @@ BEGIN
      WHERE table_schema = 'public' AND table_name IN (
        'categories','articles','members','auth_sessions','community_posts','community_post_likes','community_comments',
        'meetup_events','meetup_collect_runs','courses','fastcampus_collect_runs',
-       'writer_sessions','writer_messages','brunch_collect_runs','newsletter_collect_runs'
+       'writer_sessions','writer_messages','brunch_collect_runs','newsletter_collect_runs',
+       'card_benefits','card_benefit_collect_runs'
      )
      EXCEPT SELECT * FROM nexus_expected_columns)
   ) THEN

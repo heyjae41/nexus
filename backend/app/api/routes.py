@@ -31,6 +31,7 @@ HOME_SECTION_SIZE = 6
 # 홈 큐레이션 섹션 노출 순서 — 포맷별 최신 1건씩
 HOME_CURATION_FORMATS = ("column", "newsletter", "guide")
 EventCategory = Literal["IT/프로그래밍", "AI", "경제/금융"]
+CARD_COMPANIES = ("하나카드", "우리카드")
 ClassCategory = Literal["DATASCIENCEDL", "AICREATIVE", "BIZ", "DAKER", "DACON"]
 
 
@@ -128,6 +129,30 @@ def events(
         lambda: list_upcoming_events(db, category=category, page=paging.page, size=paging.size),
         serialize_event_card,
     )
+
+
+@router.get("/card-benefits")
+def card_benefits(
+    company: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    """Card.Pick — 카드사 해외여행 혜택 목록.
+
+    응답 키는 DB 필수 컬럼명(snake_case) 그대로 — 다른 채널이 그대로 소비한다.
+    company 파라미터는 외부 채널용 필터다 (NEXUS 프론트는 클라이언트 필터링)."""
+    from app.repositories.card_benefits import list_active_benefits
+    from app.serializers import serialize_card_benefit
+
+    # 임의 값이 캐시 키를 오염시키지 않도록 알려진 카드사만 허용한다
+    if company is not None and company not in CARD_COMPANIES:
+        raise HTTPException(status_code=400, detail="지원하지 않는 카드사입니다")
+    key = f"card_benefits:list:{company or 'all'}"
+    data = cache.get_or_set(
+        key,
+        lambda: [serialize_card_benefit(b) for b in list_active_benefits(db, company=company)],
+    )
+    return api_response(data, meta={"total": len(data)})
 
 
 @router.get("/articles/{article_id}")

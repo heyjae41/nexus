@@ -92,6 +92,14 @@ export async function fetchEvents({ category = null, page = 1, size = 20 } = {})
   return json
 }
 
+export async function fetchCardBenefits({ company = null, signal } = {}) {
+  const params = new URLSearchParams()
+  if (company) params.set('company', company)
+  const query = params.toString()
+  const json = await request(`/api/card-benefits${query ? `?${query}` : ''}`, { signal })
+  return json.data ?? []
+}
+
 export async function fetchHotpicks({ signal } = {}) {
   const res = await fetch(HOTPICK_API, { cache: 'no-store', signal })
   if (!res.ok) throw new Error(`핫픽 API 오류 ${res.status}`)

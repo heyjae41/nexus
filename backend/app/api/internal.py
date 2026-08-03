@@ -125,6 +125,41 @@ def classes_run(
     })
 
 
+@router.post("/cardpick/run")
+def cardpick_run(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    from app.services.card_benefit_collector import collect_card_benefits
+    from app.services.card_benefit_fetcher import (
+        fetch_hana_candidates,
+        fetch_woori_candidates,
+    )
+
+    sources: dict[str, dict] = {}
+    failures: list[str] = []
+    # 한 카드사 실패가 다른 카드사 수집을 막지 않는다 (스케줄러와 동일 정책)
+    for name, fetch in (("hana", fetch_hana_candidates), ("woori", fetch_woori_candidates)):
+        try:
+            result = collect_card_benefits(db, cache, candidates=fetch())
+            sources[name] = {
+                "candidates": result.candidates,
+                "added": result.added,
+                "updated": result.updated,
+            }
+        except Exception:  # noqa: BLE001 — 실패 카드사만 보고하고 계속
+            logger.exception("Card.Pick %s 수동 수집 실패", name)
+            failures.append(name)
+    if not sources and failures:
+        raise HTTPException(status_code=502, detail="카드 혜택 수집에 실패했습니다")
+    return api_response({
+        "candidates": sum(s["candidates"] for s in sources.values()),
+        "added": sum(s["added"] for s in sources.values()),
+        "updated": sum(s["updated"] for s in sources.values()),
+        "failed_sources": failures,
+        "sources": sources,
+    })
+
+
 @router.post("/brunch/run")
 def brunch_run(
     db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)

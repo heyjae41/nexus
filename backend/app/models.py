@@ -1,9 +1,10 @@
 """SQLAlchemy 모델 — docs/ARCHITECTURE.md 의 스키마 정의를 따른다."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -305,6 +306,38 @@ class NewsletterCollectRun(CollectRunColumns, Base):
     """뉴스레터 수집 이력 (스티비 아카이브 + KMA 인사이트)."""
 
     __tablename__ = "newsletter_collect_runs"
+
+
+class CardBenefit(Base):
+    """Card.Pick — 카드사 해외여행 혜택 이벤트 (하나/우리카드 수집).
+
+    title/event_period/card_company/target_cards/detail_url/image_url 은
+    외부 채널도 소비하는 필수 컬럼 — 공개 API 가 이 이름 그대로 JSON 으로 내린다.
+    """
+
+    __tablename__ = "card_benefits"
+    __table_args__ = (Index("ix_card_benefits_start", "event_start_date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    card_company: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    event_period: Mapped[str] = mapped_column(String(100), nullable=False)
+    event_start_date: Mapped[date | None] = mapped_column(Date)
+    event_end_date: Mapped[date | None] = mapped_column(Date)
+    target_cards: Mapped[str | None] = mapped_column(String(500))
+    benefit_summary: Mapped[str | None] = mapped_column(String(500))  # 혜택 내용 한 줄 요약
+    benefit_tags: Mapped[str | None] = mapped_column(String(200))  # 쉼표 구분: 할인,캐시백
+    detail_url: Mapped[str] = mapped_column(String(1000), unique=True, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = _published_status_col()
+    collected_at: Mapped[datetime] = _ts_now_col()
+
+
+class CardBenefitCollectRun(CollectRunColumns, Base):
+    """Card.Pick 수집 이력."""
+
+    __tablename__ = "card_benefit_collect_runs"
 
 
 class BrunchCollectRun(Base):
