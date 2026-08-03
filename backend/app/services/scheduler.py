@@ -131,6 +131,23 @@ def run_dacon_job(cache: VersionedCache) -> None:
             logger.exception("DACON 경진대회 수집 작업 실패")
 
 
+def run_card_benefit_job(cache: VersionedCache) -> None:
+    from app.services.card_benefit_collector import collect_card_benefits
+    from app.services.card_benefit_fetcher import (
+        fetch_hana_candidates,
+        fetch_woori_candidates,
+    )
+
+    with _session() as db:
+        # 한 카드사 실패가 다른 카드사 수집을 막지 않도록 분리 실행한다
+        for name, fetch in (("하나카드", fetch_hana_candidates),
+                            ("우리카드", fetch_woori_candidates)):
+            try:
+                collect_card_benefits(db, cache, candidates=fetch())
+            except Exception:
+                logger.exception("Card.Pick %s 수집 작업 실패", name)
+
+
 def run_collect_chain_job(cache: VersionedCache) -> None:
     """12시간 주기 수집 체인 — 브런치부터 순차 실행, 한 단계 실패해도 다음 단계 진행."""
     settings = get_settings()
@@ -147,6 +164,7 @@ def run_collect_chain_job(cache: VersionedCache) -> None:
         ("fastcampus", lambda: run_fastcampus_job(cache)),
         ("daker", lambda: run_daker_job(cache)),
         ("dacon", lambda: run_dacon_job(cache)),
+        ("cardpick", lambda: run_card_benefit_job(cache)),
     ])
     for name, step in steps:
         try:

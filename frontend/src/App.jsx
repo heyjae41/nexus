@@ -15,6 +15,7 @@ import CommunityWrite from './views/CommunityWrite'
 import Meet from './views/Meet'
 import MeetDetail from './views/MeetDetail'
 import Hotdeal from './views/Hotdeal'
+import CardPick from './views/CardPick'
 import Onboarding from './views/Onboarding'
 import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
@@ -95,6 +96,7 @@ function AppInner() {
         <Route path="/meet" element={<Meet />} />
         <Route path="/meet/:id" element={<MeetDetail />} />
         <Route path="/hotdeal" element={<Hotdeal />} />
+        <Route path="/cardpick" element={<CardPick />} />
         <Route path="/onboarding" element={<Onboarding onFinish={finishOnboarding} />} />
         <Route path="/checkout/:classId" element={<Checkout />} />
         <Route path="/dashboard" element={<Dashboard user={user} enrolled={enrolled} />} />

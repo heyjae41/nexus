@@ -14,3 +14,5 @@ writer_sessions
 writer_messages
 brunch_collect_runs
 newsletter_collect_runs
+card_benefits
+card_benefit_collect_runs

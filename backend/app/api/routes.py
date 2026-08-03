@@ -130,6 +130,26 @@ def events(
     )
 
 
+@router.get("/card-benefits")
+def card_benefits(
+    company: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    """Card.Pick — 카드사 해외여행 혜택 목록.
+
+    응답 키는 DB 필수 컬럼명(snake_case) 그대로 — 다른 채널이 그대로 소비한다."""
+    from app.repositories.card_benefits import list_active_benefits
+    from app.serializers import serialize_card_benefit
+
+    key = f"card_benefits:list:{company or 'all'}"
+    data = cache.get_or_set(
+        key,
+        lambda: [serialize_card_benefit(b) for b in list_active_benefits(db, company=company)],
+    )
+    return api_response(data, meta={"total": len(data)})
+
+
 @router.get("/articles/{article_id}")
 def article_detail(article_id: int, db: Session = Depends(get_db)):
     article = get_article(db, article_id)
