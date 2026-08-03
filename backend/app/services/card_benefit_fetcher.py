@@ -85,6 +85,65 @@ def _clean_summary(raw: str | None) -> str | None:
     return text or None
 
 
+# '얼마 쓰면 얼마 받는다' 요약 추출 — 금액·혜택동사·이용조건 패턴 점수화
+_AMOUNT_RE = re.compile(
+    r"\d[\d,.]*\s*(?:만|천)?\s*(?:원|%|퍼센트|달러|불|엔|하나머니|마일리지|마일|포인트)"
+    r"|[$€¥]\s*\d[\d,.]*"
+)
+_BENEFIT_VERB_RE = re.compile(r"할인|적립|캐시백|증정|지급|무료|환급")
+_CONDITION_RE = re.compile(r"(?:결제|이용|사용|구매|예약|충전|투숙)\s*시|이상\s*(?:결제|이용|사용|구매)")
+# 행 시작의 안내성 문구만 배제한다 — 혜택 문장 중간의 '유의사항' 언급은 무해
+_NOISE_RE = re.compile(
+    r"^\s*(?:(?:이벤트\s*)?(?:기간|대상|응모\s*방법|참여\s*방법)\s*[::]"
+    r"|유의\s*사항|자세한\s|※)"
+)
+SUMMARY_MAX_LEN = 160
+
+
+def _score_benefit_line(text: str) -> int:
+    if _NOISE_RE.search(text):
+        return 0
+    score = 0
+    if _BENEFIT_VERB_RE.search(text):
+        score += 2
+    if _CONDITION_RE.search(text):
+        score += 2
+    # 금액은 혜택동사/조건과 함께일 때만 신호로 본다 —
+    # '100% 당첨' 류 홍보 헤드라인이 % 하나로 통과하는 것을 막는다
+    if score and _AMOUNT_RE.search(text):
+        score += 3
+    return score
+
+
+def summarize_benefit_texts(texts: list[str]) -> str | None:
+    """본문 문단들에서 실질 혜택 문장(금액·조건 포함)을 골라 최대 2건 요약한다.
+
+    헤드라인/기간/유의사항 문구는 배제하고, '얼마 쓰면 얼마 받는다' 형태를
+    우선한다 (점수: 금액 3 + 혜택동사 2 + 이용조건 2, 2점 미만 탈락).
+    """
+    scored: list[tuple[int, int, str]] = []
+    seen: set[str] = set()
+    for order, raw in enumerate(texts or []):
+        text = re.sub(r"\s+", " ", (raw or "")).strip()
+        if not text:
+            continue
+        norm = re.sub(r"\s", "", text)
+        if norm in seen:
+            continue
+        seen.add(norm)
+        score = _score_benefit_line(text)
+        if score >= 2:
+            scored.append((score, order, text))
+
+    if not scored:
+        return None
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    summary = " · ".join(text for _, _, text in scored[:2])
+    if len(summary) > SUMMARY_MAX_LEN:
+        summary = summary[: SUMMARY_MAX_LEN - 1].rstrip() + "…"
+    return summary
+
+
 # ---------------------------------------------------------------- 하나카드
 
 def parse_hana_list(data: dict) -> list[CardBenefitCandidate]:
@@ -126,12 +185,15 @@ def parse_hana_detail_target_cards(html_or_soup) -> str | None:
 
 
 def parse_hana_detail_benefit_summary(html_or_soup) -> str | None:
-    """상세 본문 첫 혜택 문단을 요약으로 쓴다 (.eVgroup-first 우선)."""
+    """상세 본문에서 실질 혜택 문장('얼마 쓰면 얼마 받는다')을 골라 요약한다.
+
+    반드시 이벤트 본문 컨테이너(.wcms-data/.event-data)를 먼저 잡는다 —
+    .page-contents 는 GNB 메뉴 레이어에도 붙어 있어 공통 배너가 오염된다.
+    """
     soup = _as_soup(html_or_soup)
-    para = soup.select_one(".eVgroup-first p.txt-cont") or soup.select_one("p.txt-cont")
-    if para is None:
-        return None
-    return _clean_summary(para.decode())
+    body = soup.select_one(".wcms-data") or soup.select_one(".event-data") or soup
+    texts = [el.get_text(" ", strip=True) for el in body.select("p.txt-cont, li")]
+    return summarize_benefit_texts(texts)
 
 
 def _as_soup(html_or_soup) -> BeautifulSoup:
@@ -253,6 +315,18 @@ def woori_detail_text(cms_contents: str | None) -> str:
     )
 
 
+def parse_woori_detail_benefit_summary(cms_contents: str | None) -> str | None:
+    """pcCmsCntnts(HTML 이스케이프 본문)에서 실질 혜택 문장을 골라 요약한다."""
+    if not cms_contents:
+        return None
+    soup = BeautifulSoup(html_lib.unescape(cms_contents), "html.parser")
+    elements = soup.find_all(["p", "dd", "li"])
+    texts = [el.get_text(" ", strip=True) for el in elements]
+    if not texts:
+        texts = [soup.get_text(" ", strip=True)]
+    return summarize_benefit_texts(texts)
+
+
 _WOORI_FETCH_JS = """
 async ({ url, body }) => {
   const r = await fetch(url, {
@@ -355,8 +429,13 @@ def _with_woori_detail(post, c: CardBenefitCandidate) -> CardBenefitCandidate:
         rows = data.get("prgEvntDtl") or []
         cms = rows[0].get("pcCmsCntnts") if rows else None
         target = parse_woori_detail_target_cards(cms)
+        # 상세 본문의 실질 혜택 문장이 목록 요약(evntSumTxt, 홍보 문구)보다 우선
+        summary = parse_woori_detail_benefit_summary(cms) or c.benefit_summary
         tags = extract_benefit_tags(f"{c.title} {woori_detail_text(cms)[:3000]}")
-        return replace(c, target_cards=target, benefit_tags=",".join(tags) or None)
+        return replace(
+            c, target_cards=target, benefit_summary=summary,
+            benefit_tags=",".join(tags) or None,
+        )
     except Exception:  # noqa: BLE001 — 상세 보강 실패는 목록 정보로 폴백
         logger.warning("우리카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
         return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
