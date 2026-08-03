@@ -246,6 +246,22 @@ class TestSummarizeBenefitTexts:
         assert summarize_benefit_texts([]) is None
         assert summarize_benefit_texts(["", "  "]) is None
 
+    def test_inline_notice_mention_does_not_kill_benefit_line(self):
+        """문장 중간의 '유의사항/자세한' 언급은 배제 사유가 아니다 (행 시작만 배제)."""
+        texts = ["해외 결제 시 5만원 캐시백 (유의사항 확인)"]
+        summary = summarize_benefit_texts(texts)
+        assert summary is not None and "5만원 캐시백" in summary
+        # 행 시작이 유의사항이면 여전히 배제
+        assert summarize_benefit_texts(["유의사항: 결제 시 5만원 캐시백 제외"]) is None
+
+    def test_bare_percent_headline_does_not_qualify(self):
+        """혜택동사·조건 없는 '%' 홍보 문구(당첨 랜덤박스류)는 요약이 될 수 없다."""
+        assert summarize_benefit_texts(["100% 당첨 랜덤박스", "최대 100% 당첨 기회!"]) is None
+
+    def test_foreign_currency_counts_as_amount(self):
+        texts = ["두근두근 여행!", "50달러 상당 상품권 증정", "면세점 방문 안내"]
+        assert summarize_benefit_texts(texts) == "50달러 상당 상품권 증정"
+
     def test_clips_to_max_length(self):
         long = "최대 10% 할인 " + "긴설명 " * 60
         summary = summarize_benefit_texts([long])

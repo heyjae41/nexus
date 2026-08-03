@@ -87,13 +87,15 @@ def _clean_summary(raw: str | None) -> str | None:
 
 # '얼마 쓰면 얼마 받는다' 요약 추출 — 금액·혜택동사·이용조건 패턴 점수화
 _AMOUNT_RE = re.compile(
-    r"\d[\d,.]*\s*(?:만|천)?\s*(?:원|%|퍼센트|하나머니|마일리지|마일|포인트)"
+    r"\d[\d,.]*\s*(?:만|천)?\s*(?:원|%|퍼센트|달러|불|엔|하나머니|마일리지|마일|포인트)"
+    r"|[$€¥]\s*\d[\d,.]*"
 )
 _BENEFIT_VERB_RE = re.compile(r"할인|적립|캐시백|증정|지급|무료|환급")
 _CONDITION_RE = re.compile(r"(?:결제|이용|사용|구매|예약|충전|투숙)\s*시|이상\s*(?:결제|이용|사용|구매)")
+# 행 시작의 안내성 문구만 배제한다 — 혜택 문장 중간의 '유의사항' 언급은 무해
 _NOISE_RE = re.compile(
-    r"^\s*(?:이벤트\s*)?(?:기간|대상|응모\s*방법|참여\s*방법)\s*[::]"
-    r"|유의\s*사항|자세한\s.*(?:확인|안내)"
+    r"^\s*(?:(?:이벤트\s*)?(?:기간|대상|응모\s*방법|참여\s*방법)\s*[::]"
+    r"|유의\s*사항|자세한\s|※)"
 )
 SUMMARY_MAX_LEN = 160
 
@@ -102,12 +104,14 @@ def _score_benefit_line(text: str) -> int:
     if _NOISE_RE.search(text):
         return 0
     score = 0
-    if _AMOUNT_RE.search(text):
-        score += 3
     if _BENEFIT_VERB_RE.search(text):
         score += 2
     if _CONDITION_RE.search(text):
         score += 2
+    # 금액은 혜택동사/조건과 함께일 때만 신호로 본다 —
+    # '100% 당첨' 류 홍보 헤드라인이 % 하나로 통과하는 것을 막는다
+    if score and _AMOUNT_RE.search(text):
+        score += 3
     return score
 
 
