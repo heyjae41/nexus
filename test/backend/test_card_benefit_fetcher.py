@@ -11,8 +11,10 @@ from app.services.card_benefit_fetcher import (
     parse_hana_detail_benefit_summary,
     parse_hana_detail_target_cards,
     parse_hana_list,
+    parse_woori_detail_benefit_summary,
     parse_woori_detail_target_cards,
     parse_woori_list,
+    summarize_benefit_texts,
 )
 
 HANA_LIST_DATA = {
@@ -102,6 +104,21 @@ def test_parse_hana_detail_benefit_summary():
     assert summary == "응모 후 대상카드로 해외 온/오프라인 가맹점 결제 시 최대 10만 하나머니 적립"
 
 
+def test_parse_hana_detail_summary_ignores_gnb_banner():
+    """GNB 메뉴 레이어(.page-contents)의 공통 배너는 요약 후보에서 배제한다."""
+    html = """
+    <div class="layer-wrap page-contents">
+      <ul><li>100% 당첨 랜덤박스</li><li>트래블로그 적립챌린지</li></ul>
+    </div>
+    <div class="wcms-data">
+      <ul><li>VIA 100만원 할인쿠폰 * 1,000만원 이상 전액 결제 시</li></ul>
+    </div>
+    """
+    summary = parse_hana_detail_benefit_summary(html)
+    assert "100만원 할인쿠폰" in summary
+    assert "랜덤박스" not in summary
+
+
 def test_parse_hana_detail_benefit_summary_missing_returns_none():
     assert parse_hana_detail_benefit_summary("<html><body>없음</body></html>") is None
 
@@ -184,6 +201,66 @@ def test_parse_woori_detail_target_cards():
 def test_parse_woori_detail_without_target_returns_none():
     assert parse_woori_detail_target_cards("&lt;p&gt;안내&lt;/p&gt;") is None
     assert parse_woori_detail_target_cards(None) is None
+
+
+class TestSummarizeBenefitTexts:
+    """'얼마 쓰면 얼마 받는다' 형태의 실질 혜택 문장을 골라 요약한다."""
+
+    def test_prefers_spend_get_line_over_headline(self):
+        texts = [
+            "신세계 X 하나카드 신세계 제휴 하나카드 출석 챌린지!",  # 헤드라인 (금액 없음)
+            "이벤트 기간 : 2026. 8. 3(월) ~ 8. 17(월)",
+            "VIA SHINSEGAE 100만원 할인쿠폰 * 신세계 제휴 하나카드로 1,000만원 이상 전액 결제 시",
+            "자세한 쿠폰 내용 및 사용 방법은 증정된 쿠폰 내 유의사항을 통해 확인 가능합니다",
+        ]
+        summary = summarize_benefit_texts(texts)
+        assert "100만원 할인쿠폰" in summary
+        assert "1,000만원 이상" in summary
+        assert "출석 챌린지" not in summary
+
+    def test_joins_top_two_distinct_benefit_lines(self):
+        texts = [
+            "해외 결제 300만원 이상 시 5만 하나머니 적립",
+            "해외 결제 500만원 이상 시 10만 하나머니 적립",
+        ]
+        summary = summarize_benefit_texts(texts)
+        assert "5만 하나머니" in summary and "10만 하나머니" in summary
+
+    def test_excludes_period_target_and_notice_lines(self):
+        texts = [
+            "이벤트 기간 : 2026.08.01 ~ 08.31",
+            "이벤트 대상 : 전 고객",
+            "유의사항: 혜택 제공 전 카드 해지 시 제외됩니다",
+        ]
+        assert summarize_benefit_texts(texts) is None
+
+    def test_falls_back_to_benefit_verb_line_without_amount(self):
+        # 금액이 없어도 혜택 동사가 있는 문장은 헤드라인보다 우선한다
+        texts = [
+            "두근두근 여행 시즌!",
+            "공항 라운지 무료 이용권 증정",
+        ]
+        assert summarize_benefit_texts(texts) == "공항 라운지 무료 이용권 증정"
+
+    def test_empty_returns_none(self):
+        assert summarize_benefit_texts([]) is None
+        assert summarize_benefit_texts(["", "  "]) is None
+
+    def test_clips_to_max_length(self):
+        long = "최대 10% 할인 " + "긴설명 " * 60
+        summary = summarize_benefit_texts([long])
+        assert summary is not None and len(summary) <= 160
+
+
+def test_parse_woori_detail_benefit_summary_prefers_amount_lines():
+    cms = (
+        "&lt;dl&gt;&lt;dt&gt;대상 카드&lt;/dt&gt;&lt;dd&gt;우리카드 전체&lt;/dd&gt;&lt;/dl&gt;"
+        "&lt;p&gt;호텔 예약은 WON트래블에서!&lt;/p&gt;"
+        "&lt;p&gt;해외 호텔 40만원 이상 결제 시 최대 8만원 할인&lt;/p&gt;"
+    )
+    summary = parse_woori_detail_benefit_summary(cms)
+    assert "40만원 이상 결제 시" in summary
+    assert "8만원 할인" in summary
 
 
 def test_extract_benefit_tags():

@@ -102,7 +102,7 @@ export default function Nav({ user, onLogin, onLogout }) {
               transition: 'color .15s',
             }}
           >
-            Card.Pick
+            card.Pick
           </Link>
         </nav>
 
@@ -163,7 +163,7 @@ export default function Nav({ user, onLogin, onLogout }) {
               <span>eat.pl</span><span aria-hidden="true">↗</span>
             </a>
             <Link to="/cardpick" onClick={() => setMenuOpen(false)} aria-current={isActive(pathname, ['/cardpick']) ? 'page' : undefined} className={isActive(pathname, ['/cardpick']) ? 'active' : ''}>
-              <span>Card.Pick</span><span aria-hidden="true">›</span>
+              <span>card.Pick</span><span aria-hidden="true">›</span>
             </Link>
           </nav>
           <div className="mobile-menu-account">

@@ -145,7 +145,7 @@ export default function CardPick() {
             CARD.PICK · 해외여행 카드혜택 수집
           </p>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-.03em', margin: '0 0 8px' }}>
-            Card.Pick
+            card.Pick
           </h1>
           <p role="status" aria-live="polite" style={{ fontSize: 15, color: '#9a9aa4', margin: 0 }}>
             카드사별 해외여행 이벤트 혜택 모음 · 총 {filtered.length}개 — 할인·캐시백·무료이용 혜택만 골라 담았습니다.
