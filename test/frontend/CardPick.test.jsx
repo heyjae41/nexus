@@ -16,6 +16,7 @@ const benefits = [
     event_period: '2026.08.01 ~ 2026.09.30',
     card_company: '하나카드',
     target_cards: 'JADE 카드 (Visa 브랜드)',
+    benefit_summary: '해외 결제 시 최대 10만 하나머니 적립',
     benefit_tags: ['적립', '캐시백'],
     detail_url: 'https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=60480&ref=nexus.bccard.ai',
     image_url: 'https://m.hanacard.co.kr/a.png',
@@ -52,6 +53,8 @@ describe('CardPick 뷰', () => {
     expect(screen.getByText('WON트래블 호텔 최대 25% 할인')).toBeInTheDocument()
     expect(screen.getByText('2026.08.01 ~ 2026.09.30')).toBeInTheDocument()
     expect(screen.getByText(/JADE 카드/)).toBeInTheDocument()
+    // 제목 아래 이벤트 혜택 요약
+    expect(screen.getByText('해외 결제 시 최대 10만 하나머니 적립')).toBeInTheDocument()
 
     const link = screen.getAllByTestId('cardpick-card-link')[0]
     expect(link).toHaveAttribute('target', '_blank')

@@ -10,7 +10,10 @@
 (스케줄러/internal API)가 처리하도록 예외를 전파한다.
 """
 import html as html_lib
+import json
 import logging
+import re
+import time
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 
@@ -48,6 +51,7 @@ class CardBenefitCandidate:
     detail_url: str
     image_url: str | None
     target_cards: str | None = None
+    benefit_summary: str | None = None
     benefit_tags: str | None = None
 
 
@@ -72,6 +76,15 @@ def extract_benefit_tags(text: str | None) -> list[str]:
     return [kw for kw in BENEFIT_KEYWORDS if kw in text]
 
 
+def _clean_summary(raw: str | None) -> str | None:
+    """HTML 이스케이프·태그·개행이 섞인 요약 원문을 한 줄 평문으로 정리한다."""
+    if not raw:
+        return None
+    text = BeautifulSoup(html_lib.unescape(raw), "html.parser").get_text(" ", strip=True)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text or None
+
+
 # ---------------------------------------------------------------- 하나카드
 
 def parse_hana_list(data: dict) -> list[CardBenefitCandidate]:
@@ -79,7 +92,8 @@ def parse_hana_list(data: dict) -> list[CardBenefitCandidate]:
     items = (data.get("eventListMap") or {}).get("list") or []
     out: list[CardBenefitCandidate] = []
     for it in items:
-        seq = (it.get("EVN_SEQ") or "").strip() if it.get("EVN_SEQ") else ""
+        # EVN_SEQ 는 문자열/숫자 어느 쪽으로 와도 수용한다
+        seq = str(it.get("EVN_SEQ") or "").strip()
         title = (it.get("EVN_TIT_NM") or "").strip()
         if not seq or not title:
             continue
@@ -94,20 +108,36 @@ def parse_hana_list(data: dict) -> list[CardBenefitCandidate]:
                 event_end_date=_parse_dot_date(it.get("EVN_EDT")),
                 detail_url=f"{HANA_BASE}/MKEVT1010M.web?EVN_SEQ={seq}",
                 image_url=f"{HANA_BASE}{image}" if image else None,
+                benefit_summary=_clean_summary(it.get("ADD_VAR5")),
             )
         )
     return out
 
 
-def parse_hana_detail_target_cards(html: str) -> str | None:
+def parse_hana_detail_target_cards(html_or_soup) -> str | None:
     """상세 HTML 의 '대상카드' 섹션 텍스트를 추출한다 (없으면 None)."""
-    soup = BeautifulSoup(html, "html.parser")
+    soup = _as_soup(html_or_soup)
     for heading in soup.find_all(["h2", "h3"]):
         if "대상카드" in heading.get_text(strip=True).replace(" ", ""):
             body = heading.find_next_sibling("p")
             if body is not None:
                 return body.get_text(" ", strip=True) or None
     return None
+
+
+def parse_hana_detail_benefit_summary(html_or_soup) -> str | None:
+    """상세 본문 첫 혜택 문단을 요약으로 쓴다 (.eVgroup-first 우선)."""
+    soup = _as_soup(html_or_soup)
+    para = soup.select_one(".eVgroup-first p.txt-cont") or soup.select_one("p.txt-cont")
+    if para is None:
+        return None
+    return _clean_summary(para.decode())
+
+
+def _as_soup(html_or_soup) -> BeautifulSoup:
+    if isinstance(html_or_soup, BeautifulSoup):
+        return html_or_soup
+    return BeautifulSoup(html_or_soup, "html.parser")
 
 
 def fetch_hana_candidates(
@@ -132,9 +162,7 @@ def fetch_hana_candidates(
                 headers={"Referer": f"{HANA_BASE}/MKEVT1000M.web"},
             )
             res.raise_for_status()
-            import json as json_lib
-
-            payload = json_lib.loads(res.content.decode("euc-kr", errors="replace"))
+            payload = json.loads(res.content.decode("euc-kr", errors="replace"))
             data = payload.get("DATA") or {}
             total_pages = int((data.get("eventListMap") or {}).get("totalPage") or 1)
             candidates += parse_hana_list(data)
@@ -155,14 +183,17 @@ def _with_hana_detail(client: httpx.Client, c: CardBenefitCandidate) -> CardBene
     try:
         res = client.get(c.detail_url)
         res.raise_for_status()
-        html = res.content.decode("euc-kr", errors="replace")
-        target = parse_hana_detail_target_cards(html)
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(res.content.decode("euc-kr", errors="replace"), "html.parser")
+        target = parse_hana_detail_target_cards(soup)
+        summary = parse_hana_detail_benefit_summary(soup) or c.benefit_summary
         # 공통 네비/푸터의 키워드 오탐을 막기 위해 이벤트 본문 영역만 본다
         body = soup.select_one(".page-contents, .contents-wrap, .event-detail") or soup
         text = body.get_text(" ", strip=True)
         tags = extract_benefit_tags(f"{c.title} {text[:3000]}")
-        return replace(c, target_cards=target, benefit_tags=",".join(tags) or None)
+        return replace(
+            c, target_cards=target, benefit_summary=summary,
+            benefit_tags=",".join(tags) or None,
+        )
     except httpx.HTTPError:
         logger.warning("하나카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
         return replace(c, benefit_tags=",".join(extract_benefit_tags(c.title)) or None)
@@ -192,6 +223,9 @@ def parse_woori_list(data: dict) -> list[CardBenefitCandidate]:
                     f"?evntSrno={srno}"
                 ),
                 image_url=f"{WOORI_BASE}{image}" if image else None,
+                benefit_summary=_clean_summary(
+                    it.get("evntSumTxt") or it.get("mblEvntSumTxt")
+                ),
             )
         )
     return out
@@ -241,14 +275,18 @@ def fetch_woori_candidates(
     max_pages: int = 10,
     with_details: bool = True,
     page_timeout_ms: int = 45000,
+    budget_seconds: float = 300,
 ) -> list[CardBenefitCandidate]:
     """우리카드 여행/해외 이벤트를 Playwright 페이지 컨텍스트에서 수집한다.
 
     목록 페이지를 실제로 로드해 anti-bot 쿠키를 획득한 뒤, 같은 페이지에서
     fetch 로 pwkjson API 를 호출한다 (더보기 = pageIndex 증가와 동일).
+    budget_seconds 를 넘기면 남은 상세 보강을 중단하고 수집분만 반환한다 —
+    외부 사이트 지연이 스케줄러 스레드를 무한정 붙잡지 않게 하기 위함이다.
     """
     from playwright.sync_api import sync_playwright
 
+    deadline = time.monotonic() + budget_seconds
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         try:
@@ -260,18 +298,30 @@ def fetch_woori_candidates(
             def post(url: str, body: dict) -> dict:
                 return page.evaluate(_WOORI_FETCH_JS, {"url": url, "body": body})
 
-            candidates = _woori_collect_pages(post, category, max_pages)
+            candidates = _woori_collect_pages(post, category, max_pages, deadline)
             if with_details:
-                candidates = [_with_woori_detail(post, c) for c in candidates]
+                enriched = []
+                for i, c in enumerate(candidates):
+                    if time.monotonic() > deadline:
+                        logger.warning(
+                            "우리카드 수집 시간 예산 초과 — 상세 보강 %d/%d 에서 중단",
+                            i, len(candidates),
+                        )
+                        enriched.extend(candidates[i:])
+                        break
+                    enriched.append(_with_woori_detail(post, c))
+                candidates = enriched
             return candidates
         finally:
             browser.close()
 
 
-def _woori_collect_pages(post, category: str, max_pages: int) -> list[CardBenefitCandidate]:
+def _woori_collect_pages(
+    post, category: str, max_pages: int, deadline: float
+) -> list[CardBenefitCandidate]:
     candidates: list[CardBenefitCandidate] = []
     page_no, total_pages = 1, 1
-    while page_no <= min(total_pages, max_pages):
+    while page_no <= min(total_pages, max_pages) and time.monotonic() <= deadline:
         data = post(
             "/dcmw/yh1/bnf/bnf02/prgevnt/getPrgEvntList.pwkjson",
             {"bnf02PrgEvntVo": {

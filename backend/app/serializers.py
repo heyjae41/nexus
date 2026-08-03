@@ -150,6 +150,7 @@ def serialize_card_benefit(benefit) -> dict:
         ),
         "card_company": benefit.card_company,
         "target_cards": benefit.target_cards,
+        "benefit_summary": benefit.benefit_summary,
         "benefit_tags": benefit.benefit_tags.split(",") if benefit.benefit_tags else [],
         "detail_url": with_ref(benefit.detail_url),
         "image_url": benefit.image_url,

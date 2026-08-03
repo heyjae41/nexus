@@ -69,6 +69,16 @@ function BenefitCard({ benefit }) {
         }}>
           {benefit.title}
         </p>
+        {benefit.benefit_summary && (
+          <p style={{
+            fontSize: 12, color: '#b4b4be',
+            lineHeight: 1.5, margin: '0 0 8px',
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {benefit.benefit_summary}
+          </p>
+        )}
         <p style={{ fontSize: 12, color: '#9a9aa4', margin: '0 0 3px' }}>
           {benefit.event_period}
         </p>

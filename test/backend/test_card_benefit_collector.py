@@ -17,6 +17,7 @@ def make_candidate(**over):
         event_start_date=date(2026, 8, 1),
         event_end_date=date(2026, 9, 30),
         target_cards="JADE 카드",
+        benefit_summary="해외 결제 시 최대 10만 하나머니 적립",
         benefit_tags="적립",
         detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=60480",
         image_url="https://m.hanacard.co.kr/a.png",
@@ -41,6 +42,7 @@ def test_collect_saves_new_benefits(db):
     assert saved.title == "해외 결제하면 최대 10만 하나머니!"
     assert saved.event_period == "2026.08.01 ~ 2026.09.30"
     assert saved.target_cards == "JADE 카드"
+    assert saved.benefit_summary == "해외 결제 시 최대 10만 하나머니 적립"
     assert saved.detail_url == "https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=60480"
     assert saved.image_url == "https://m.hanacard.co.kr/a.png"
 
@@ -78,6 +80,7 @@ def test_collect_updates_period_and_image_on_change(db):
         event_period="2026.08.01 ~ 2026.10.31",
         event_end_date=date(2026, 10, 31),
         target_cards="JADE, MULTI 카드",
+        benefit_summary="연장! 최대 20만 하나머니 적립",
         image_url="https://m.hanacard.co.kr/b.png",
     )
     result = collect_card_benefits(db, cache, candidates=[changed])
@@ -87,4 +90,5 @@ def test_collect_updates_period_and_image_on_change(db):
     row = db.query(CardBenefit).one()
     assert row.event_period == "2026.08.01 ~ 2026.10.31"
     assert row.target_cards == "JADE, MULTI 카드"
+    assert row.benefit_summary == "연장! 최대 20만 하나머니 적립"
     assert row.image_url == "https://m.hanacard.co.kr/b.png"

@@ -19,8 +19,22 @@ logger = logging.getLogger(__name__)
 # 변경 감지·갱신 대상 필드 (후보 → DB 행 동일 이름)
 _UPDATABLE_FIELDS = (
     "title", "event_period", "event_start_date", "event_end_date",
-    "target_cards", "benefit_tags", "image_url",
+    "target_cards", "benefit_summary", "benefit_tags", "image_url",
 )
+
+# 외부 사이트 값이 컬럼 길이를 넘겨 배치 전체가 실패하지 않도록 절단한다
+_FIELD_LIMITS = {
+    "card_company": 50, "title": 300, "event_period": 100,
+    "target_cards": 500, "benefit_summary": 500, "benefit_tags": 200,
+    "detail_url": 1000, "image_url": 1000,
+}
+
+
+def _clip(c: CardBenefitCandidate, field: str) -> str | None:
+    value = getattr(c, field)
+    if value is None:
+        return None
+    return str(value)[: _FIELD_LIMITS[field]]
 
 
 @dataclass(frozen=True)
@@ -33,22 +47,23 @@ class CardBenefitCollectResult:
 def _row(c: CardBenefitCandidate) -> CardBenefit:
     return CardBenefit(
         source_id=c.source_id,
-        card_company=c.card_company,
-        title=c.title,
-        event_period=c.event_period,
+        card_company=_clip(c, "card_company"),
+        title=_clip(c, "title"),
+        event_period=_clip(c, "event_period"),
         event_start_date=c.event_start_date,
         event_end_date=c.event_end_date,
-        target_cards=c.target_cards,
-        benefit_tags=c.benefit_tags,
-        detail_url=c.detail_url,
-        image_url=c.image_url,
+        target_cards=_clip(c, "target_cards"),
+        benefit_summary=_clip(c, "benefit_summary"),
+        benefit_tags=_clip(c, "benefit_tags"),
+        detail_url=_clip(c, "detail_url"),
+        image_url=_clip(c, "image_url"),
     )
 
 
 def _apply_updates(existing: CardBenefit, c: CardBenefitCandidate) -> bool:
     changed = False
     for field in _UPDATABLE_FIELDS:
-        new = getattr(c, field)
+        new = _clip(c, field) if field in _FIELD_LIMITS else getattr(c, field)
         if new is not None and getattr(existing, field) != new:
             setattr(existing, field, new)
             changed = True
@@ -103,17 +118,22 @@ def collect_card_benefits(
     if updated:
         db.commit()
 
-    added = apply_collect_batch(
-        db,
-        rows=((c.detail_url, _row(c)) for c in fresh),
-        run_model=CardBenefitCollectRun,
-        candidates_count=len(candidates),
-        label="Card.Pick",
-    )
-
-    if added or updated:
-        cache.bump_version()
-        logger.info("Card.Pick 반영: 신규 %d건, 갱신 %d건 → 캐시 무효화", added, updated)
+    added = 0
+    try:
+        added = apply_collect_batch(
+            db,
+            rows=((c.detail_url, _row(c)) for c in fresh),
+            run_model=CardBenefitCollectRun,
+            candidates_count=len(candidates),
+            label="Card.Pick",
+        )
+    finally:
+        # 갱신분은 이미 커밋됐으므로 배치가 실패해도 캐시는 반드시 무효화한다 (불변식 #1)
+        if added or updated:
+            cache.bump_version()
+            logger.info(
+                "Card.Pick 반영: 신규 %d건, 갱신 %d건 → 캐시 무효화", added, updated
+            )
     return CardBenefitCollectResult(
         candidates=len(candidates), added=added, updated=updated
     )

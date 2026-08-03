@@ -25,6 +25,7 @@ def seed_benefits(client, count=3):
                 event_start_date=date(2026, 8, i + 1),
                 event_end_date=date(2026, 9, 30),
                 target_cards="전 카드",
+                benefit_summary=f"여행 혜택 {i} 요약 — 최대 {i + 1}만원 할인",
                 benefit_tags="할인,캐시백",
                 detail_url=f"https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ={i}",
                 image_url=f"https://m.hanacard.co.kr/img{i}.png",
@@ -51,6 +52,8 @@ def test_card_benefits_returns_required_columns(client):
     assert item["card_company"] == "하나카드"
     assert item["event_period"] == "2026.08.03 ~ 2026.09.30"
     assert item["image_url"] == "https://m.hanacard.co.kr/img2.png"
+    # 이벤트 혜택 요약도 API 항목으로 내린다 (목록 카드 제목 아래 노출용)
+    assert item["benefit_summary"] == "여행 혜택 2 요약 — 최대 3만원 할인"
 
 
 def test_card_benefits_filter_by_company(client):
