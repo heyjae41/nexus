@@ -249,6 +249,20 @@ class TestSummarizeBenefitTexts:
         assert "바로가기" not in summary and "자세히" not in summary
         assert "3만원 캐시백" in summary and "5만원 할인쿠폰" in summary
 
+    def test_mid_sentence_cta_verb_does_not_delete_reward(self):
+        # CTA 제거는 문장 '끝'에만 — 중간의 '확인하기'가 보상을 지우면 안 된다 (리뷰 HIGH)
+        summary = summarize_benefit_texts(["확인하기 쉬운 5만원 캐시백 적립"])
+        assert summary is not None and "5만원 캐시백" in summary
+
+    def test_leading_reward_survives_later_condition_marker(self):
+        # 보상이 앞에 오고 뒤에 '이용 시'가 있는 문장 — 앞 보상을 삼키면 안 된다 (리뷰 HIGH)
+        summary = summarize_benefit_texts(["5만원 캐시백, 추가 이용 시 1만원 추가 적립"])
+        assert summary is not None and summary.startswith("5만원 캐시백")
+
+    def test_weak_coupon_noun_alone_does_not_qualify(self):
+        # '쿠폰' 단독(금액 없음)의 CTA성 문구는 요약이 될 수 없다 (리뷰 MEDIUM)
+        assert summarize_benefit_texts(["쿠폰 받고 예약하러 가기"]) is None
+
     def test_excludes_period_target_and_notice_lines(self):
         texts = [
             "이벤트 기간 : 2026.08.01 ~ 08.31",

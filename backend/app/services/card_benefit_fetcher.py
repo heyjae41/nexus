@@ -90,6 +90,10 @@ _AMOUNT_RE = re.compile(
     r"\d[\d,.]*\s*(?:만|천)?\s*(?:원|%|퍼센트|달러|불|엔|하나머니|마일리지|마일|포인트)"
     r"|[$€¥]\s*\d[\d,.]*"
 )
+# 강한 혜택 신호(동사/1+1)는 단독으로도 인정, 약한 명사(쿠폰류)는 금액 동반 시에만 —
+# '쿠폰 받고 예약하러 가기' 같은 CTA성 문구가 신호 하나로 통과하는 것을 막는다
+_STRONG_BENEFIT_RE = re.compile(r"할인|적립|캐시백|증정|지급|무료|환급|1\s*\+\s*1")
+_WEAK_BENEFIT_RE = re.compile(r"쿠폰|바우처|상품권")
 _BENEFIT_VERB_RE = re.compile(
     r"할인|적립|캐시백|증정|지급|무료|환급|쿠폰|바우처|상품권|1\s*\+\s*1"
 )
@@ -103,9 +107,10 @@ _NOISE_RE = re.compile(
 _LEADING_CONDITION_RE = re.compile(
     r"^.*(?:이상|결제|이용|사용|구매|예약|충전|투숙|매표|응모|가입)\s*시[,!]?\s+"
 )
-# 문장 끝의 이동 버튼성 문구 제거 (보상 명사가 앞에 올 수 있어 직전 단어는 남긴다)
+# 문장 '끝'의 이동 버튼성 문구만 제거 — 끝 앵커 없이 지우면 중간의
+# '확인하기 쉬운 ...' 같은 표현 뒤 보상까지 삭제된다
 _CTA_TAIL_RE = re.compile(
-    r"\s*(?:바로\s*가기|자세히\s*보기|확인하기|신청하기|응모하기|[▶>»→]).*$"
+    r"(?:\s*(?:바로\s*가기|자세히\s*보기|확인하기|신청하기|응모하기|[▶»→]))+\s*$"
 )
 SUMMARY_MAX_LEN = 90  # 목록 카드 2줄 이내
 
@@ -119,10 +124,14 @@ def _extract_reward(text: str) -> str:
     core = re.sub(r"\([^)]*\)", " ", core)
     core = _CTA_TAIL_RE.sub("", core)
     core = re.sub(r"\s+", " ", core).strip(" ,·-")
-    rest = _LEADING_CONDITION_RE.sub("", core, count=1).strip(" ,·-")
-    if rest and rest != core and (
-        _AMOUNT_RE.search(rest) or _BENEFIT_VERB_RE.search(rest)
-    ):
+    match = _LEADING_CONDITION_RE.match(core)
+    if match is None:
+        return core
+    prefix, rest = core[: match.end()], core[match.end():].strip(" ,·-")
+    # 걷어낼 앞부분에 이미 보상(금액+혜택동사)이 있으면 보상-선행 문장이므로 유지
+    if _AMOUNT_RE.search(prefix) and _STRONG_BENEFIT_RE.search(prefix):
+        return core
+    if rest and (_AMOUNT_RE.search(rest) or _BENEFIT_VERB_RE.search(rest)):
         return rest
     return core
 
@@ -131,13 +140,16 @@ def _score_benefit_line(text: str) -> int:
     if _NOISE_RE.search(text):
         return 0
     score = 0
-    if _BENEFIT_VERB_RE.search(text):
+    has_amount = _AMOUNT_RE.search(text) is not None
+    if _STRONG_BENEFIT_RE.search(text):
         score += 2
     if _CONDITION_RE.search(text):
         score += 2
-    # 금액은 혜택동사/조건과 함께일 때만 신호로 본다 —
+    if not score and has_amount and _WEAK_BENEFIT_RE.search(text):
+        score += 2  # 쿠폰류 명사는 금액이 함께 있을 때만
+    # 금액은 혜택 신호와 함께일 때만 가점 —
     # '100% 당첨' 류 홍보 헤드라인이 % 하나로 통과하는 것을 막는다
-    if score and _AMOUNT_RE.search(text):
+    if score and has_amount:
         score += 3
     return score
 
@@ -184,7 +196,10 @@ def summarize_benefit_texts(texts: list[str]) -> str | None:
     lines = _select_benefit_lines(texts)
     if not lines:
         return None
-    summary = " · ".join(_pick_rewards(lines))
+    rewards = _pick_rewards(lines)
+    summary = " · ".join(rewards)
+    if len(summary) > SUMMARY_MAX_LEN and len(rewards) > 1:
+        summary = rewards[0]  # 두 번째 보상이 중간에서 잘리느니 하나만 온전히
     if len(summary) > SUMMARY_MAX_LEN:
         summary = summary[: SUMMARY_MAX_LEN - 1].rstrip() + "…"
     return summary or None
