@@ -90,14 +90,41 @@ _AMOUNT_RE = re.compile(
     r"\d[\d,.]*\s*(?:만|천)?\s*(?:원|%|퍼센트|달러|불|엔|하나머니|마일리지|마일|포인트)"
     r"|[$€¥]\s*\d[\d,.]*"
 )
-_BENEFIT_VERB_RE = re.compile(r"할인|적립|캐시백|증정|지급|무료|환급")
+_BENEFIT_VERB_RE = re.compile(
+    r"할인|적립|캐시백|증정|지급|무료|환급|쿠폰|바우처|상품권|1\s*\+\s*1"
+)
 _CONDITION_RE = re.compile(r"(?:결제|이용|사용|구매|예약|충전|투숙)\s*시|이상\s*(?:결제|이용|사용|구매)")
 # 행 시작의 안내성 문구만 배제한다 — 혜택 문장 중간의 '유의사항' 언급은 무해
 _NOISE_RE = re.compile(
     r"^\s*(?:(?:이벤트\s*)?(?:기간|대상|응모\s*방법|참여\s*방법)\s*[::]"
     r"|유의\s*사항|자세한\s|※)"
 )
-SUMMARY_MAX_LEN = 160
+# '○○ 결제 시 / 이상 시' 형태의 앞쪽 조건절 — 받는 혜택만 남기기 위해 걷어낸다
+_LEADING_CONDITION_RE = re.compile(
+    r"^.*(?:이상|결제|이용|사용|구매|예약|충전|투숙|매표|응모|가입)\s*시[,!]?\s+"
+)
+# 문장 끝의 이동 버튼성 문구 제거 (보상 명사가 앞에 올 수 있어 직전 단어는 남긴다)
+_CTA_TAIL_RE = re.compile(
+    r"\s*(?:바로\s*가기|자세히\s*보기|확인하기|신청하기|응모하기|[▶>»→]).*$"
+)
+SUMMARY_MAX_LEN = 90  # 목록 카드 2줄 이내
+
+
+def _extract_reward(text: str) -> str:
+    """혜택 문장에서 '받는 것'만 남긴다 — 조건절('* ...', '○○ 시', 괄호)·CTA 꼬리 제거.
+
+    조건을 걷어낸 뒤 보상 신호(금액/혜택어)가 남지 않으면 원문 핵심부를 유지한다.
+    """
+    core = re.split(r"\s*[*※]\s*", text)[0]
+    core = re.sub(r"\([^)]*\)", " ", core)
+    core = _CTA_TAIL_RE.sub("", core)
+    core = re.sub(r"\s+", " ", core).strip(" ,·-")
+    rest = _LEADING_CONDITION_RE.sub("", core, count=1).strip(" ,·-")
+    if rest and rest != core and (
+        _AMOUNT_RE.search(rest) or _BENEFIT_VERB_RE.search(rest)
+    ):
+        return rest
+    return core
 
 
 def _score_benefit_line(text: str) -> int:
@@ -115,33 +142,52 @@ def _score_benefit_line(text: str) -> int:
     return score
 
 
-def summarize_benefit_texts(texts: list[str]) -> str | None:
-    """본문 문단들에서 실질 혜택 문장(금액·조건 포함)을 골라 최대 2건 요약한다.
-
-    헤드라인/기간/유의사항 문구는 배제하고, '얼마 쓰면 얼마 받는다' 형태를
-    우선한다 (점수: 금액 3 + 혜택동사 2 + 이용조건 2, 2점 미만 탈락).
-    """
+def _select_benefit_lines(texts: list[str]) -> list[str]:
+    """혜택 문장 후보를 점수순으로 고른다 (2점 미만 탈락, 중복 제거)."""
     scored: list[tuple[int, int, str]] = []
     seen: set[str] = set()
     for order, raw in enumerate(texts or []):
         text = re.sub(r"\s+", " ", (raw or "")).strip()
-        if not text:
-            continue
         norm = re.sub(r"\s", "", text)
-        if norm in seen:
+        if not text or norm in seen:
             continue
         seen.add(norm)
         score = _score_benefit_line(text)
         if score >= 2:
             scored.append((score, order, text))
-
-    if not scored:
-        return None
     scored.sort(key=lambda item: (-item[0], item[1]))
-    summary = " · ".join(text for _, _, text in scored[:2])
+    return [text for _, _, text in scored]
+
+
+def _pick_rewards(lines: list[str], limit: int = 2) -> list[str]:
+    """선택된 문장들에서 보상 구절을 뽑아 중복 없이 limit 건 반환한다."""
+    rewards: list[str] = []
+    seen: set[str] = set()
+    for text in lines:
+        reward = _extract_reward(text)
+        norm = re.sub(r"\s", "", reward)
+        if not reward or norm in seen:
+            continue
+        seen.add(norm)
+        rewards.append(reward)
+        if len(rewards) == limit:
+            break
+    return rewards
+
+
+def summarize_benefit_texts(texts: list[str]) -> str | None:
+    """본문 문단들에서 '받는 혜택'(캐시백·할인·1+1 등)을 골라 최대 2건 요약한다.
+
+    헤드라인/기간/유의사항 문구는 배제하고(점수: 혜택동사 2 + 이용조건 2 +
+    동반 금액 3, 2점 미만 탈락), 선택된 문장에서 조건절을 걷어내 보상만 남긴다.
+    """
+    lines = _select_benefit_lines(texts)
+    if not lines:
+        return None
+    summary = " · ".join(_pick_rewards(lines))
     if len(summary) > SUMMARY_MAX_LEN:
         summary = summary[: SUMMARY_MAX_LEN - 1].rstrip() + "…"
-    return summary
+    return summary or None
 
 
 # ---------------------------------------------------------------- 하나카드

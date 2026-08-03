@@ -101,7 +101,8 @@ HANA_DETAIL_HTML = """
 
 def test_parse_hana_detail_benefit_summary():
     summary = parse_hana_detail_benefit_summary(HANA_DETAIL_HTML)
-    assert summary == "응모 후 대상카드로 해외 온/오프라인 가맹점 결제 시 최대 10만 하나머니 적립"
+    # '응모 후 ... 결제 시' 조건절을 걷어내고 받는 혜택만 남긴다
+    assert summary == "최대 10만 하나머니 적립"
 
 
 def test_parse_hana_detail_summary_ignores_gnb_banner():
@@ -214,9 +215,9 @@ class TestSummarizeBenefitTexts:
             "자세한 쿠폰 내용 및 사용 방법은 증정된 쿠폰 내 유의사항을 통해 확인 가능합니다",
         ]
         summary = summarize_benefit_texts(texts)
-        assert "100만원 할인쿠폰" in summary
-        assert "1,000만원 이상" in summary
-        assert "출석 챌린지" not in summary
+        # 받는 것(할인쿠폰)에 집중 — '* 얼마 이상 결제 시' 조건절은 제거한다
+        assert summary == "VIA SHINSEGAE 100만원 할인쿠폰"
+        assert "결제 시" not in summary and "이상" not in summary
 
     def test_joins_top_two_distinct_benefit_lines(self):
         texts = [
@@ -224,7 +225,29 @@ class TestSummarizeBenefitTexts:
             "해외 결제 500만원 이상 시 10만 하나머니 적립",
         ]
         summary = summarize_benefit_texts(texts)
-        assert "5만 하나머니" in summary and "10만 하나머니" in summary
+        # 조건('300만원 이상')이 아니라 보상('5만 하나머니 적립')만 남긴다
+        assert summary == "5만 하나머니 적립 · 10만 하나머니 적립"
+
+    def test_reward_first_line_with_paren_condition(self):
+        # 보상이 앞에 오고 조건이 괄호인 형태 — 괄호 조건만 제거
+        texts = ["대인 종일권 최대 50% 즉시 할인 (스마트/현장 매표 시)"]
+        assert summarize_benefit_texts(texts) == "대인 종일권 최대 50% 즉시 할인"
+
+    def test_one_plus_one_line_qualifies(self):
+        texts = ["두근두근 여행 시즌!", "아메리카노 1+1 쿠폰 제공"]
+        summary = summarize_benefit_texts(texts)
+        assert summary is not None and "1+1" in summary
+
+    def test_condition_strip_keeps_line_without_reward_signal_intact(self):
+        # 조건 제거 후 보상 신호가 안 남으면 원문(핵심부)을 유지한다
+        texts = ["공항 라운지 무료 이용권 증정"]
+        assert summarize_benefit_texts(texts) == "공항 라운지 무료 이용권 증정"
+
+    def test_cta_tail_is_removed(self):
+        texts = ["3만원 캐시백 트래블버킷 바로가기", "5만원 할인쿠폰 자세히 보기"]
+        summary = summarize_benefit_texts(texts)
+        assert "바로가기" not in summary and "자세히" not in summary
+        assert "3만원 캐시백" in summary and "5만원 할인쿠폰" in summary
 
     def test_excludes_period_target_and_notice_lines(self):
         texts = [
@@ -262,10 +285,11 @@ class TestSummarizeBenefitTexts:
         texts = ["두근두근 여행!", "50달러 상당 상품권 증정", "면세점 방문 안내"]
         assert summarize_benefit_texts(texts) == "50달러 상당 상품권 증정"
 
-    def test_clips_to_max_length(self):
+    def test_clips_to_two_line_length(self):
         long = "최대 10% 할인 " + "긴설명 " * 60
         summary = summarize_benefit_texts([long])
-        assert summary is not None and len(summary) <= 160
+        # 목록 카드 2줄 안에 들어오는 길이
+        assert summary is not None and len(summary) <= 90
 
 
 def test_parse_woori_detail_benefit_summary_prefers_amount_lines():
@@ -275,8 +299,8 @@ def test_parse_woori_detail_benefit_summary_prefers_amount_lines():
         "&lt;p&gt;해외 호텔 40만원 이상 결제 시 최대 8만원 할인&lt;/p&gt;"
     )
     summary = parse_woori_detail_benefit_summary(cms)
-    assert "40만원 이상 결제 시" in summary
-    assert "8만원 할인" in summary
+    # 조건('40만원 이상 결제 시')은 버리고 받는 혜택만
+    assert summary == "최대 8만원 할인"
 
 
 def test_extract_benefit_tags():
