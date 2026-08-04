@@ -85,7 +85,7 @@ export default function Nav({ user, onLogin, onLogout }) {
             </Link>
           ))}
           <a
-            href="https://web.paybooc.ai/place/what-to-eat"
+            href="https://web.paybooc.ai/place/eatpl-home"
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: 14.5, fontWeight: 600, color: '#a6a6b0', textDecoration: 'none' }}
@@ -159,7 +159,7 @@ export default function Nav({ user, onLogin, onLogout }) {
                 <span>{link.label}</span><span aria-hidden="true">›</span>
               </Link>
             ))}
-            <a href="https://web.paybooc.ai/place/what-to-eat" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+            <a href="https://web.paybooc.ai/place/eatpl-home" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
               <span>eat.pl</span><span aria-hidden="true">↗</span>
             </a>
             <Link to="/cardpick" onClick={() => setMenuOpen(false)} aria-current={isActive(pathname, ['/cardpick']) ? 'page' : undefined} className={isActive(pathname, ['/cardpick']) ? 'active' : ''}>

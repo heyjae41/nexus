@@ -248,7 +248,7 @@ describe('Home hero — 큐레이션 허브 카피 (허위 문구 없음)', () =
     expect(screen.getByRole('link', { name: /현직자 팁·Q&A/ })).toHaveAttribute('href', '/community')
     expect(screen.getByRole('link', { name: /오늘의 특가 수집/ })).toHaveAttribute('href', '/hotdeal')
     expect(screen.getByRole('link', { name: /회사 근처 맛집 검색/ })).toHaveAttribute(
-      'href', 'https://web.paybooc.ai/place/what-to-eat',
+      'href', 'https://web.paybooc.ai/place/eatpl-home',
     )
   })
 
