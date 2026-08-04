@@ -6,7 +6,7 @@ const FOOTER_LINKS = [
   { label: '커뮤니티', to: '/community' },
   { label: 'meet.pl', to: '/meet' },
   { label: 'AI핫딜', to: '/hotdeal' },
-  { label: 'eat.pl', href: 'https://web.paybooc.ai/place/what-to-eat' },
+  { label: 'eat.pl', href: 'https://web.paybooc.ai/place/eatpl-home' },
 ]
 
 export default function Footer() {
