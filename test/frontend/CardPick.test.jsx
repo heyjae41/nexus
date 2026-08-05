@@ -33,6 +33,12 @@ const benefits = [
   },
 ]
 
+const countryFacets = [
+  { name: '일본', flag: '🇯🇵', count: 2 },
+  { name: '베트남', flag: '🇻🇳', count: 3 },
+  { name: '해외공통', flag: '🌏', count: 1 },
+]
+
 function renderView() {
   return render(
     <MemoryRouter>
@@ -44,7 +50,7 @@ function renderView() {
 describe('CardPick 뷰', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    fetchCardBenefits.mockResolvedValue(benefits)
+    fetchCardBenefits.mockResolvedValue({ items: benefits, countries: countryFacets })
   })
 
   it('카드 혜택 목록을 필수 정보와 함께 렌더한다', async () => {
@@ -71,11 +77,11 @@ describe('CardPick 뷰', () => {
   })
 
   it('카드사 필터 버튼은 데이터에 있는 카드사로 동적 생성된다', async () => {
-    fetchCardBenefits.mockResolvedValueOnce([
+    fetchCardBenefits.mockResolvedValueOnce({ items: [
       ...benefits,
       { id: 3, title: '신한 여행 이벤트', event_period: '2026.08.01 ~', card_company: '신한카드',
         target_cards: null, benefit_summary: null, benefit_tags: [], detail_url: 'https://ex.com/3', image_url: null },
-    ])
+    ], countries: countryFacets })
     renderView()
     await screen.findByText('신한 여행 이벤트')
     // 데이터에 있는 카드사(하나/우리/신한) 버튼이 모두 노출
@@ -88,14 +94,30 @@ describe('CardPick 뷰', () => {
     fetchCardBenefits.mockRejectedValueOnce(new Error('네트워크 오류'))
     renderView()
     expect(await screen.findByRole('alert')).toHaveTextContent('불러오지 못했습니다')
-    fetchCardBenefits.mockResolvedValueOnce(benefits)
+    fetchCardBenefits.mockResolvedValueOnce({ items: benefits, countries: countryFacets })
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }))
     expect(await screen.findByText('WON트래블 호텔 최대 25% 할인')).toBeInTheDocument()
   })
 
   it('빈 목록이면 안내 문구를 보여준다', async () => {
-    fetchCardBenefits.mockResolvedValueOnce([])
+    fetchCardBenefits.mockResolvedValueOnce({ items: [], countries: [] })
     renderView()
     expect(await screen.findByText('진행 중인 혜택이 없습니다.')).toBeInTheDocument()
   })
 })
+
+
+  it('국가 필터 칩이 집계 데이터로 렌더되고 클릭 시 country 로 재조회한다', async () => {
+    renderView()
+    await screen.findByText('WON트래블 호텔 최대 25% 할인')
+    const chip = screen.getByRole('button', { name: /베트남/ })
+    expect(chip).toHaveTextContent('3')  // 전개 건수 표시
+
+    fetchCardBenefits.mockResolvedValueOnce({ items: [benefits[1]], countries: countryFacets })
+    fireEvent.click(chip)
+    await waitFor(() => {
+      expect(fetchCardBenefits).toHaveBeenLastCalledWith(
+        expect.objectContaining({ country: '베트남' }),
+      )
+    })
+  })

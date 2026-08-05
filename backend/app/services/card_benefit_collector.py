@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.cache import VersionedCache
 from app.models import CardBenefit, CardBenefitCollectRun
 from app.services.card_benefit_fetcher import CardBenefitCandidate
+from app.services.card_benefit_geo import extract_countries
 from app.services.collect_batch import apply_collect_batch
 
 logger = logging.getLogger(__name__)
@@ -20,13 +21,14 @@ logger = logging.getLogger(__name__)
 # 변경 감지·갱신 대상 필드 (후보 → DB 행 동일 이름)
 _UPDATABLE_FIELDS = (
     "title", "event_period", "event_start_date", "event_end_date",
-    "target_cards", "benefit_summary", "benefit_tags", "image_url",
+    "target_cards", "benefit_summary", "benefit_tags", "image_url", "countries",
 )
 
 # 외부 사이트 값이 컬럼 길이를 넘겨 배치 전체가 실패하지 않도록 절단한다
 _FIELD_LIMITS = {
     "card_company": 50, "title": 300, "event_period": 100,
     "target_cards": 500, "benefit_summary": 500, "benefit_tags": 200,
+    "countries": 200,
     "detail_url": 1000, "image_url": 1000,
 }
 
@@ -56,6 +58,7 @@ def _row(c: CardBenefitCandidate) -> CardBenefit:
         target_cards=_clip(c, "target_cards"),
         benefit_summary=_clip(c, "benefit_summary"),
         benefit_tags=_clip(c, "benefit_tags"),
+        countries=_clip(c, "countries"),
         detail_url=_clip(c, "detail_url"),
         image_url=_clip(c, "image_url"),
     )
@@ -124,13 +127,19 @@ def _with_default_dates(c: CardBenefitCandidate) -> CardBenefitCandidate:
     )
 
 
+def _with_countries(c: CardBenefitCandidate) -> CardBenefitCandidate:
+    """제목·요약·대상 텍스트에서 대상 지역을 분류해 채운다 (국가별 필터용)."""
+    blob = " ".join(filter(None, (c.title, c.benefit_summary, c.target_cards)))
+    return replace(c, countries=",".join(extract_countries(blob)))
+
+
 def collect_card_benefits(
     db: Session,
     cache: VersionedCache,
     *,
     candidates: list[CardBenefitCandidate],
 ) -> CardBenefitCollectResult:
-    candidates = [_with_default_dates(c) for c in candidates]
+    candidates = [_with_countries(_with_default_dates(c)) for c in candidates]
     existing_by_id, existing_urls = _load_existing(db, candidates)
     fresh, updated = _split_fresh_and_update(candidates, existing_by_id, existing_urls)
 

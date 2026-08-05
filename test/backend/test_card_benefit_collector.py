@@ -122,3 +122,23 @@ def test_collect_keeps_existing_dates(db):
     row = db.query(CardBenefit).one()
     assert row.event_start_date == date(2026, 8, 1)
     assert row.event_period == "2026.08.01 ~ 2026.09.30"
+
+
+def test_collect_extracts_countries(db):
+    """수집 시 제목·요약·대상 텍스트에서 대상 지역을 분류해 저장한다."""
+    cache = make_cache()
+    collect_card_benefits(db, cache, candidates=[
+        make_candidate(source_id="hana:jp", detail_url="https://ex.com/jp",
+                       title="일본 세븐일레븐 결제 시 적립"),
+        make_candidate(source_id="hana:sea", detail_url="https://ex.com/sea",
+                       title="동남아 여행 특가", benefit_summary="다낭·방콕 호텔 할인"),
+        make_candidate(source_id="hana:ov", detail_url="https://ex.com/ov",
+                       title="해외 결제 캐시백", benefit_summary=None),
+        make_candidate(source_id="hana:dom", detail_url="https://ex.com/dom",
+                       title="서울랜드 이용권", benefit_summary=None),
+    ])
+    rows = {r.source_id: r for r in db.query(CardBenefit).all()}
+    assert rows["hana:jp"].countries == "일본"
+    assert set(rows["hana:sea"].countries.split(",")) == {"동남아", "베트남", "태국"}
+    assert rows["hana:ov"].countries == "해외공통"
+    assert rows["hana:dom"].countries == "국내·기타"

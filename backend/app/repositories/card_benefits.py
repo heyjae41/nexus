@@ -10,6 +10,7 @@ from app.models import CardBenefit
 def list_active_benefits(
     db: Session,
     company: str | None = None,
+    country: str | None = None,
 ) -> list[CardBenefit]:
     """진행 중(시작일 도래 & 종료일 미도래) 혜택을 최신 시작일 순으로 반환한다.
 
@@ -29,4 +30,23 @@ def list_active_benefits(
     stmt = stmt.order_by(
         CardBenefit.event_start_date.desc().nulls_last(), CardBenefit.id.desc()
     )
-    return list(db.scalars(stmt))
+    rows = list(db.scalars(stmt))
+    if country:
+        rows = _filter_by_country(rows, country)
+    return rows
+
+
+def _filter_by_country(rows: list[CardBenefit], country: str) -> list[CardBenefit]:
+    """선택 지역을 전개(국가∪권역∪해외공통)해 필터하고 명시 우선으로 정렬한다.
+
+    지역 미분류(과거 행) 는 재수집 백필 전까지 국가 필터에서 제외된다."""
+    from app.services.card_benefit_geo import expand_country_filter, match_rank
+
+    allowed = expand_country_filter(country)
+    picked = [
+        (match_rank(r.countries.split(","), country), i, r)
+        for i, r in enumerate(rows)
+        if r.countries and allowed.intersection(r.countries.split(","))
+    ]
+    picked.sort(key=lambda item: (item[0], item[1]))  # 명시 우선, 기존 정렬 유지
+    return [r for _, _, r in picked]
