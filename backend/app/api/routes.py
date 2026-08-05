@@ -183,7 +183,11 @@ def _country_facets(rows) -> list[dict]:
             present.update(r.countries.split(","))
     facets = []
     for place in sorted(present):
+        # 칩 건수 = 지역 특화 혜택 수 (해외공통 제외) — 전개 그대로 세면
+        # 해외공통이 모든 칩에 합산돼 숫자가 전부 비슷해진다
         allowed = expand_country_filter(place)
+        if place != OVERSEAS_COMMON:
+            allowed = allowed - {OVERSEAS_COMMON}
         count = sum(
             1 for r in rows
             if r.countries and allowed.intersection(r.countries.split(","))

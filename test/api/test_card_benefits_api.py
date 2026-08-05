@@ -169,8 +169,11 @@ def test_card_benefits_country_meta_and_field(client):
     assert isinstance(body["data"][0]["countries"], list)
     # 국가 칩 구성용 집계 (지역명·아이콘·전개 건수)
     places = {p["name"]: p for p in body["meta"]["countries"]}
-    assert places["베트남"]["count"] == 3  # 베트남+동남아+해외공통
-    assert places["일본"]["count"] == 2   # 일본+해외공통
+    # 칩 건수는 '지역 특화' 건수 (해외공통 제외 전개) — 해외공통이 모든 칩에
+    # 합산되면 숫자가 전부 비슷해져 변별력이 사라진다. 클릭 시 해외공통은
+    # 후순위로 함께 노출되므로 누락은 아니다.
+    assert places["베트남"]["count"] == 2  # 베트남 명시 + 동남아 권역
+    assert places["일본"]["count"] == 1
     assert places["해외공통"]["count"] == 1
     assert places["베트남"]["flag"] == "🇻🇳"
 
