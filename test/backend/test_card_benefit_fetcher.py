@@ -827,3 +827,50 @@ def test_parse_bc_detail_without_event_data_returns_none_fields():
     detail = parse_bc_detail("<html><body>없음</body></html>")
     assert detail.target_cards is None
     assert detail.benefit_summary is None
+
+
+# ---------------------------------------------------------------- geo_text (v2)
+
+def test_kb_detail_exposes_geo_text():
+    """상세 파서는 지역 분류용 본문 전문(geo_text)을 함께 반환한다."""
+    from app.services.card_benefit_fetcher import parse_kb_detail
+
+    detail = parse_kb_detail(KB_DETAIL_HTML)
+    assert detail.geo_text and "KB국민 마스터" in detail.geo_text
+
+
+def test_bc_detail_exposes_geo_text():
+    from app.services.card_benefit_fetcher import parse_bc_detail
+
+    detail = parse_bc_detail(BC_DETAIL_HTML)
+    assert detail.geo_text and "마이리얼트립" in detail.geo_text
+
+
+def test_static_detail_passes_geo_text_to_candidate():
+    from datetime import date as date_cls
+
+    from app.services.card_benefit_fetcher import (
+        BenefitDetail, CardBenefitCandidate, _with_static_detail,
+    )
+
+    class FakeRes:
+        text = "<html></html>"
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def get(self, url):
+            return FakeRes()
+
+    c = CardBenefitCandidate(
+        source_id="kb:1", card_company="KB국민카드", title="이벤트",
+        event_period="2026.08.01 ~", event_start_date=date_cls(2026, 8, 1),
+        event_end_date=None, detail_url="https://ex.com/1", image_url=None,
+    )
+    enriched = _with_static_detail(
+        FakeClient(), c,
+        lambda html: BenefitDetail(target_cards=None, benefit_summary=None,
+                                   geo_text="후쿠오카 왕복 항공권"),
+        "KB국민카드",
+    )
+    assert enriched.geo_text == "후쿠오카 왕복 항공권"

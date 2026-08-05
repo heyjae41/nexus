@@ -130,7 +130,9 @@ def _with_default_dates(c: CardBenefitCandidate) -> CardBenefitCandidate:
 def _with_countries(c: CardBenefitCandidate) -> CardBenefitCandidate:
     """제목·요약·대상 텍스트에서 대상 지역을 분류해 채운다 (국가별 필터용)."""
     blob = " ".join(filter(None, (c.title, c.benefit_summary, c.target_cards)))
-    return replace(c, countries=",".join(extract_countries(blob)))
+    return replace(
+        c, countries=",".join(extract_countries(blob, geo_text=c.geo_text))
+    )
 
 
 def collect_card_benefits(

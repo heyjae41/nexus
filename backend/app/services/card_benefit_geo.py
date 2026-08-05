@@ -82,15 +82,23 @@ def _match_keyword_map(blob: str, keyword_map: dict[str, tuple[str, ...]]) -> li
 
 
 # 오탐 방지: 지역명과 동철인 일반 용례를 매칭 전에 제거한다
-# (예: '세부 조건/내용/사항' 의 세부 ≠ 필리핀 세부)
-_STOP_PHRASES_RE = re.compile(r"세부\s*(?:조건|내용|사항|정보|혜택|기준)")
+# (예: '세부 조건/일정' 의 세부 ≠ 필리핀 세부, 파리바게뜨 ≠ 프랑스 파리)
+_STOP_PHRASES_RE = re.compile(
+    r"세부\s*(?:조건|내용|사항|정보|혜택|기준|일정|안내|방법|사용|절차|설명)"
+    r"|파리바게뜨|런던제화|로마자"
+)
 
 
-def extract_countries(text: str | None) -> list[str]:
-    """이벤트 텍스트에서 대상 지역 목록을 추출한다 (항상 1개 이상)."""
+def extract_countries(text: str | None, geo_text: str | None = None) -> list[str]:
+    """이벤트 텍스트에서 대상 지역 목록을 추출한다 (항상 1개 이상).
+
+    geo_text(상세 전문)는 국가·권역 매칭에만 쓴다 — 본문 유의사항의
+    '해외 이용 시 …' 상용구가 국내 이벤트를 해외공통으로 오분류하지 않도록,
+    해외공통 신호 판정은 큐레이션된 텍스트(제목·요약·대상)에 한정한다."""
     blob = _STOP_PHRASES_RE.sub(" ", text or "")
-    found = _match_keyword_map(blob, COUNTRY_KEYWORDS)
-    found += _match_keyword_map(blob, REGION_KEYWORDS)
+    combined = f"{blob} {_STOP_PHRASES_RE.sub(' ', geo_text or '')}"
+    found = _match_keyword_map(combined, COUNTRY_KEYWORDS)
+    found += _match_keyword_map(combined, REGION_KEYWORDS)
     if found:
         return found
     if any(signal in blob for signal in _OVERSEAS_SIGNALS):

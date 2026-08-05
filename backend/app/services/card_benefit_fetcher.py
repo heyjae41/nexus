@@ -54,6 +54,8 @@ class CardBenefitCandidate:
     benefit_summary: str | None = None
     benefit_tags: str | None = None
     countries: str | None = None  # 수집기 정규화 단계에서 채운다 (쉼표 구분)
+    # 지역 분류용 상세 전문 (본문 한정 평문, DB 미저장) — v2 정밀도 향상
+    geo_text: str | None = None
 
 
 def _parse_dot_date(value) -> date | None:
@@ -97,6 +99,15 @@ def _img_src(node) -> str | None:
     if src.startswith("//"):
         src = f"https:{src}"
     return src or None
+
+
+def _body_scope(soup, *selectors: str):
+    """본문 컨테이너를 셀렉터 순서대로 시도한다 (모두 없으면 문서 전체)."""
+    for sel in selectors:
+        el = soup.select_one(sel)
+        if el is not None:
+            return el
+    return soup
 
 
 def _issuer_client(base_url: str, **kwargs) -> httpx.Client:
@@ -290,7 +301,7 @@ def parse_hana_detail_benefit_summary(html_or_soup) -> str | None:
     .page-contents 는 GNB 메뉴 레이어에도 붙어 있어 공통 배너가 오염된다.
     """
     soup = _as_soup(html_or_soup)
-    body = soup.select_one(".wcms-data") or soup.select_one(".event-data") or soup
+    body = _body_scope(soup, ".wcms-data", ".event-data")
     texts = [el.get_text(" ", strip=True) for el in body.select("p.txt-cont, li")]
     return summarize_benefit_texts(texts)
 
@@ -351,6 +362,7 @@ def _with_hana_detail(client: httpx.Client, c: CardBenefitCandidate) -> CardBene
         return replace(
             c, target_cards=target, benefit_summary=summary,
             benefit_tags=",".join(tags) or None,
+            geo_text=_geo_cap(text),
         )
     except httpx.HTTPError:
         logger.warning("하나카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
@@ -527,10 +539,12 @@ def _with_woori_detail(post, c: CardBenefitCandidate) -> CardBenefitCandidate:
         target = parse_woori_detail_target_cards(cms)
         # 상세 본문의 실질 혜택 문장이 목록 요약(evntSumTxt, 홍보 문구)보다 우선
         summary = parse_woori_detail_benefit_summary(cms) or c.benefit_summary
-        tags = extract_benefit_tags(f"{c.title} {woori_detail_text(cms)[:3000]}")
+        detail_text = woori_detail_text(cms)
+        tags = extract_benefit_tags(f"{c.title} {detail_text[:3000]}")
         return replace(
             c, target_cards=target, benefit_summary=summary,
             benefit_tags=",".join(tags) or None,
+            geo_text=_geo_cap(detail_text),
         )
     except Exception:  # noqa: BLE001 — 상세 보강 실패는 목록 정보로 폴백
         logger.warning("우리카드 상세 조회 실패 — 목록 정보만 사용: %s", c.detail_url)
@@ -543,12 +557,23 @@ KB_BASE = "https://m.kbcard.com"
 KB_TRAVEL_CATEGORIES = ("04", "05")  # 여행, 해외
 
 
+GEO_TEXT_MAX_LEN = 4000
+
+
+def _geo_cap(text: str | None) -> str | None:
+    """지역 분류용 전문의 길이 상한 (노이즈·메모리 억제)."""
+    if not text:
+        return None
+    return text[:GEO_TEXT_MAX_LEN]
+
+
 @dataclass(frozen=True)
 class BenefitDetail:
-    """상세 페이지에서 보강하는 공통 필드 (KB/신한/현대/삼성)."""
+    """상세 페이지에서 보강하는 공통 필드."""
 
     target_cards: str | None
     benefit_summary: str | None
+    geo_text: str | None = None  # 지역 분류용 본문 전문 (v2)
 
 
 def _parse_ymd(value) -> date | None:
@@ -603,14 +628,19 @@ def parse_kb_detail(html: str) -> BenefitDetail:
         target = re.sub(r"\([^)]*\)", "", target).strip() or None
 
     content = sections.get("내용")
+    # 본문 컨테이너 한정 — 전체 문서를 긁으면 셸(안내문/메뉴) 텍스트가 분류를 오염
+    body = _body_scope(soup, ".eventBodyRE", ".contArea")
+    body_texts = [el.get_text(" ", strip=True) for el in body.find_all(["p", "li"])]
     if content:
         # 긴 안내문은 문장 단위로 쪼개 실질 혜택 문장을 고른다
         sentences = re.split(r"(?<=[.!?])\s+", content)
         summary = summarize_benefit_texts(sentences) or content
     else:
-        texts = [el.get_text(" ", strip=True) for el in soup.find_all(["p", "li"])]
-        summary = summarize_benefit_texts(texts)
-    return BenefitDetail(target_cards=target, benefit_summary=summary)
+        summary = summarize_benefit_texts(body_texts)
+    geo_text = " ".join(filter(None, (*sections.values(), *body_texts)))
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summary, geo_text=_geo_cap(geo_text)
+    )
 
 
 def fetch_kb_candidates(
@@ -713,13 +743,18 @@ def parse_shinhan_detail(html: str) -> BenefitDetail:
     if content:
         summary = summarize_benefit_texts(re.split(r"(?<=[.!?])\s+", content)) or content
     else:
-        # 이벤트별 마크업 편차가 커서 섹션이 없으면 본문 전체를 점수화한다
+        # 이벤트별 마크업 편차가 커서 섹션이 없으면 본문(.evt-detail)을 점수화한다
+        body = _body_scope(soup, ".evt-detail", "main")
         texts = [
             el.get_text(" ", strip=True)
-            for el in soup.find_all(["h2", "p", "li", "dd"])
+            for el in body.find_all(["h2", "p", "li", "dd"])
         ]
         summary = summarize_benefit_texts(texts)
-    return BenefitDetail(target_cards=target, benefit_summary=summary)
+    geo_source = texts if not content else [*sections.values()]
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summary,
+        geo_text=_geo_cap(" ".join(geo_source)),
+    )
 
 
 def fetch_shinhan_candidates(
@@ -837,7 +872,8 @@ def parse_hyundai_detail(html: str) -> BenefitDetail:
         target = re.sub(r"\s+", " ", target_match.group(1)).strip() or None
     lines = [re.sub(r"^(?:혜택|내용)\s+", "", ln) for ln in text.splitlines()]
     return BenefitDetail(
-        target_cards=target, benefit_summary=summarize_benefit_texts(lines)
+        target_cards=target, benefit_summary=summarize_benefit_texts(lines),
+        geo_text=_geo_cap(re.sub(r"\s+", " ", text)),
     )
 
 
@@ -934,7 +970,10 @@ def parse_samsung_detail(html: str) -> BenefitDetail:
     summary = None
     if content:
         summary = summarize_benefit_texts(re.split(r"(?<=[.!?])\s+", content)) or content
-    return BenefitDetail(target_cards=target, benefit_summary=summary)
+    return BenefitDetail(
+        target_cards=target, benefit_summary=summary,
+        geo_text=_geo_cap(" ".join(sections.values())),
+    )
 
 
 def fetch_samsung_candidates(
@@ -1073,7 +1112,8 @@ def parse_lotte_detail(html: str) -> BenefitDetail:
             break
     texts = [el.get_text(" ", strip=True) for el in body.find_all(["p", "li", "dd"])]
     return BenefitDetail(
-        target_cards=target, benefit_summary=summarize_benefit_texts(texts)
+        target_cards=target, benefit_summary=summarize_benefit_texts(texts),
+        geo_text=_geo_cap(" ".join(texts)),
     )
 
 
@@ -1168,15 +1208,18 @@ def parse_bc_detail(html: str) -> BenefitDetail:
 
     target = None
     benefit_texts: list[str] = []
+    all_texts: list[str] = []
     for group in data.get("eventDetailsGroupBaseDtoList") or []:
         name = (group.get("evntDtGrpNm") or "").replace(" ", "")
         texts = _bc_group_texts(group)
+        all_texts += texts
         if name == "대상카드" and texts:
             target = texts[0]
         elif name == "혜택":
             benefit_texts += texts
     return BenefitDetail(
-        target_cards=target, benefit_summary=summarize_benefit_texts(benefit_texts)
+        target_cards=target, benefit_summary=summarize_benefit_texts(benefit_texts),
+        geo_text=_geo_cap(" ".join(all_texts)),
     )
 
 
@@ -1236,6 +1279,7 @@ def _apply_detail(c: CardBenefitCandidate, detail: BenefitDetail) -> CardBenefit
         c, target_cards=detail.target_cards or c.target_cards,
         benefit_summary=detail.benefit_summary or c.benefit_summary,
         benefit_tags=",".join(tags) or None,
+        geo_text=detail.geo_text,  # geo_text 는 상세 단계에서만 생성된다
     )
 
 

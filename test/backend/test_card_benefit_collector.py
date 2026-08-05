@@ -142,3 +142,35 @@ def test_collect_extracts_countries(db):
     assert set(rows["hana:sea"].countries.split(",")) == {"동남아", "베트남", "태국"}
     assert rows["hana:ov"].countries == "해외공통"
     assert rows["hana:dom"].countries == "국내·기타"
+
+
+def test_collect_uses_detail_geo_text_for_countries(db):
+    """v2: 제목·요약에 지역 단서가 없어도 상세 전문(geo_text)으로 분류한다."""
+    cache = make_cache()
+    collect_card_benefits(db, cache, candidates=[
+        make_candidate(
+            source_id="kb:v2", detail_url="https://ex.com/v2",
+            title="여름 특별 이벤트",            # 지역 단서 없음
+            benefit_summary="최대 5만원 할인",   # 지역 단서 없음
+            target_cards=None,
+            geo_text="다낭·나트랑 직항 항공권 결제 시 적용됩니다",  # 상세 전문
+        ),
+        make_candidate(
+            source_id="kb:v2ov", detail_url="https://ex.com/v2ov",
+            title="여름 특별 이벤트", benefit_summary="최대 5만원 할인",
+            target_cards=None,
+            geo_text="해외 이용 시 별도 수수료가 부과됩니다",  # 유의사항 상용구
+        ),
+        make_candidate(
+            source_id="kb:v2fp", detail_url="https://ex.com/v2fp",
+            title="제휴 브랜드 할인", benefit_summary=None, target_cards=None,
+            geo_text="파리바게뜨·런던제화 매장, 세부 일정은 영문(로마자) 안내 참조",
+        ),
+    ])
+    rows = {r.source_id: r for r in db.query(CardBenefit).all()}
+    assert rows["kb:v2"].countries == "베트남"
+    # geo_text(본문)의 '해외' 상용구는 해외공통 신호로 쓰지 않는다 —
+    # 국내 이벤트 유의사항("해외 이용 시 제외/수수료")의 오탐을 막기 위함
+    assert rows["kb:v2ov"].countries == "국내·기타"
+    # 파리바게뜨/런던제화/세부 일정/로마자 는 지역이 아니다 (오탐 가드)
+    assert rows["kb:v2fp"].countries == "국내·기타"
