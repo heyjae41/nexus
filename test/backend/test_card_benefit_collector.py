@@ -142,3 +142,26 @@ def test_collect_extracts_countries(db):
     assert set(rows["hana:sea"].countries.split(",")) == {"동남아", "베트남", "태국"}
     assert rows["hana:ov"].countries == "해외공통"
     assert rows["hana:dom"].countries == "국내·기타"
+
+
+def test_collect_uses_detail_geo_text_for_countries(db):
+    """v2: 제목·요약에 지역 단서가 없어도 상세 전문(geo_text)으로 분류한다."""
+    cache = make_cache()
+    collect_card_benefits(db, cache, candidates=[
+        make_candidate(
+            source_id="kb:v2", detail_url="https://ex.com/v2",
+            title="여름 특별 이벤트",            # 지역 단서 없음
+            benefit_summary="최대 5만원 할인",   # 지역 단서 없음
+            target_cards=None,
+            geo_text="다낭·나트랑 직항 항공권 결제 시 적용됩니다",  # 상세 전문
+        ),
+        make_candidate(
+            source_id="kb:v2ov", detail_url="https://ex.com/v2ov",
+            title="여름 특별 이벤트", benefit_summary="최대 5만원 할인",
+            target_cards=None,
+            geo_text="해외 가맹점 결제분에 한합니다",
+        ),
+    ])
+    rows = {r.source_id: r for r in db.query(CardBenefit).all()}
+    assert rows["kb:v2"].countries == "베트남"
+    assert rows["kb:v2ov"].countries == "해외공통"
