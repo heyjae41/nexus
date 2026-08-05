@@ -137,25 +137,64 @@ def events(
 @router.get("/card-benefits")
 def card_benefits(
     company: str | None = Query(default=None),
+    country: str | None = Query(default=None),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    """Card.Pick — 카드사 해외여행 혜택 목록.
+    """Card.Pick — 카드사 해외여행 혜택 목록 (국가별 필터 지원).
 
     응답 키는 DB 필수 컬럼명(snake_case) 그대로 — 다른 채널이 그대로 소비한다.
-    company 파라미터는 외부 채널용 필터다 (NEXUS 프론트는 클라이언트 필터링)."""
+    country 는 포함 관계로 전개된다 (베트남 = 베트남 ∪ 동남아 ∪ 해외공통).
+    meta.countries 는 국가 필터 칩 구성용 집계(전개 건수·아이콘)다."""
     from app.repositories.card_benefits import list_active_benefits
     from app.serializers import serialize_card_benefit
+    from app.services.card_benefit_geo import KNOWN_PLACES
 
-    # 임의 값이 캐시 키를 오염시키지 않도록 알려진 카드사만 허용한다
+    # 임의 값이 캐시 키를 오염시키지 않도록 알려진 값만 허용한다
     if company is not None and company not in CARD_COMPANIES:
         raise HTTPException(status_code=400, detail="지원하지 않는 카드사입니다")
-    key = f"card_benefits:list:{company or 'all'}"
-    data = cache.get_or_set(
-        key,
-        lambda: [serialize_card_benefit(b) for b in list_active_benefits(db, company=company)],
+    if country is not None and country not in KNOWN_PLACES:
+        raise HTTPException(status_code=400, detail="지원하지 않는 지역입니다")
+
+    items = cache.get_or_set(
+        f"card_benefits:list:{company or 'all'}:{country or 'all'}",
+        lambda: [
+            serialize_card_benefit(b)
+            for b in list_active_benefits(db, company=company, country=country)
+        ],
     )
-    return api_response(data, meta={"total": len(data)})
+    # 칩 집계는 country 와 무관 — company 단위로 별도 캐시해 중복 계산을 피한다
+    facets = cache.get_or_set(
+        f"card_benefits:facets:{company or 'all'}",
+        lambda: _country_facets(list_active_benefits(db, company=company)),
+    )
+    return api_response(items, meta={"total": len(items), "countries": facets})
+
+
+def _country_facets(rows) -> list[dict]:
+    """국가 필터 칩 구성용 집계 — 데이터에 등장한 지역만, 전개 건수 포함."""
+    from app.services.card_benefit_geo import (
+        COUNTRY_FLAGS, DOMESTIC_ETC, OVERSEAS_COMMON, expand_country_filter,
+    )
+
+    present: set[str] = set()
+    for r in rows:
+        if r.countries:
+            present.update(r.countries.split(","))
+    facets = []
+    for place in sorted(present):
+        allowed = expand_country_filter(place)
+        count = sum(
+            1 for r in rows
+            if r.countries and allowed.intersection(r.countries.split(","))
+        )
+        facets.append(
+            {"name": place, "flag": COUNTRY_FLAGS.get(place, "🌐"), "count": count}
+        )
+    # 건수 내림차순, 해외공통·국내는 맨 뒤 고정
+    tail = (OVERSEAS_COMMON, DOMESTIC_ETC)
+    facets.sort(key=lambda f: (f["name"] in tail, tail.index(f["name"]) if f["name"] in tail else -f["count"]))
+    return facets
 
 
 @router.get("/articles/{article_id}")

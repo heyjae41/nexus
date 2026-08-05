@@ -122,3 +122,60 @@ def test_card_benefits_excludes_not_started_events(client):
     res = client.get("/api/card-benefits")
     titles = [x["title"] for x in res.json()["data"]]
     assert "다음달 혜택" not in titles
+
+
+def seed_geo_benefits(client):
+    db = client.session_factory()
+    rows = [
+        ("bc:vn", "베트남 다낭 호텔 25% 할인", "베트남", "2026.08.01"),
+        ("bc:sea", "동남아 전 가맹점 5% 할인", "동남아", "2026.08.02"),
+        ("bc:jp", "일본 편의점 적립", "일본", "2026.08.03"),
+        ("bc:ov", "해외 결제 캐시백", "해외공통", "2026.08.04"),
+        ("bc:dom", "서울랜드 1+1", "국내·기타", "2026.08.05"),
+    ]
+    for sid, title, countries, start in rows:
+        db.add(CardBenefit(
+            source_id=sid, card_company="BC카드", title=title,
+            event_period=f"{start} ~ 2026.12.31",
+            event_start_date=date(*map(int, start.split("."))),
+            event_end_date=date(2026, 12, 31),
+            countries=countries, detail_url=f"https://ex.com/{sid}",
+        ))
+    db.commit()
+    db.close()
+
+
+def test_card_benefits_country_filter_expands(client):
+    """'베트남' 선택 = 베트남 명시 ∪ 동남아 권역 ∪ 해외공통, 명시 우선 정렬."""
+    seed_geo_benefits(client)
+    res = client.get("/api/card-benefits", params={"country": "베트남"})
+    data = res.json()["data"]
+    titles = [x["title"] for x in data]
+    assert "베트남 다낭 호텔 25% 할인" in titles
+    assert "동남아 전 가맹점 5% 할인" in titles
+    assert "해외 결제 캐시백" in titles
+    assert "일본 편의점 적립" not in titles
+    assert "서울랜드 1+1" not in titles
+    # 명시(베트남) → 권역(동남아) → 해외공통 순
+    assert titles[0] == "베트남 다낭 호텔 25% 할인"
+    assert titles[-1] == "해외 결제 캐시백"
+
+
+def test_card_benefits_country_meta_and_field(client):
+    seed_geo_benefits(client)
+    res = client.get("/api/card-benefits")
+    body = res.json()
+    assert body["data"][0]["countries"]  # 지역 필드 포함 (리스트)
+    assert isinstance(body["data"][0]["countries"], list)
+    # 국가 칩 구성용 집계 (지역명·아이콘·전개 건수)
+    places = {p["name"]: p for p in body["meta"]["countries"]}
+    assert places["베트남"]["count"] == 3  # 베트남+동남아+해외공통
+    assert places["일본"]["count"] == 2   # 일본+해외공통
+    assert places["해외공통"]["count"] == 1
+    assert places["베트남"]["flag"] == "🇻🇳"
+
+
+def test_card_benefits_invalid_country_rejected(client):
+    seed_geo_benefits(client)
+    res = client.get("/api/card-benefits", params={"country": "없는나라"})
+    assert res.status_code == 400

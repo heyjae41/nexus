@@ -89,6 +89,11 @@ function BenefitCard({ benefit }) {
         )}
         <p style={{ fontSize: 12, color: '#9a9aa4', margin: '0 0 3px' }}>
           {benefit.event_period}
+          {benefit.countries?.length > 0 && (
+            <span style={{ marginLeft: 8, color: '#666672', fontSize: 11.5 }}>
+              {benefit.countries.slice(0, 2).join(' · ')}
+            </span>
+          )}
         </p>
         {benefit.target_cards && (
           <p style={{
@@ -109,7 +114,9 @@ export default function CardPick() {
   const requestRef = useRef(0)
   const controllerRef = useRef(null)
   const [company, setCompany] = useState('전체')
+  const [country, setCountry] = useState('전체')
   const [benefits, setBenefits] = useState([])
+  const [countryFacets, setCountryFacets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -121,8 +128,15 @@ export default function CardPick() {
     setLoading(true)
     setError('')
     try {
-      const result = await fetchCardBenefits({ signal: controller.signal })
-      if (requestId === requestRef.current) setBenefits(result)
+      // 국가 필터는 서버가 포함 관계(베트남 ⊃ 동남아 ⊃ 해외공통)로 전개·정렬한다
+      const result = await fetchCardBenefits({
+        country: country === '전체' ? null : country,
+        signal: controller.signal,
+      })
+      if (requestId === requestRef.current) {
+        setBenefits(result.items)
+        setCountryFacets(result.countries)
+      }
     } catch (err) {
       if (err?.name !== 'AbortError' && requestId === requestRef.current) {
         setError(err?.message || '카드 혜택을 불러오지 못했습니다.')
@@ -130,7 +144,7 @@ export default function CardPick() {
     } finally {
       if (requestId === requestRef.current) setLoading(false)
     }
-  }, [])
+  }, [country])
 
   useEffect(() => {
     load()
@@ -165,6 +179,33 @@ export default function CardPick() {
           <p role="status" aria-live="polite" style={{ fontSize: 15, color: '#9a9aa4', margin: 0 }}>
             카드사별 해외여행 이벤트 혜택 모음 · 총 {filtered.length}개 — 할인·캐시백·무료이용 혜택만 골라 담았습니다.
           </p>
+        </div>
+
+        <div role="group" aria-label="국가 필터" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          {['전체', ...countryFacets.map(f => f.name)].map(name => {
+            const facet = countryFacets.find(f => f.name === name)
+            return (
+              <button
+                key={name}
+                className="btn"
+                aria-pressed={country === name}
+                onClick={() => setCountry(name)}
+                style={{
+                  padding: '7px 14px', borderRadius: 20,
+                  fontSize: 13.5, fontWeight: 600,
+                  background: country === name ? '#E8123C' : '#15151A',
+                  color: country === name ? '#fff' : '#b4b4be',
+                  border: country === name ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
+                  transition: 'all .15s',
+                }}
+              >
+                {facet ? `${facet.flag} ${facet.name}` : name}
+                {facet && (
+                  <span style={{ marginLeft: 5, fontSize: 11.5, opacity: .65 }}>{facet.count}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         <div role="group" aria-label="카드사 필터" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 28 }}>

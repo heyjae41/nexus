@@ -53,6 +53,7 @@ class CardBenefitCandidate:
     target_cards: str | None = None
     benefit_summary: str | None = None
     benefit_tags: str | None = None
+    countries: str | None = None  # 수집기 정규화 단계에서 채운다 (쉼표 구분)
 
 
 def _parse_dot_date(value) -> date | None:

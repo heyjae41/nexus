@@ -92,12 +92,14 @@ export async function fetchEvents({ category = null, page = 1, size = 20 } = {})
   return json
 }
 
-export async function fetchCardBenefits({ company = null, signal } = {}) {
+export async function fetchCardBenefits({ company = null, country = null, signal } = {}) {
   const params = new URLSearchParams()
   if (company) params.set('company', company)
+  if (country) params.set('country', country)
   const query = params.toString()
   const json = await request(`/api/card-benefits${query ? `?${query}` : ''}`, { signal })
-  return json.data ?? []
+  // items: 혜택 목록 / countries: 국가 필터 칩 구성용 집계(meta)
+  return { items: json.data ?? [], countries: json.meta?.countries ?? [] }
 }
 
 export async function fetchHotpicks({ signal } = {}) {
