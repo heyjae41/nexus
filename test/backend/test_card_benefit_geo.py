@@ -100,3 +100,27 @@ class TestMatchRankRegionSelection:
     def test_unrelated_region_does_not_get_rank_one(self):
         # 관련 없는 권역 단어만 있는 이벤트가 1순위를 받으면 안 됨 (리뷰 LOW)
         assert match_rank(["유럽"], "베트남") == 2
+
+
+class TestGeoTextPrecision:
+    """v2 상세 전문 스캔의 오탐 가드 (리뷰 HIGH)."""
+
+    def test_brand_names_are_not_places(self):
+        assert extract_countries("파리바게뜨 제휴 할인") == [DOMESTIC_ETC]
+        assert extract_countries("런던제화 매장 이용 시") == [DOMESTIC_ETC]
+        assert extract_countries("영문(로마자) 성명 입력") == [DOMESTIC_ETC]
+
+    def test_sebu_schedule_boilerplate(self):
+        assert extract_countries("세부 일정은 추후 안내") == [DOMESTIC_ETC]
+        assert extract_countries("세부 안내는 앱 참조") == [DOMESTIC_ETC]
+
+    def test_geo_text_used_for_places_but_not_overseas_signal(self):
+        # 본문(geo_text)의 국가명은 분류에 쓰고, '해외' 상용구는 쓰지 않는다
+        assert extract_countries("여름 이벤트", geo_text="오사카 지점 한정") == ["일본"]
+        assert extract_countries("여름 이벤트", geo_text="해외 이용 시 수수료 부과") == [DOMESTIC_ETC]
+        # 제목·요약의 해외 신호는 여전히 유효
+        assert extract_countries("해외 결제 캐시백", geo_text="유의사항") == [OVERSEAS_COMMON]
+
+    def test_real_paris_still_detected(self):
+        assert extract_countries("파리 여행 필수 혜택") == ["프랑스"]
+        assert extract_countries("", geo_text="필리핀 세부 막탄 리조트") == ["필리핀"]
