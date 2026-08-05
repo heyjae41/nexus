@@ -104,7 +104,6 @@ describe('CardPick 뷰', () => {
     renderView()
     expect(await screen.findByText('진행 중인 혜택이 없습니다.')).toBeInTheDocument()
   })
-})
 
 
   it('국가 필터 칩이 집계 데이터로 렌더되고 클릭 시 country 로 재조회한다', async () => {
@@ -121,3 +120,5 @@ describe('CardPick 뷰', () => {
       )
     })
   })
+})
+

@@ -156,20 +156,19 @@ def card_benefits(
     if country is not None and country not in KNOWN_PLACES:
         raise HTTPException(status_code=400, detail="지원하지 않는 지역입니다")
 
-    key = f"card_benefits:list:{company or 'all'}:{country or 'all'}"
-
-    def load():
-        rows = list_active_benefits(db, company=company, country=country)
-        return {
-            "items": [serialize_card_benefit(b) for b in rows],
-            "countries": _country_facets(list_active_benefits(db, company=company)),
-        }
-
-    payload = cache.get_or_set(key, load)
-    return api_response(
-        payload["items"],
-        meta={"total": len(payload["items"]), "countries": payload["countries"]},
+    items = cache.get_or_set(
+        f"card_benefits:list:{company or 'all'}:{country or 'all'}",
+        lambda: [
+            serialize_card_benefit(b)
+            for b in list_active_benefits(db, company=company, country=country)
+        ],
     )
+    # 칩 집계는 country 와 무관 — company 단위로 별도 캐시해 중복 계산을 피한다
+    facets = cache.get_or_set(
+        f"card_benefits:facets:{company or 'all'}",
+        lambda: _country_facets(list_active_benefits(db, company=company)),
+    )
+    return api_response(items, meta={"total": len(items), "countries": facets})
 
 
 def _country_facets(rows) -> list[dict]:

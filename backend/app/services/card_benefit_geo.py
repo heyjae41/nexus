@@ -8,6 +8,8 @@
 유효한 혜택을 빠뜨리지 않기 위한 포함 관계 전개이며, 정렬은 명시가 우선.
 """
 
+import re
+
 OVERSEAS_COMMON = "해외공통"
 DOMESTIC_ETC = "국내·기타"
 
@@ -24,7 +26,7 @@ COUNTRY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "싱가포르": ("싱가포르", "마리나 베이", "센토사"),
     "말레이시아": ("말레이시아", "쿠알라룸푸르", "코타키나발루"),
     "인도네시아": ("인도네시아", "발리", "자카르타"),
-    "미국": ("미국", "하와이", "뉴욕", "라스베가스", "괌", "사이판", "LA"),
+    "미국": ("미국", "하와이", "뉴욕", "라스베가스", "로스앤젤레스", "괌", "사이판"),
     "프랑스": ("프랑스", "파리", "루브르"),
     "영국": ("영국", "런던"),
     "이탈리아": ("이탈리아", "로마", "밀라노"),
@@ -79,9 +81,14 @@ def _match_keyword_map(blob: str, keyword_map: dict[str, tuple[str, ...]]) -> li
     ]
 
 
+# 오탐 방지: 지역명과 동철인 일반 용례를 매칭 전에 제거한다
+# (예: '세부 조건/내용/사항' 의 세부 ≠ 필리핀 세부)
+_STOP_PHRASES_RE = re.compile(r"세부\s*(?:조건|내용|사항|정보|혜택|기준)")
+
+
 def extract_countries(text: str | None) -> list[str]:
     """이벤트 텍스트에서 대상 지역 목록을 추출한다 (항상 1개 이상)."""
-    blob = text or ""
+    blob = _STOP_PHRASES_RE.sub(" ", text or "")
     found = _match_keyword_map(blob, COUNTRY_KEYWORDS)
     found += _match_keyword_map(blob, REGION_KEYWORDS)
     if found:
@@ -109,10 +116,13 @@ def expand_country_filter(selected: str) -> set[str]:
 
 
 def match_rank(event_countries: list[str], selected: str) -> int:
-    """정렬 우선순위 — 0: 국가 명시, 1: 권역 매칭, 2: 해외공통."""
+    """정렬 우선순위 — 0: 선택 지역 명시, 1: 선택과 권역 관계, 2: 해외공통 등.
+
+    권역 관계 = 선택한 권역의 소속국 이벤트, 또는 선택한 국가를 품는 권역 이벤트."""
     if selected in event_countries:
         return 0
-    if any(c in REGION_MEMBERS or selected in REGION_MEMBERS.get(c, ())
-           for c in event_countries if c != OVERSEAS_COMMON):
+    members = REGION_MEMBERS.get(selected, ())
+    if any(c in members or selected in REGION_MEMBERS.get(c, ())
+           for c in event_countries):
         return 1
     return 2

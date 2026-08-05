@@ -69,3 +69,34 @@ class TestExpandCountryFilter:
     def test_country_flags_cover_known_countries(self):
         assert COUNTRY_FLAGS.get("일본") == "🇯🇵"
         assert COUNTRY_FLAGS.get(OVERSEAS_COMMON)  # 해외공통도 아이콘 보유
+
+
+class TestFalsePositiveGuards:
+    """사전 부분문자열 오탐 방지 (리뷰 HIGH)."""
+
+    def test_sebu_boilerplate_is_not_philippines(self):
+        assert extract_countries("세부 조건은 상세페이지 참조, 해외 결제 시 캐시백") == [OVERSEAS_COMMON]
+        assert extract_countries("세부내용은 유의사항 확인") == [DOMESTIC_ETC]
+        # 진짜 세부(도시)는 잡아야 한다
+        assert extract_countries("필리핀 세부 여행 특가") == ["필리핀"]
+        assert extract_countries("세부 막탄 리조트 할인") == ["필리핀"]
+
+    def test_english_card_names_are_not_usa(self):
+        # 'LA' 같은 짧은 영문 토큰이 카드명(PLATINUM/GALAXY/CLASS)에 오탐되면 안 됨
+        assert extract_countries("VISA PLATINUM 대상 해외 적립") == [OVERSEAS_COMMON]
+        assert extract_countries("GALAXY 카드 국내 이벤트") == [DOMESTIC_ETC]
+        # 로스앤젤레스는 정상 인식
+        assert extract_countries("로스앤젤레스 직항 특가") == ["미국"]
+
+
+class TestMatchRankRegionSelection:
+    """권역 선택 시에도 명시>권역>공통 순위 유지 (리뷰 MEDIUM)."""
+
+    def test_member_country_ranks_above_common_under_region_filter(self):
+        assert match_rank(["유럽"], "유럽") == 0
+        assert match_rank(["프랑스"], "유럽") == 1       # 소속국 = 권역 매칭
+        assert match_rank([OVERSEAS_COMMON], "유럽") == 2
+
+    def test_unrelated_region_does_not_get_rank_one(self):
+        # 관련 없는 권역 단어만 있는 이벤트가 1순위를 받으면 안 됨 (리뷰 LOW)
+        assert match_rank(["유럽"], "베트남") == 2
