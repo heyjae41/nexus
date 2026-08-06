@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NEXUS — 금융 AI 학습 채널</title>
+    <!-- Google tag (gtag.js) -->
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YCKV0L1G97"></script>
+    <script>
+      // 로컬 개발·자동화(vite dev, Playwright) 트래픽이 운영 GA 속성을 오염시키지
+      // 않도록 공식 opt-out 플래그로 차단한다 — 실서비스 호스트에서만 수집.
+      if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+        window['ga-disable-G-YCKV0L1G97'] = true;
+      }
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-YCKV0L1G97');
+    </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
       rel="stylesheet"
