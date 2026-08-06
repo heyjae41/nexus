@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom'
 import { displayName } from '../utils/user'
 import { useModalA11y } from '../hooks/useModalA11y'
 
-const NAV_LINKS = [
+export const NAV_LINKS = [
   { label: '홈', path: '/', match: ['/'] },
   { label: '큐레이션', path: '/curation', match: ['/curation', '/articles/'] },
   { label: '클래스', path: '/classes', match: ['/classes'] },

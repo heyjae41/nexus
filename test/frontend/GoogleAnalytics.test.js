@@ -19,7 +19,11 @@ describe('구글 애널리틱스 태그 (index.html)', () => {
 
   it('dataLayer 초기화와 gtag config 가 측정 ID로 설정되어 있다', () => {
     expect(indexHtml).toContain('window.dataLayer = window.dataLayer || []')
-    expect(indexHtml).toContain(`gtag('config', '${GA_ID}')`)
+    expect(indexHtml).toContain(`gtag('config', '${GA_ID}'`)
+  })
+
+  it('자동 page_view 는 끈다 — 라우터 훅이 제목 설정 후 수동 전송한다', () => {
+    expect(indexHtml).toContain(`gtag('config', '${GA_ID}', { send_page_view: false })`)
   })
 
   it('태그는 head 안, 앱 번들 로드 전에 위치한다', () => {

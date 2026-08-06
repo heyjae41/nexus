@@ -17,7 +17,9 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      gtag('config', 'G-YCKV0L1G97');
+      // page_view 는 라우터 훅(usePageTitle)이 제목 설정 직후 수동 전송한다 —
+      // 자동 전송은 SPA 전환 시 이전 페이지 제목이 붙는 문제(off-by-one)가 있다.
+      gtag('config', 'G-YCKV0L1G97', { send_page_view: false });
     </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
