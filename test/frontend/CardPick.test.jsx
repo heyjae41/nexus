@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import CardPick from '@/views/CardPick'
 
@@ -71,7 +71,7 @@ describe('CardPick 뷰', () => {
     renderView()
     await screen.findByText('WON트래블 호텔 최대 25% 할인')
 
-    fireEvent.click(screen.getByRole('button', { name: '우리카드' }))
+    fireEvent.click(screen.getByRole('button', { name: /^우리카드/ }))
     expect(screen.queryByText('해외 결제하면 최대 10만 하나머니!')).not.toBeInTheDocument()
     expect(screen.getByText('WON트래블 호텔 최대 25% 할인')).toBeInTheDocument()
   })
@@ -85,9 +85,9 @@ describe('CardPick 뷰', () => {
     renderView()
     await screen.findByText('신한 여행 이벤트')
     // 데이터에 있는 카드사(하나/우리/신한) 버튼이 모두 노출
-    expect(screen.getByRole('button', { name: '하나카드' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '우리카드' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '신한카드' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^하나카드/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^우리카드/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^신한카드/ })).toBeInTheDocument()
   })
 
   it('로딩 실패 시 재시도 UI 를 보여준다 (browser dialog 금지)', async () => {
@@ -136,6 +136,16 @@ describe('CardPick 뷰', () => {
 
     expect(await screen.findByText(/베트남 특화 혜택/)).toBeInTheDocument()
     expect(screen.getByText(/해외 어디서나/)).toBeInTheDocument()
+  })
+
+  it('카드사 필터 칩에 이벤트 개수가 표시된다', async () => {
+    renderView()
+    await screen.findByText('WON트래블 호텔 최대 25% 할인')
+    // mock 데이터: 하나카드 1건, 우리카드 1건, 전체 2건 (카드사 필터 그룹 내에서 확인)
+    const group = screen.getByRole('group', { name: '카드사 필터' })
+    expect(within(group).getByRole('button', { name: /^전체/ })).toHaveTextContent('2')
+    expect(within(group).getByRole('button', { name: /^하나카드/ })).toHaveTextContent('1')
+    expect(within(group).getByRole('button', { name: /^우리카드/ })).toHaveTextContent('1')
   })
 })
 

@@ -167,6 +167,11 @@ export default function CardPick() {
     ...COMPANY_ORDER.filter(name => present.has(name)),
     ...[...present].filter(name => !COMPANY_ORDER.includes(name)).sort(),
   ]
+  // 카드사 칩 개수 — 현재 국가 필터가 적용된 목록 기준 (국가 변경 시 자동 갱신)
+  const companyCounts = benefits.reduce((acc, b) => {
+    acc[b.card_company] = (acc[b.card_company] || 0) + 1
+    return acc
+  }, {})
   const activeCompany = companies.includes(company) ? company : '전체'
   const filtered = activeCompany === '전체'
     ? benefits
@@ -239,6 +244,9 @@ export default function CardPick() {
               }}
             >
               {name}
+              <span style={{ marginLeft: 5, fontSize: 11.5, opacity: .65 }}>
+                {name === '전체' ? benefits.length : (companyCounts[name] || 0)}
+              </span>
             </button>
           ))}
         </div>
