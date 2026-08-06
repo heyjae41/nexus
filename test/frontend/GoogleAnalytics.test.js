@@ -1,10 +1,14 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const GA_ID = 'G-YCKV0L1G97'
-// vitest 는 frontend/ 를 루트로 실행된다 (게이트: cd frontend && npx vitest run)
-const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf-8')
+// 실행 cwd 와 무관하게 테스트 파일 위치 기준으로 해석한다
+const indexHtml = readFileSync(
+  fileURLToPath(new URL('../../frontend/index.html', import.meta.url)),
+  'utf-8',
+)
 
 describe('구글 애널리틱스 태그 (index.html)', () => {
   it('gtag.js 로더가 측정 ID와 함께 async 로 삽입되어 있다', () => {
@@ -25,5 +29,14 @@ describe('구글 애널리틱스 태그 (index.html)', () => {
     expect(gaAt).toBeGreaterThan(-1)
     expect(gaAt).toBeLessThan(headEndAt)
     expect(gaAt).toBeLessThan(appAt)
+  })
+
+  it('로컬(localhost/127.0.0.1) 트래픽은 opt-out 플래그로 수집을 차단한다', () => {
+    expect(indexHtml).toContain(`window['ga-disable-${GA_ID}'] = true`)
+    expect(indexHtml).toContain("['localhost', '127.0.0.1'].includes(window.location.hostname)")
+  })
+
+  it('googletagmanager.com preconnect 가 선언되어 있다', () => {
+    expect(indexHtml).toContain('<link rel="preconnect" href="https://www.googletagmanager.com" />')
   })
 })
