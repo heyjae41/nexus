@@ -21,6 +21,7 @@ import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
 import Profile from './views/Profile'
 import { useLocalStorageState } from './utils/useLocalStorageState'
+import { usePageTitle } from './utils/pageTitle'
 import { fetchCurrentMember, logoutMember, registerAccount } from './api/client'
 
 function AppInner() {
@@ -30,6 +31,7 @@ function AppInner() {
   const [enrolled, setEnrolled] = useLocalStorageState('nexus.enrolled', [])
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  usePageTitle(pathname)
 
   const isArticle = pathname.startsWith('/articles/')
 
