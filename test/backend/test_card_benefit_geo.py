@@ -124,3 +124,18 @@ class TestGeoTextPrecision:
     def test_real_paris_still_detected(self):
         assert extract_countries("파리 여행 필수 혜택") == ["프랑스"]
         assert extract_countries("", geo_text="필리핀 세부 막탄 리조트") == ["필리핀"]
+
+
+class TestPaymentBrandNotCountry:
+    """결제 네트워크 브랜드는 국가 신호가 아니다 (셜록홈즈 영국 이벤트가
+    연회비 안내의 '유니온페이' 때문에 중국으로 오분류된 실사례)."""
+
+    def test_unionpay_alipay_do_not_imply_china(self):
+        assert extract_countries(
+            "국내외겸용 (마스터, 유니온페이(K-World)) 연회비 안내"
+        ) == [DOMESTIC_ETC]
+        assert extract_countries("알리페이 결제 지원 매장") == [DOMESTIC_ETC]
+
+    def test_real_china_still_detected(self):
+        assert extract_countries("중국 상하이 여행 특가") == ["중국"]
+        assert extract_countries("", geo_text="베이징 직항 노선") == ["중국"]
