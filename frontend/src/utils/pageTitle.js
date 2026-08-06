@@ -27,6 +27,15 @@ export function titleForPath(pathname) {
 
 export function usePageTitle(pathname) {
   useEffect(() => {
-    document.title = titleForPath(pathname)
+    const title = titleForPath(pathname)
+    document.title = title
+    // 제목 설정이 끝난 뒤 page_view 를 보내야 GA 페이지 제목 차원이 정확하다
+    // (index.html 의 gtag config 는 send_page_view: false)
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', {
+        page_title: title,
+        page_location: window.location.href,
+      })
+    }
   }, [pathname])
 }
