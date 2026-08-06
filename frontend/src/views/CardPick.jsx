@@ -6,6 +6,16 @@ import { fetchCardBenefits } from '../api/client'
 // 신규 카드사는 뒤에 이어붙인다 (백엔드에 카드사가 추가돼도 프론트 수정 불필요)
 const COMPANY_ORDER = ['BC카드', '하나카드', '우리카드', '현대카드', '삼성카드', '롯데카드', 'KB국민카드', '신한카드']
 
+const sectionHeadStyle = {
+  fontSize: 16, fontWeight: 700, color: '#ECECEF',
+  letterSpacing: '-.01em', margin: '0 0 14px',
+  display: 'flex', alignItems: 'center', gap: 8,
+}
+const sectionCountStyle = {
+  fontFamily: '"JetBrains Mono", monospace',
+  fontSize: 12, fontWeight: 600, color: '#6E6FF5',
+}
+
 const COMPANY_COLORS = {
   BC카드: '#E8123C',
   하나카드: '#008485',
@@ -161,6 +171,10 @@ export default function CardPick() {
   const filtered = activeCompany === '전체'
     ? benefits
     : benefits.filter(benefit => benefit.card_company === activeCompany)
+  // 국가 선택 시 서버가 내려주는 geo_match 로 섹션 분리 ('전체'면 둘 다 빈 배열)
+  const activeCountry = country
+  const specific = filtered.filter(b => b.geo_match && b.geo_match !== 'common')
+  const commons = filtered.filter(b => b.geo_match === 'common')
 
   return (
     <main style={{ background: '#0A0A12', minHeight: '100vh', padding: '40px 40px 64px' }}>
@@ -238,6 +252,37 @@ export default function CardPick() {
           </div>
         ) : filtered.length === 0 ? (
           <p role="status" style={{ color: '#9a9aa4' }}>진행 중인 혜택이 없습니다.</p>
+        ) : specific.length > 0 || commons.length > 0 ? (
+          <>
+            {/* 국가 선택 시: 특화 혜택과 '어디서나 쓰는' 해외공통을 시각적으로 분리 —
+                칩의 건수(특화)와 첫 섹션이 일치해 "필터가 안 걸린 것 같은" 착시를 없앤다 */}
+            {specific.length > 0 && (
+              <>
+                <h2 style={sectionHeadStyle}>
+                  {countryFacets.find(f => f.name === activeCountry)?.flag} {activeCountry} 특화 혜택
+                  <span style={sectionCountStyle}>{specific.length}</span>
+                </h2>
+                <div className="rgrid-4" style={{ marginBottom: 30 }}>
+                  {specific.map(benefit => (
+                    <BenefitCard key={benefit.id ?? benefit.detail_url} benefit={benefit} />
+                  ))}
+                </div>
+              </>
+            )}
+            {commons.length > 0 && (
+              <>
+                <h2 style={sectionHeadStyle}>
+                  🌏 해외 어디서나 쓰는 혜택
+                  <span style={sectionCountStyle}>{commons.length}</span>
+                </h2>
+                <div className="rgrid-4">
+                  {commons.map(benefit => (
+                    <BenefitCard key={benefit.id ?? benefit.detail_url} benefit={benefit} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         ) : (
           <div className="rgrid-4">
             {filtered.map(benefit => (

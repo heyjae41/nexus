@@ -120,5 +120,22 @@ describe('CardPick 뷰', () => {
       )
     })
   })
+
+  it('국가 선택 시 특화/해외공통 섹션으로 나눠 보여준다', async () => {
+    renderView()
+    await screen.findByText('WON트래블 호텔 최대 25% 할인')
+
+    fetchCardBenefits.mockResolvedValueOnce({
+      items: [
+        { ...benefits[0], geo_match: 'exact' },
+        { ...benefits[1], geo_match: 'common' },
+      ],
+      countries: countryFacets,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /베트남/ }))
+
+    expect(await screen.findByText(/베트남 특화 혜택/)).toBeInTheDocument()
+    expect(screen.getByText(/해외 어디서나/)).toBeInTheDocument()
+  })
 })
 

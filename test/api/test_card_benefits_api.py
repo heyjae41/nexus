@@ -182,3 +182,18 @@ def test_card_benefits_invalid_country_rejected(client):
     seed_geo_benefits(client)
     res = client.get("/api/card-benefits", params={"country": "없는나라"})
     assert res.status_code == 400
+
+
+def test_card_benefits_country_filter_marks_geo_match(client):
+    """country 지정 시 각 항목에 매칭 유형(geo_match)을 표시한다 — 프론트가
+    '특화 혜택'과 '해외 공통 혜택' 섹션을 시각적으로 나누는 데 쓴다."""
+    seed_geo_benefits(client)
+    res = client.get("/api/card-benefits", params={"country": "베트남"})
+    data = res.json()["data"]
+    by_title = {x["title"]: x.get("geo_match") for x in data}
+    assert by_title["베트남 다낭 호텔 25% 할인"] == "exact"
+    assert by_title["동남아 전 가맹점 5% 할인"] == "related"
+    assert by_title["해외 결제 캐시백"] == "common"
+    # country 미지정 시엔 geo_match 없음
+    res_all = client.get("/api/card-benefits")
+    assert all("geo_match" not in x for x in res_all.json()["data"])

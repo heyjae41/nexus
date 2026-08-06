@@ -156,12 +156,21 @@ def card_benefits(
     if country is not None and country not in KNOWN_PLACES:
         raise HTTPException(status_code=400, detail="지원하지 않는 지역입니다")
 
+    def load_items():
+        rows = list_active_benefits(db, company=company, country=country)
+        items = [serialize_card_benefit(b) for b in rows]
+        if country:
+            # 프론트 섹션 구분용 매칭 유형 — 0:명시(exact) 1:권역(related) 2:공통(common)
+            from app.services.card_benefit_geo import match_rank
+
+            labels = ("exact", "related", "common")
+            for item, row in zip(items, rows):
+                rank = match_rank((row.countries or "").split(","), country)
+                item["geo_match"] = labels[rank]
+        return items
+
     items = cache.get_or_set(
-        f"card_benefits:list:{company or 'all'}:{country or 'all'}",
-        lambda: [
-            serialize_card_benefit(b)
-            for b in list_active_benefits(db, company=company, country=country)
-        ],
+        f"card_benefits:list:{company or 'all'}:{country or 'all'}", load_items
     )
     # 칩 집계는 country 와 무관 — company 단위로 별도 캐시해 중복 계산을 피한다
     facets = cache.get_or_set(
