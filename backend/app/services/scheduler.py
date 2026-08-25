@@ -180,11 +180,12 @@ def build_scheduler(cache: VersionedCache) -> BackgroundScheduler:
         id="ingest_contents",
         args=[cache],
     )
-    scheduler.add_job(
-        run_collect_chain_job,
-        "interval",
-        hours=settings.collect_chain_interval_hours,
-        id="collect_chain",
-        args=[cache],
-    )
+    if settings.enable_crawl_scheduler:
+        scheduler.add_job(
+            run_collect_chain_job,
+            "interval",
+            hours=settings.collect_chain_interval_hours,
+            id="collect_chain",
+            args=[cache],
+        )
     return scheduler

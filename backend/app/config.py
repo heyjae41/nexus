@@ -48,6 +48,9 @@ class Settings(BaseSettings):
 
     # 수집 체인 (브런치 → event-us → luma 순차 실행) 주기
     collect_chain_interval_hours: int = 12
+    # false 면 in-process 스케줄러에서 수집 체인을 빼고 인제스트만 돌린다
+    # (K8s 배포에서 수집을 CronJob(app.collect_once)으로 분리할 때 사용)
+    enable_crawl_scheduler: bool = True
 
     # Meetup collector (event-us.kr)
     meetup_query: str = "ai ax"
