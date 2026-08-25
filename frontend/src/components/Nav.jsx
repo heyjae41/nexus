@@ -64,7 +64,7 @@ export default function Nav({ user, onLogin, onLogout }) {
         {/* Logo */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', marginRight: 28 }}>
           <div style={{ width: 11, height: 11, borderRadius: '50%', background: '#E8123C', flexShrink: 0 }} />
-          <span style={{ fontSize: 21, fontWeight: 800, color: '#fff', letterSpacing: '-.03em' }}>NEXUS</span>
+          <span style={{ fontSize: 21, fontWeight: 800, color: '#fff', letterSpacing: '-.03em' }}>EDU.AI</span>
         </Link>
 
         {/* Nav links */}

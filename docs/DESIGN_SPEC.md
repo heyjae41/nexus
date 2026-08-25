@@ -1,10 +1,10 @@
-# NEXUS 디자인 명세서 (Implementation-Grade Design Spec)
+# EDU.AI 디자인 명세서 (Implementation-Grade Design Spec)
 
-> BC카드 AI 사업팀의 금융 AI 학습 채널 "NEXUS" 프런트엔드 재구축용 명세.
+> BC카드 AI 사업팀의 금융 AI 학습 채널 "EDU.AI" 프런트엔드 재구축용 명세.
 > 이 문서 하나만으로 원본 소스를 보지 않고 UI를 충실히 재현할 수 있도록 작성되었다.
 > 슬로건: "금융과 AI, 일하면서 배웁니다." / "퇴근 후 30분, 금융 AI 한 스푼."
 
-- **컨셉**: 다크 테마 SPA. 강렬한 레드(BC카드/NEXUS 브랜드) 액센트 + 그라디언트 카드 썸네일.
+- **컨셉**: 다크 테마 SPA. 강렬한 레드(BC카드/EDU.AI 브랜드) 액센트 + 그라디언트 카드 썸네일.
 - **폰트**: Pretendard (본문/UI), JetBrains Mono (라벨/코드/뱃지, `.mono` 클래스).
 - **전역 배경**: `#08080B` (거의 검정).
 - **전역 텍스트**: `#ECECEF`.
@@ -95,7 +95,7 @@
 
 | 요소 | size | weight | line-height | letter-spacing | color |
 |---|---|---|---|---|---|
-| 로고 "NEXUS" | 21px (온보딩 20px) | 800 | — | -.03em | #fff |
+| 로고 "EDU.AI" | 21px (온보딩 20px) | 800 | — | -.03em | #fff |
 | 홈 히어로 h1 | 52px (모바일 34px) | 800 | 1.1 | -.04em | #fff |
 | 페이지 h1 (목록) | 32px | 800 | — | -.03em | #fff |
 | 클래스 상세 h1 | 30px | 800 | 1.25 | -.025em | #fff |
@@ -208,7 +208,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 스티키 헤더 (`position:sticky; top:0; z-index:50`), `padding:14px 28px`, 배경 `rgba(8,8,11,.82)` + blur(14px), 하단 테두리.
 
 구성 (좌→우):
-1. **로고**: 레드 점(11px 원 `#E8123C`) + "NEXUS" (21px/800/#fff) — 클릭 시 홈.
+1. **로고**: 레드 점(11px 원 `#E8123C`) + "EDU.AI" (21px/800/#fff) — 클릭 시 홈.
 2. **네비 링크** (`.topnav-links`, 22px gap, 14.5px/600): 홈 · 큐레이션 · 클래스 · 커뮤니티 · meet.pl · AI핫딜 · `eat.pl ↗`(외부링크 `https://web.paybooc.ai/place/what-to-eat`). 활성 라우트는 `#E8123C`, 나머지 `#a6a6b0`. (eat.pl은 항상 `#a6a6b0`)
    - 활성 판정: 큐레이션은 `curation`+`curation-detail`, 클래스는 `classes`+`class-detail`, 커뮤니티는 `community`+`community-detail`, 밋플은 `meet`+`meet-detail`.
 3. **flex spacer** (`flex:1`).
@@ -246,7 +246,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 4. **📍 가야할 밋플** (3열) — `homeEvents` = 이벤트 첫 3개. 카드: 120px 이미지/그라디언트(하단 날짜뱃지) + 타이틀 + `{location} · {going}명 참여`. → 밋플 상세.
 
 #### (c) 푸터 밴드
-`#0C0C10` 배경, 중앙 정렬: "금융과 AI, 일하면서 배웁니다." (18px/800) + "BC카드 AI 사업팀 · NEXUS — credit + finance" (13px/#6a6a74) + 링크 6개(클래스·큐레이션·커뮤니티·meet.pl·AI핫딜·eat.pl).
+`#0C0C10` 배경, 중앙 정렬: "금융과 AI, 일하면서 배웁니다." (18px/800) + "BC카드 AI 사업팀 · EDU.AI — credit + finance" (13px/#6a6a74) + 링크 6개(클래스·큐레이션·커뮤니티·meet.pl·AI핫딜·eat.pl).
 
 ### 2.4 클래스 목록 (`classes`)
 
@@ -326,7 +326,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 | id | title | instructor | category | level | price | original | chapters | hours | rating | students | tag |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| c1 | [오프라인] 직장인 AI 개발자 12주 과정 | NEXUS LAB | 부트캠프 | 올인원 | 3900000 | 0 | 14 | 14 | 4.9 | 88 | BEST |
+| c1 | [오프라인] 직장인 AI 개발자 12주 과정 | EDU.AI LAB | 부트캠프 | 올인원 | 3900000 | 0 | 14 | 14 | 4.9 | 88 | BEST |
 | c2 | [오프라인] LLM으로 금융 상담 챗봇 만들기 | 이엔지니어 | LLM·생성형 AI | 중급 | 264000 | 390000 | 10 | 18 | 4.8 | 870 | NEW |
 | c3 | [오프라인] 카드 매출 데이터로 배우는 시계열 예측 | 박애널 | 데이터 분석 | 중급 | 231000 | 330000 | 6 | 11 | 4.8 | 540 | (없음) |
 | c4 | [오프라인] 이상거래 탐지(FDS) 모델 만들기 | 정ML | 금융 도메인 | 중급 | 297000 | 420000 | 9 | 16 | 4.9 | 1580 | BEST |
@@ -357,12 +357,12 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 
 | id | category | title | source | readTime |
 |---|---|---|---|---|
-| a1 | AI 트렌드 | GPT-5 시대, 금융권은 LLM을 어떻게 도입하고 있나 | NEXUS 에디터 | 7분 |
+| a1 | AI 트렌드 | GPT-5 시대, 금융권은 LLM을 어떻게 도입하고 있나 | EDU.AI 에디터 | 7분 |
 | a2 | 커리어 | 비전공 직장인이 6개월 만에 데이터 분석가로 이직한 법 | 커리어 인사이트 | 5분 |
-| a3 | 테크 | RAG vs 파인튜닝, 우리 회사엔 뭐가 맞을까 | NEXUS 에디터 | 8분 |
+| a3 | 테크 | RAG vs 파인튜닝, 우리 회사엔 뭐가 맞을까 | EDU.AI 에디터 | 8분 |
 | a4 | 데이터 리포트 | 결제 데이터로 보는 2026 상반기 소비 트렌드 | 데이터 리포트 | 6분 |
 | a5 | 비즈니스 | AI 에이전트가 바꾸는 백오피스 업무 | 비즈니스 인사이트 | 5분 |
-| a6 | 테크 | 주니어 개발자가 알아야 할 MLOps 기본기 | NEXUS 에디터 | 9분 |
+| a6 | 테크 | 주니어 개발자가 알아야 할 MLOps 기본기 | EDU.AI 에디터 | 9분 |
 
 **excerpt 전문**:
 - a1: "규제 산업인 금융에서 생성형 AI를 실서비스에 올리기까지, 국내 주요 금융사들의 도입 전략과 거버넌스를 정리했습니다."
@@ -376,7 +376,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 1. "많은 조직이 생성형 AI 도입을 검토하지만, 정작 가장 큰 장벽은 모델 성능이 아니라 데이터 거버넌스와 신뢰성입니다."
 2. "특히 금융처럼 규제가 강한 산업에서는 "왜 이 답이 나왔는가"를 설명할 수 있어야 하고, 민감 정보가 새지 않도록 가드레일을 촘촘히 세워야 합니다."
 3. "실무에서는 작은 범위의 내부 업무(문서 검색, 요약, 초안 작성)부터 시작해 점진적으로 확장하는 전략이 가장 안전합니다."
-4. "NEXUS 클래스에서는 이 과정을 BC카드의 실제 익명 데이터로 직접 실습하며, 도입 의사결정에 필요한 감각을 기릅니다."
+4. "EDU.AI 클래스에서는 이 과정을 BC카드의 실제 익명 데이터로 직접 실습하며, 도입 의사결정에 필요한 감각을 기릅니다."
 
 ### 3.4 커뮤니티 글 `posts()` (5개)
 필드: `id, title, author, tag, likes, time, body`.
@@ -392,7 +392,7 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 **body 전문**:
 - p1: "규정 문서가 수천 페이지라 검색이 지옥이었는데, RAG 붙이고 나서 문의량이 절반으로 줄었습니다. 다만 청킹 전략을 잘못 잡아서 처음엔 엉뚱한 답이 많이 나왔어요. 결국 문서 구조 기반으로 청크를 나누니 정확도가 확 올랐습니다."
 - p2: "질문이 많아서 정리합니다. 양자화(4bit) 기준 VRAM 20GB 정도면 무난하게 돌아갑니다. 3090/4090 한 장으로 충분하고, 추론 속도는 토큰당 대략..."
-- p3: "문과 출신 기획자입니다. NEXUS LLM 클래스 듣고 처음으로 LoRA 파인튜닝까지 해봤는데, 생각보다 진입장벽이 낮았어요. 데이터셋 만드는 게 제일 오래 걸렸습니다."
+- p3: "문과 출신 기획자입니다. EDU.AI LLM 클래스 듣고 처음으로 LoRA 파인튜닝까지 해봤는데, 생각보다 진입장벽이 낮았어요. 데이터셋 만드는 게 제일 오래 걸렸습니다."
 - p4: "매달 3일씩 걸리던 정산을 pandas로 자동화했더니 10분이면 끝납니다. 처음엔 무서웠는데 클래스에서 배운 대로 차근차근 하니 됐어요. 코드 공유합니다."
 - p5: "업무별로 자주 쓰는 프롬프트를 정리했습니다. 회의록 요약, 이메일 초안, 데이터 해석 요청 등 바로 복붙해서 쓰세요."
 
@@ -400,18 +400,18 @@ state = { route:'home', classId:null, articleId:null, postId:null, eventId:null,
 - p1: [러너A: "청킹 전략 좀 더 자세히 알 수 있을까요?"], [데브워커: "문서 H2 헤딩 단위로 잘랐어요. 곧 글로 정리할게요!"], [호기심: "문의량 절반 ㄷㄷ 사내 설득 자료로 써도 될까요"]
 - p2: [초보: "4bit면 품질 손해 많이 보나요?"], [GPU장인: "체감상 거의 없습니다. 일반 업무용은 충분해요."]
 - p4: [정산러: "코드 감사합니다 ㅠㅠ 바로 적용했어요"], [직장인K: "도움 됐다니 다행입니다!"]
-- 그 외 기본: [NEXUS: "좋은 글 감사합니다 👏"]
+- 그 외 기본: [EDU.AI: "좋은 글 감사합니다 👏"]
 
 ### 3.5 밋플 이벤트 `events()` (5개)
 필드: `id, title, host, date, time, location, going, tag, img(선택), desc, schedule[[시간,내용]...]`.
 
 | id | title | host | date | time | location | going | tag |
 |---|---|---|---|---|---|---|---|
-| e1 | OpenAI Codex 밋업 - 서울 | Dev Korea x NEXUS | 2026.07.15 (화) | 오후 6:30 – 9:15 | MARU180, 강남 | 142 | AI |
-| e2 | NEXUS 금융 AI 나이트 | NEXUS | 2026.07.22 (화) | 오후 7:30 – 9:30 | BC카드 본사, 을지로 | 88 | 금융 AI |
+| e1 | OpenAI Codex 밋업 - 서울 | Dev Korea x EDU.AI | 2026.07.15 (화) | 오후 6:30 – 9:15 | MARU180, 강남 | 142 | AI |
+| e2 | EDU.AI 금융 AI 나이트 | EDU.AI | 2026.07.22 (화) | 오후 7:30 – 9:30 | BC카드 본사, 을지로 | 88 | 금융 AI |
 | e3 | 판교 LLM 스터디 #12 | 판교AI | 2026.07.10 (목) | 오후 8:00 – 10:00 | 판교 스타트업캠퍼스 | 56 | 스터디 |
 | e4 | 데이터 분석가 커리어 토크 | 데이터리안 | 2026.07.18 (금) | 오후 7:00 – 8:30 | 온라인 (Zoom) | 230 | 커리어 |
-| e5 | 바이브코딩 해커톤 2026 | NEXUS x Dev Korea | 2026.08.02 (토) | 오전 10:00 – 오후 8:00 | 코엑스, 삼성동 | 320 | 해커톤 |
+| e5 | 바이브코딩 해커톤 2026 | EDU.AI x Dev Korea | 2026.08.02 (토) | 오전 10:00 – 오후 8:00 | 코엑스, 삼성동 | 320 | 해커톤 |
 
 **img** (e1, e2만 있음):
 - e1: `https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,background=white,quality=75,width=400,height=400/uploads/s3/ddff55c2-c5ba-4d48-8810-54c394bb60f1.png`
@@ -603,7 +603,7 @@ figcaption (mono, 11.5px, `#6a6a74`): `art.figCaption`.
 - sources: 없음, disclaimer 없음
 - 인용문(q): "걸어서 가야 했던 길을, 이제는 날아서 갈 수 있다." / 정의(def): "AI는 우리를 이기려는 적이 아니라, 두려움만 내려놓으면 등에 날개가 되어 주는 동료다."
 
-> 참고: a1~a3 blocks의 모든 문단(p) 전문은 원본 `NEXUS_article_detail/logic.jsx`의 `data()` 배열에 있으며 재현 시 그대로 사용. 위 요약은 구조(블록 순서·타입·라벨·q/def 핵심 문장)를 명세한 것.
+> 참고: a1~a3 blocks의 모든 문단(p) 전문은 원본 `EDU.AI_article_detail/logic.jsx`의 `data()` 배열에 있으며 재현 시 그대로 사용. 위 요약은 구조(블록 순서·타입·라벨·q/def 핵심 문장)를 명세한 것.
 
 ---
 

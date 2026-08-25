@@ -1,4 +1,4 @@
-# NEXUS 아키텍처
+# EDU.AI 아키텍처
 
 BC카드 AI사업팀 고객 커뮤니케이션 채널 — B2C 반응형 웹서비스.
 
@@ -25,7 +25,7 @@ BC카드 AI사업팀 고객 커뮤니케이션 채널 — B2C 반응형 웹서�
 ## 데이터베이스 스키마 (PostgreSQL `paybooc_ai`)
 
 주의: 이 DB에는 다른 프로젝트 테이블(bc_merchant_validation, naver_merchant_capture)이 이미 존재한다.
-NEXUS 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테이블은 절대 건드리지 않는다.
+EDU.AI 테이블은 접두어 없이 아래 이름으로 추가하며 기존 테이블은 절대 건드리지 않는다.
 
 ### categories — 메인화면 섹션/메뉴
 | 컬럼 | 타입 | 설명 |

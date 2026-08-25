@@ -56,7 +56,7 @@ function AnimatedHero({ article, heroMotion = true }) {
       <div className="heroart-fade" />
       <div className="heroinner pad maxw-1180">
         <div className="herochip" style={{ background: chipBg, color: chipCol }}>
-          {article?.koType ? `${article.koType} · ${article.section || theme?.name || ''}` : 'NEXUS'}
+          {article?.koType ? `${article.koType} · ${article.section || theme?.name || ''}` : 'EDU.AI'}
         </div>
         <h1 className="herotitle">{article?.title || ''}</h1>
         {article?.subtitle && <p className="herosub">{article.subtitle}</p>}

@@ -129,7 +129,7 @@ export default function Onboarding({ onFinish }) {
     <main style={{ padding: '48px 40px 64px', maxWidth: 560, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 32, justifyContent: 'center' }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#E8123C' }} />
-        <span style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>NEXUS</span>
+        <span style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>EDU.AI</span>
       </div>
       <ProgressBar step={step} />
 
@@ -206,7 +206,7 @@ export default function Onboarding({ onFinish }) {
         <section style={{ textAlign: 'center', padding: '24px 0' }}>
           <div style={{ fontSize: 50, marginBottom: 18 }}>🎉</div>
           <h1 style={{ color: '#fff', fontSize: 28, margin: '0 0 10px' }}>회원가입을 축하합니다!</h1>
-          <p style={{ color: '#9a9aa4', margin: '0 0 28px' }}>{nickname}님, NEXUS에서 새로운 인사이트를 만나보세요.</p>
+          <p style={{ color: '#9a9aa4', margin: '0 0 28px' }}>{nickname}님, EDU.AI에서 새로운 인사이트를 만나보세요.</p>
           <button className="btn" onClick={() => navigate('/')} style={{ width: '100%', padding: 13, borderRadius: 12, background: '#E8123C', color: '#fff', fontWeight: 700 }}>홈으로 가기</button>
         </section>
       )}

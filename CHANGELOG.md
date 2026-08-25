@@ -1,4 +1,4 @@
-# CHANGELOG — NEXUS 작업 히스토리
+# CHANGELOG — EDU.AI 작업 히스토리
 
 > 최신 순. 커밋 해시는 `git log` 기준, 상세는 각 커밋·병합 브랜치 참고.
 

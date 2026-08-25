@@ -1,4 +1,4 @@
-# NEXUS 프로젝트 — Claude Code 작업 규칙
+# EDU.AI 프로젝트 — Claude Code 작업 규칙
 
 BC카드 AI사업팀 커뮤니케이션 채널 (React + FastAPI + PostgreSQL + Redis).
 처음 왔다면 `docs/SETUP.md`(환경 구성) → `docs/ARCHITECTURE.md`(구조) 순서로 읽는다.

@@ -23,7 +23,7 @@ export default function Footer() {
           금융과 AI, 일하면서 배웁니다.
         </p>
         <p style={{ fontSize: 13, color: '#6a6a74', margin: '0 0 24px' }}>
-          BC카드 AI 사업팀 · NEXUS — credit + finance
+          BC카드 AI 사업팀 · EDU.AI — credit + finance
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
           {FOOTER_LINKS.map(link =>

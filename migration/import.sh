@@ -51,7 +51,7 @@ if grep -Eq 'bc_merchant_validation|naver_merchant_capture' "$TOC_FILE"; then
   exit 1
 fi
 
-# pg_restore가 실행할 수 있는 객체를 NEXUS 테이블과 종속 객체로만 제한한다.
+# pg_restore가 실행할 수 있는 객체를 EDU.AI 테이블과 종속 객체로만 제한한다.
 TABLE_RE='^[0-9]+; [0-9]+ [0-9]+ TABLE public ([a-z_]+) [^ ]+$'
 TABLE_DATA_RE='^[0-9]+; [0-9]+ [0-9]+ TABLE DATA public ([a-z_]+) [^ ]+$'
 DEFAULT_RE='^[0-9]+; [0-9]+ [0-9]+ DEFAULT public ([a-z_]+) [a-z_]+ [^ ]+$'
@@ -93,8 +93,8 @@ for_each_table check_dump_table
 pg_restore --exit-on-error --no-owner --no-privileges \
   --use-list="$RESTORE_LIST" --file="$RESTORE_BODY" "$DUMP_FILE"
 
-# NEXUS 객체 교체와 복원을 같은 트랜잭션에서 수행한다.
-# CASCADE를 사용하지 않아 타 프로젝트 객체가 NEXUS를 참조하면 안전하게 실패한다.
+# EDU.AI 객체 교체와 복원을 같은 트랜잭션에서 수행한다.
+# CASCADE를 사용하지 않아 타 프로젝트 객체가 EDU.AI를 참조하면 안전하게 실패한다.
 cat > "$RESTORE_SQL" <<'SQL'
 SET lock_timeout = '10s';
 DROP TABLE IF EXISTS
@@ -136,7 +136,7 @@ while IFS=$'\t' read -r table expected; do
     "$table" "$expected" "$table" >> "$RESTORE_SQL"
 done < "$COUNTS_FILE"
 if [[ "$MANIFEST_ROWS" -ne "$EXPECTED_TABLE_COUNT" ]]; then
-  echo "건수 매니페스트의 NEXUS 테이블 수가 허용 목록과 다릅니다: 기대 $EXPECTED_TABLE_COUNT, 실제 $MANIFEST_ROWS" >&2
+  echo "건수 매니페스트의 EDU.AI 테이블 수가 허용 목록과 다릅니다: 기대 $EXPECTED_TABLE_COUNT, 실제 $MANIFEST_ROWS" >&2
   exit 1
 fi
 
@@ -183,4 +183,4 @@ run_psql --single-transaction --file="$RESTORE_SQL"
 
 bash "$SCRIPT_DIR/verify.sh" "$TARGET_ENV" "$ARTIFACT_DIR"
 
-echo "NEXUS 스키마와 데이터 이관 완료"
+echo "EDU.AI 스키마와 데이터 이관 완료"

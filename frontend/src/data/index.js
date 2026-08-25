@@ -1,7 +1,7 @@
 /* Static seed data — §3 */
 
 export const CLASSES = [
-  { id:'c1', title:'[오프라인] 직장인 AI 개발자 12주 과정', instructor:'NEXUS LAB', category:'부트캠프', level:'올인원', price:3900000, original:0, chapters:14, hours:14, rating:4.9, students:88, tag:'BEST', desc:'비전공 직장인을 위한 12주 오프라인 부트캠프. 파이썬 기초부터 머신러닝·LLM 활용까지, 퇴근 후 주말 집중 과정으로 현업 AI 개발자로의 전환을 돕습니다. BC카드 현직 멘토링과 팀 프로젝트, 수료 후 사내 연계 채용 추천까지 포함합니다.' },
+  { id:'c1', title:'[오프라인] 직장인 AI 개발자 12주 과정', instructor:'EDU.AI LAB', category:'부트캠프', level:'올인원', price:3900000, original:0, chapters:14, hours:14, rating:4.9, students:88, tag:'BEST', desc:'비전공 직장인을 위한 12주 오프라인 부트캠프. 파이썬 기초부터 머신러닝·LLM 활용까지, 퇴근 후 주말 집중 과정으로 현업 AI 개발자로의 전환을 돕습니다. BC카드 현직 멘토링과 팀 프로젝트, 수료 후 사내 연계 채용 추천까지 포함합니다.' },
   { id:'c2', title:'[오프라인] LLM으로 금융 상담 챗봇 만들기', instructor:'이엔지니어', category:'LLM·생성형 AI', level:'중급', price:264000, original:390000, chapters:10, hours:18, rating:4.8, students:870, tag:'NEW', desc:'gemma 27B와 RAG를 활용해 실제 금융 상담 시나리오를 처리하는 챗봇을 처음부터 끝까지 구축합니다.' },
   { id:'c3', title:'[오프라인] 카드 매출 데이터로 배우는 시계열 예측', instructor:'박애널', category:'데이터 분석', level:'중급', price:231000, original:330000, chapters:6, hours:11, rating:4.8, students:540, tag:'', desc:'가맹점 매출 시계열을 다루며 수요 예측 모델을 설계하고, 실제 비즈니스 의사결정에 연결하는 법을 배웁니다.' },
   { id:'c4', title:'[오프라인] 이상거래 탐지(FDS) 모델 만들기', instructor:'정ML', category:'금융 도메인', level:'중급', price:297000, original:420000, chapters:9, hours:16, rating:4.9, students:1580, tag:'BEST', desc:'카드 거래의 이상 패턴을 잡아내는 FDS 모델을, 불균형 데이터 처리부터 실시간 추론까지 실무 그대로 구현합니다.' },
@@ -23,7 +23,7 @@ export const CLASS_CATS = ['전체','데이터 분석','LLM·생성형 AI','금�
 export const POSTS = [
   { id:'p1', title:'사내에서 RAG 도입한 후기 (삽질 포함)', author:'데브워커', tag:'노하우', likes:218, time:'2일 전', body:'규정 문서가 수천 페이지라 검색이 지옥이었는데, RAG 붙이고 나서 문의량이 절반으로 줄었습니다. 다만 청킹 전략을 잘못 잡아서 처음엔 엉뚱한 답이 많이 나왔어요. 결국 문서 구조 기반으로 청크를 나누니 정확도가 확 올랐습니다.', commentCount:3 },
   { id:'p2', title:'gemma 27B 로컬 구동 스펙 정리해봤어요', author:'GPU장인', tag:'기술자료', likes:312, time:'4일 전', body:'질문이 많아서 정리합니다. 양자화(4bit) 기준 VRAM 20GB 정도면 무난하게 돌아갑니다. 3090/4090 한 장으로 충분하고, 추론 속도는 토큰당 대략...', commentCount:2 },
-  { id:'p3', title:'비전공자도 파인튜닝 해봤습니다', author:'입문러', tag:'노하우', likes:156, time:'5일 전', body:'문과 출신 기획자입니다. NEXUS LLM 클래스 듣고 처음으로 LoRA 파인튜닝까지 해봤는데, 생각보다 진입장벽이 낮았어요. 데이터셋 만드는 게 제일 오래 걸렸습니다.', commentCount:1 },
+  { id:'p3', title:'비전공자도 파인튜닝 해봤습니다', author:'입문러', tag:'노하우', likes:156, time:'5일 전', body:'문과 출신 기획자입니다. EDU.AI LLM 클래스 듣고 처음으로 LoRA 파인튜닝까지 해봤는데, 생각보다 진입장벽이 낮았어요. 데이터셋 만드는 게 제일 오래 걸렸습니다.', commentCount:1 },
   { id:'p4', title:'엑셀 대신 파이썬으로 월말 정산 자동화한 썰', author:'직장인K', tag:'팁', likes:421, time:'1주 전', body:'매달 3일씩 걸리던 정산을 pandas로 자동화했더니 10분이면 끝납니다. 처음엔 무서웠는데 클래스에서 배운 대로 차근차근 하니 됐어요. 코드 공유합니다.', commentCount:2 },
   { id:'p5', title:'프롬프트 템플릿 모음 공유합니다', author:'프롬프트수집가', tag:'자료', likes:689, time:'1주 전', body:'업무별로 자주 쓰는 프롬프트를 정리했습니다. 회의록 요약, 이메일 초안, 데이터 해석 요청 등 바로 복붙해서 쓰세요.', commentCount:1 },
 ]
@@ -35,15 +35,15 @@ export const DEFAULT_COMMENTS = {
 }
 
 export function getDefaultComments(id) {
-  return DEFAULT_COMMENTS[id] || [{a:'NEXUS',t:'좋은 글 감사합니다 👏'}]
+  return DEFAULT_COMMENTS[id] || [{a:'EDU.AI',t:'좋은 글 감사합니다 👏'}]
 }
 
 export const EVENTS = [
-  { id:'e1', title:'OpenAI Codex 밋업 - 서울', host:'Dev Korea x NEXUS', date:'2026.07.15 (화)', time:'오후 6:30 – 9:15', location:'MARU180, 강남', going:142, tag:'AI', img:'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,background=white,quality=75,width=400,height=400/uploads/s3/ddff55c2-c5ba-4d48-8810-54c394bb60f1.png', desc:'OpenAI의 소프트웨어 엔지니어링 에이전트 Codex를 주제로 한 저녁 행사. 최신 업데이트와 라이브 데모, 파워 유저를 위한 실용 팁을 공유합니다. 실시간 통역 제공.', schedule:[['6:30 – 7:00','체크인 & 식사'],['7:00 – 7:05','행사 소개'],['7:05 – 7:40','Valuemaxxing with Codex'],['7:40 – 8:10','세션 #2'],['8:10 – 8:25','커뮤니티 데모'],['8:30 – 9:15','네트워킹']] },
-  { id:'e2', title:'NEXUS 금융 AI 나이트', host:'NEXUS', date:'2026.07.22 (화)', time:'오후 7:30 – 9:30', location:'BC카드 본사, 을지로', going:88, tag:'금융 AI', img:'https://images.weserv.nl/?url=news.nateimg.co.kr/orgImg/bt/2026/06/29/666808_279461_3154.jpg', desc:'BC카드 데이터로 만든 프로젝트 쇼케이스와 현직자 라이트닝 토크. 수강생 네트워킹 세션이 이어집니다.', schedule:[['7:30 – 8:00','웰컴 & 등록'],['8:00 – 8:40','프로젝트 쇼케이스'],['8:40 – 9:10','라이트닝 토크'],['9:10 – 9:30','네트워킹']] },
+  { id:'e1', title:'OpenAI Codex 밋업 - 서울', host:'Dev Korea x EDU.AI', date:'2026.07.15 (화)', time:'오후 6:30 – 9:15', location:'MARU180, 강남', going:142, tag:'AI', img:'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,background=white,quality=75,width=400,height=400/uploads/s3/ddff55c2-c5ba-4d48-8810-54c394bb60f1.png', desc:'OpenAI의 소프트웨어 엔지니어링 에이전트 Codex를 주제로 한 저녁 행사. 최신 업데이트와 라이브 데모, 파워 유저를 위한 실용 팁을 공유합니다. 실시간 통역 제공.', schedule:[['6:30 – 7:00','체크인 & 식사'],['7:00 – 7:05','행사 소개'],['7:05 – 7:40','Valuemaxxing with Codex'],['7:40 – 8:10','세션 #2'],['8:10 – 8:25','커뮤니티 데모'],['8:30 – 9:15','네트워킹']] },
+  { id:'e2', title:'EDU.AI 금융 AI 나이트', host:'EDU.AI', date:'2026.07.22 (화)', time:'오후 7:30 – 9:30', location:'BC카드 본사, 을지로', going:88, tag:'금융 AI', img:'https://images.weserv.nl/?url=news.nateimg.co.kr/orgImg/bt/2026/06/29/666808_279461_3154.jpg', desc:'BC카드 데이터로 만든 프로젝트 쇼케이스와 현직자 라이트닝 토크. 수강생 네트워킹 세션이 이어집니다.', schedule:[['7:30 – 8:00','웰컴 & 등록'],['8:00 – 8:40','프로젝트 쇼케이스'],['8:40 – 9:10','라이트닝 토크'],['9:10 – 9:30','네트워킹']] },
   { id:'e3', title:'판교 LLM 스터디 #12', host:'판교AI', date:'2026.07.10 (목)', time:'오후 8:00 – 10:00', location:'판교 스타트업캠퍼스', going:56, tag:'스터디', desc:'매주 진행하는 LLM 논문/실습 스터디. 이번 주제는 효율적 파인튜닝(PEFT)과 LoRA 변형들.', schedule:[['8:00 – 8:10','인트로'],['8:10 – 9:00','논문 리뷰'],['9:00 – 9:50','코드 실습'],['9:50 – 10:00','정리']] },
   { id:'e4', title:'데이터 분석가 커리어 토크', host:'데이터리안', date:'2026.07.18 (금)', time:'오후 7:00 – 8:30', location:'온라인 (Zoom)', going:230, tag:'커리어', desc:'현직 데이터 분석가 3인이 들려주는 직무 전환과 포트폴리오 이야기. Q&A 중심으로 진행됩니다.', schedule:[['7:00 – 7:10','오프닝'],['7:10 – 8:00','패널 토크'],['8:00 – 8:30','라이브 Q&A']] },
-  { id:'e5', title:'바이브코딩 해커톤 2026', host:'NEXUS x Dev Korea', date:'2026.08.02 (토)', time:'오전 10:00 – 오후 8:00', location:'코엑스, 삼성동', going:320, tag:'해커톤', desc:'AI 에이전트와 함께 하루 만에 금융 서비스를 만드는 해커톤. BC카드 API 제공, 우승팀 사내 연계 기회.', schedule:[['10:00','킥오프 & 팀 빌딩'],['11:00','해킹 시작'],['17:00','제출 마감'],['17:30','데모 & 심사'],['19:00','시상 & 네트워킹']] },
+  { id:'e5', title:'바이브코딩 해커톤 2026', host:'EDU.AI x Dev Korea', date:'2026.08.02 (토)', time:'오전 10:00 – 오후 8:00', location:'코엑스, 삼성동', going:320, tag:'해커톤', desc:'AI 에이전트와 함께 하루 만에 금융 서비스를 만드는 해커톤. BC카드 API 제공, 우승팀 사내 연계 기회.', schedule:[['10:00','킥오프 & 팀 빌딩'],['11:00','해킹 시작'],['17:00','제출 마감'],['17:30','데모 & 심사'],['19:00','시상 & 네트워킹']] },
 ]
 
 export const HD_CATS = ['전체','여행','식품/건강','생활/주방','뷰티/헬스','패션/잡화','가전/디지털']
