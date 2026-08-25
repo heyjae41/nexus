@@ -34,9 +34,9 @@ const benefits = [
 ]
 
 const countryFacets = [
-  { name: '일본', flag: '🇯🇵', count: 2 },
-  { name: '베트남', flag: '🇻🇳', count: 3 },
-  { name: '해외공통', flag: '🌏', count: 1 },
+  { code: 'JP', name: '일본', flag: '🇯🇵', count: 2 },
+  { code: 'VN', name: '베트남', flag: '🇻🇳', count: 3 },
+  { code: 'ALL', name: '해외공통', flag: '🌏', count: 1 },
 ]
 
 function renderView() {
@@ -116,7 +116,7 @@ describe('CardPick 뷰', () => {
     fireEvent.click(chip)
     await waitFor(() => {
       expect(fetchCardBenefits).toHaveBeenLastCalledWith(
-        expect.objectContaining({ country: '베트남' }),
+        expect.objectContaining({ country: 'VN' }),
       )
     })
   })
@@ -148,4 +148,3 @@ describe('CardPick 뷰', () => {
     expect(within(group).getByRole('button', { name: /^우리카드/ })).toHaveTextContent('1')
   })
 })
-

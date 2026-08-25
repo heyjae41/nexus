@@ -138,7 +138,7 @@ export default function CardPick() {
     setLoading(true)
     setError('')
     try {
-      // 국가 필터는 서버가 포함 관계(베트남 ⊃ 동남아 ⊃ 해외공통)로 전개·정렬한다
+      // 국가 필터는 ISO 코드(VN 등)와 해외공통(ALL)으로 서버에서 처리한다.
       const result = await fetchCardBenefits({
         country: country === '전체' ? null : country,
         signal: controller.signal,
@@ -201,24 +201,25 @@ export default function CardPick() {
         </div>
 
         <div role="group" aria-label="국가 필터" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-          {['전체', ...countryFacets.map(f => f.name)].map(name => {
-            const facet = countryFacets.find(f => f.name === name)
+          {['전체', ...countryFacets.map(f => f.code)].map(code => {
+            const facet = countryFacets.find(f => f.code === code)
+            const label = facet?.name || code
             return (
               <button
-                key={name}
+                key={code}
                 className="btn"
-                aria-pressed={country === name}
-                onClick={() => setCountry(name)}
+                aria-pressed={country === code}
+                onClick={() => setCountry(code)}
                 style={{
                   padding: '7px 14px', borderRadius: 20,
                   fontSize: 13.5, fontWeight: 600,
-                  background: country === name ? '#E8123C' : '#15151A',
-                  color: country === name ? '#fff' : '#b4b4be',
-                  border: country === name ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
+                  background: country === code ? '#E8123C' : '#15151A',
+                  color: country === code ? '#fff' : '#b4b4be',
+                  border: country === code ? '1px solid #E8123C' : '1px solid rgba(255,255,255,.08)',
                   transition: 'all .15s',
                 }}
               >
-                {facet ? `${facet.flag} ${facet.name}` : name}
+                {facet ? `${facet.flag} ${label}` : label}
                 {facet && (
                   <span style={{ marginLeft: 5, fontSize: 11.5, opacity: .65 }}>{facet.count}</span>
                 )}
@@ -267,7 +268,7 @@ export default function CardPick() {
             {specific.length > 0 && (
               <>
                 <h2 style={sectionHeadStyle}>
-                  {countryFacets.find(f => f.name === activeCountry)?.flag} {activeCountry} 특화 혜택
+                  {countryFacets.find(f => f.code === activeCountry)?.flag} {countryFacets.find(f => f.code === activeCountry)?.name || activeCountry} 특화 혜택
                   <span style={sectionCountStyle}>{specific.length}</span>
                 </h2>
                 <div className="rgrid-4" style={{ marginBottom: 30 }}>

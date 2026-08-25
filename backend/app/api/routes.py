@@ -141,11 +141,11 @@ def card_benefits(
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    """Card.Pick — 카드사 해외여행 혜택 목록 (국가별 필터 지원).
+    """Card.Pick — 카드사 해외여행 혜택 목록 (국가 코드 필터 지원).
 
     응답 키는 DB 필수 컬럼명(snake_case) 그대로 — 다른 채널이 그대로 소비한다.
-    country 는 포함 관계로 전개된다 (베트남 = 베트남 ∪ 동남아 ∪ 해외공통).
-    meta.countries 는 국가 필터 칩 구성용 집계(전개 건수·아이콘)다."""
+    country는 지정 국가 코드(예: VN) 또는 ALL이며, ALL은 해외공통이다.
+    meta.countries는 코드 기반 필터 칩 집계다."""
     from app.repositories.card_benefits import list_active_benefits
     from app.serializers import serialize_card_benefit
     from app.services.card_benefit_geo import KNOWN_PLACES
@@ -160,12 +160,12 @@ def card_benefits(
         rows = list_active_benefits(db, company=company, country=country)
         items = [serialize_card_benefit(b) for b in rows]
         if country:
-            # 프론트 섹션 구분용 매칭 유형 — 0:명시(exact) 1:권역(related) 2:공통(common)
-            from app.services.card_benefit_geo import match_rank
+            # 프론트 섹션 구분용 매칭 유형 — 국가 명시(exact), 해외공통(common)
+            from app.services.card_benefit_geo import match_rank, normalize_country_codes
 
             labels = ("exact", "related", "common")
             for item, row in zip(items, rows):
-                rank = match_rank((row.countries or "").split(","), country)
+                rank = match_rank(normalize_country_codes(row.countries), country)
                 item["geo_match"] = labels[rank]
         return items
 
@@ -181,32 +181,30 @@ def card_benefits(
 
 
 def _country_facets(rows) -> list[dict]:
-    """국가 필터 칩 구성용 집계 — 데이터에 등장한 지역만, 전개 건수 포함."""
+    """국가 코드 필터 칩 구성용 집계 — 데이터에 등장한 코드만 제공한다."""
     from app.services.card_benefit_geo import (
-        COUNTRY_FLAGS, DOMESTIC_ETC, OVERSEAS_COMMON, expand_country_filter,
+        COUNTRY_FLAGS, COUNTRY_NAMES, OVERSEAS_COMMON, expand_country_filter,
+        normalize_country_codes,
     )
 
     present: set[str] = set()
     for r in rows:
-        if r.countries:
-            present.update(r.countries.split(","))
+        present.update(normalize_country_codes(r.countries))
     facets = []
     for place in sorted(present):
-        # 칩 건수 = 지역 특화 혜택 수 (해외공통 제외) — 전개 그대로 세면
-        # 해외공통이 모든 칩에 합산돼 숫자가 전부 비슷해진다
+        # 국가 칩 건수는 국가 명시 혜택만; ALL은 해외공통 혜택 수다.
         allowed = expand_country_filter(place)
         if place != OVERSEAS_COMMON:
             allowed = allowed - {OVERSEAS_COMMON}
         count = sum(
             1 for r in rows
-            if r.countries and allowed.intersection(r.countries.split(","))
+            if allowed.intersection(normalize_country_codes(r.countries))
         )
         facets.append(
-            {"name": place, "flag": COUNTRY_FLAGS.get(place, "🌐"), "count": count}
+            {"code": place, "name": COUNTRY_NAMES[place], "flag": COUNTRY_FLAGS[place], "count": count}
         )
-    # 건수 내림차순, 해외공통·국내는 맨 뒤 고정
-    tail = (OVERSEAS_COMMON, DOMESTIC_ETC)
-    facets.sort(key=lambda f: (f["name"] in tail, tail.index(f["name"]) if f["name"] in tail else -f["count"]))
+    # 건수 내림차순, 해외공통은 맨 뒤 고정
+    facets.sort(key=lambda f: (f["code"] == OVERSEAS_COMMON, -f["count"], f["code"]))
     return facets
 
 

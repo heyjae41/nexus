@@ -138,10 +138,10 @@ def test_collect_extracts_countries(db):
                        title="서울랜드 이용권", benefit_summary=None),
     ])
     rows = {r.source_id: r for r in db.query(CardBenefit).all()}
-    assert rows["hana:jp"].countries == "일본"
-    assert set(rows["hana:sea"].countries.split(",")) == {"동남아", "베트남", "태국"}
-    assert rows["hana:ov"].countries == "해외공통"
-    assert rows["hana:dom"].countries == "국내·기타"
+    assert rows["hana:jp"].countries == "JP"
+    assert set(rows["hana:sea"].countries.split(",")) == {"VN", "TH"}
+    assert rows["hana:ov"].countries == "ALL"
+    assert rows["hana:dom"].countries == "ALL"
 
 
 def test_collect_uses_detail_geo_text_for_countries(db):
@@ -168,9 +168,9 @@ def test_collect_uses_detail_geo_text_for_countries(db):
         ),
     ])
     rows = {r.source_id: r for r in db.query(CardBenefit).all()}
-    assert rows["kb:v2"].countries == "베트남"
+    assert rows["kb:v2"].countries == "VN"
     # geo_text(본문)의 '해외' 상용구는 해외공통 신호로 쓰지 않는다 —
     # 국내 이벤트 유의사항("해외 이용 시 제외/수수료")의 오탐을 막기 위함
-    assert rows["kb:v2ov"].countries == "국내·기타"
+    assert rows["kb:v2ov"].countries == "ALL"
     # 파리바게뜨/런던제화/세부 일정/로마자 는 지역이 아니다 (오탐 가드)
-    assert rows["kb:v2fp"].countries == "국내·기타"
+    assert rows["kb:v2fp"].countries == "ALL"

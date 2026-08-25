@@ -138,6 +138,8 @@ def serialize_event_card(event) -> dict:
 def serialize_card_benefit(benefit) -> dict:
     """Card.Pick 혜택. 외부 채널도 이 JSON 을 그대로 소비하므로 키는 DB 필수
     컬럼명(snake_case) 그대로 유지한다. 이동 URL 은 수집 콘텐츠 규칙대로 ref 부착."""
+    from app.services.card_benefit_geo import normalize_country_codes
+
     return {
         "id": benefit.id,
         "title": benefit.title,
@@ -152,7 +154,7 @@ def serialize_card_benefit(benefit) -> dict:
         "target_cards": benefit.target_cards,
         "benefit_summary": benefit.benefit_summary,
         "benefit_tags": benefit.benefit_tags.split(",") if benefit.benefit_tags else [],
-        "countries": benefit.countries.split(",") if benefit.countries else [],
+        "countries": normalize_country_codes(benefit.countries),
         "detail_url": with_ref(benefit.detail_url),
         "image_url": benefit.image_url,
     }

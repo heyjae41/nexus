@@ -1,137 +1,99 @@
-"""card.Pick 지역(국가/권역) 분류 — 사전 기반 매칭.
+"""card.Pick 국가 코드 분류 및 필터 지원.
 
-이벤트 텍스트에서 대상 국가를 추출한다. 권역 단어(동남아/유럽 등)는 원문
-그대로 보존하고, 필터 시점에 소속 국가로 전개한다. 분류 불가 시 해외성
-신호가 있으면 '해외공통', 없으면 '국내·기타' 버킷으로 분류한다.
-
-'베트남' 필터 = 베트남 명시 ∪ 소속 권역(동남아) ∪ 해외공통 — 여행객에게
-유효한 혜택을 빠뜨리지 않기 위한 포함 관계 전개이며, 정렬은 명시가 우선.
+공개 API와 신규 수집 데이터는 지정된 ISO 3166-1 alpha-2 코드와 ``ALL``만
+사용한다. 지정 목록에 없는 국가·권역·미분류 항목은 모두 해외공통 ``ALL``이다.
 """
 
 import re
 
-OVERSEAS_COMMON = "해외공통"
-DOMESTIC_ETC = "국내·기타"
+OVERSEAS_COMMON = "ALL"
 
-# 국가 → 감지 키워드 (국가명 + 주요 도시·랜드마크·통화 등)
+# API/필터에서 허용하는 국가 코드와 표시명. 이 목록 밖의 장소는 ALL로 분류한다.
+COUNTRY_NAMES: dict[str, str] = {
+    "TW": "대만", "GU": "괌", "FR": "프랑스", "ES": "스페인", "GB": "영국",
+    "MO": "마카오", "HU": "헝가리", "TH": "태국", "HK": "홍콩", "SG": "싱가폴",
+    "JP": "일본", "MY": "말레이지아", "US": "미국", "AE": "아랍에미레이트",
+    "CN": "중국", "ID": "인도네시아", "VN": "베트남", "CA": "캐나다",
+    "AU": "오스트레일리아", "IT": "이탈리아", "CZ": "체코", "ALL": "해외공통",
+}
+
+# 코드 → 감지 키워드 (국가명 + 주요 도시·랜드마크)
 COUNTRY_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "일본": ("일본", "도쿄", "오사카", "후쿠오카", "삿포로", "오키나와", "나고야",
-           "교토", "엔화", "돈키호테", "재팬"),
-    # 알리페이·유니온페이는 결제 브랜드라 연회비/대상카드 안내문에 상시 등장 — 국가 신호 아님
-    "중국": ("중국", "상하이", "베이징"),
-    "대만": ("대만", "타이베이", "타이완"),
-    "홍콩": ("홍콩", "마카오"),
-    "베트남": ("베트남", "다낭", "하노이", "나트랑", "호치민", "푸꾸옥"),
-    "태국": ("태국", "방콕", "치앙마이", "푸켓"),
-    "필리핀": ("필리핀", "세부", "보라카이", "마닐라"),
-    "싱가포르": ("싱가포르", "마리나 베이", "센토사"),
-    "말레이시아": ("말레이시아", "쿠알라룸푸르", "코타키나발루"),
-    "인도네시아": ("인도네시아", "발리", "자카르타"),
-    "미국": ("미국", "하와이", "뉴욕", "라스베가스", "로스앤젤레스", "괌", "사이판"),
-    "프랑스": ("프랑스", "파리", "루브르"),
-    "영국": ("영국", "런던"),
-    "이탈리아": ("이탈리아", "로마", "밀라노"),
-    "스페인": ("스페인", "바르셀로나", "마드리드"),
-    "독일": ("독일", "뮌헨", "프랑크푸르트"),
-    "스위스": ("스위스", "취리히"),
-    "호주": ("호주", "시드니", "멜버른"),
-    "캐나다": ("캐나다", "밴쿠버", "토론토"),
+    "JP": ("일본", "도쿄", "오사카", "후쿠오카", "삿포로", "오키나와", "나고야", "교토", "엔화", "돈키호테", "재팬"),
+    "CN": ("중국", "상하이", "베이징"),
+    "TW": ("대만", "타이베이", "타이완"),
+    "HK": ("홍콩",), "MO": ("마카오",),
+    "VN": ("베트남", "다낭", "하노이", "나트랑", "호치민", "푸꾸옥"),
+    "TH": ("태국", "방콕", "치앙마이", "푸켓"),
+    "SG": ("싱가포르", "싱가폴", "마리나 베이", "센토사"),
+    "MY": ("말레이시아", "말레이지아", "쿠알라룸푸르", "코타키나발루"),
+    "ID": ("인도네시아", "발리", "자카르타"),
+    "GU": ("괌",),
+    "US": ("미국", "하와이", "뉴욕", "라스베가스", "로스앤젤레스"),
+    "FR": ("프랑스", "파리", "루브르"), "GB": ("영국", "런던"),
+    "IT": ("이탈리아", "로마", "밀라노"), "ES": ("스페인", "바르셀로나", "마드리드"),
+    "HU": ("헝가리", "부다페스트"), "CZ": ("체코", "프라하"),
+    "AU": ("호주", "오스트레일리아", "시드니", "멜버른"),
+    "CA": ("캐나다", "밴쿠버", "토론토"),
+    "AE": ("아랍에미레이트", "UAE", "두바이", "아부다비"),
 }
 
-# 권역 → 감지 키워드 (원문 보존용) 및 소속 국가
-REGION_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "동남아": ("동남아",),
-    "유럽": ("유럽",),
-    "미주": ("미주", "북미"),
-    "동북아": ("동북아",),
+COUNTRY_FLAGS = {
+    "TW": "🇹🇼", "GU": "🇬🇺", "FR": "🇫🇷", "ES": "🇪🇸", "GB": "🇬🇧",
+    "MO": "🇲🇴", "HU": "🇭🇺", "TH": "🇹🇭", "HK": "🇭🇰", "SG": "🇸🇬",
+    "JP": "🇯🇵", "MY": "🇲🇾", "US": "🇺🇸", "AE": "🇦🇪", "CN": "🇨🇳",
+    "ID": "🇮🇩", "VN": "🇻🇳", "CA": "🇨🇦", "AU": "🇦🇺", "IT": "🇮🇹",
+    "CZ": "🇨🇿", "ALL": "🌏",
 }
-REGION_MEMBERS: dict[str, tuple[str, ...]] = {
-    "동남아": ("베트남", "태국", "필리핀", "싱가포르", "말레이시아", "인도네시아"),
-    "유럽": ("프랑스", "영국", "이탈리아", "스페인", "독일", "스위스"),
-    "미주": ("미국", "캐나다"),
-    "동북아": ("일본", "중국", "대만", "홍콩"),
-}
+KNOWN_PLACES = tuple(COUNTRY_NAMES)
 
-# 국가 미상이지만 '해외 혜택'임을 나타내는 신호
-_OVERSEAS_SIGNALS = (
-    "해외", "글로벌", "면세", "환전", "환율", "여행자보험", "여행보험",
-    "공항", "라운지", "항공", "출국", "국제선", "마일리지", "트래블",
-)
-
-COUNTRY_FLAGS: dict[str, str] = {
-    "일본": "🇯🇵", "중국": "🇨🇳", "대만": "🇹🇼", "홍콩": "🇭🇰", "베트남": "🇻🇳",
-    "태국": "🇹🇭", "필리핀": "🇵🇭", "싱가포르": "🇸🇬", "말레이시아": "🇲🇾",
-    "인도네시아": "🇮🇩", "미국": "🇺🇸", "프랑스": "🇫🇷", "영국": "🇬🇧",
-    "이탈리아": "🇮🇹", "스페인": "🇪🇸", "독일": "🇩🇪", "스위스": "🇨🇭",
-    "호주": "🇦🇺", "캐나다": "🇨🇦",
-    "동남아": "🌴", "유럽": "🏰", "미주": "🗽", "동북아": "🏯",
-    OVERSEAS_COMMON: "🌏", DOMESTIC_ETC: "🏠",
-}
-
-# 필터 파라미터 화이트리스트 (캐시 키 오염 방지용)
-KNOWN_PLACES = (
-    tuple(COUNTRY_KEYWORDS) + tuple(REGION_KEYWORDS)
-    + (OVERSEAS_COMMON, DOMESTIC_ETC)
-)
-
-
-def _match_keyword_map(blob: str, keyword_map: dict[str, tuple[str, ...]]) -> list[str]:
-    return [
-        place for place, keywords in keyword_map.items()
-        if any(k in blob for k in keywords)
-    ]
-
-
-# 오탐 방지: 지역명과 동철인 일반 용례를 매칭 전에 제거한다
-# (예: '세부 조건/일정' 의 세부 ≠ 필리핀 세부, 파리바게뜨 ≠ 프랑스 파리)
 _STOP_PHRASES_RE = re.compile(
     r"세부\s*(?:조건|내용|사항|정보|혜택|기준|일정|안내|방법|사용|절차|설명)"
     r"|파리바게뜨|런던제화|로마자"
 )
 
 
-def extract_countries(text: str | None, geo_text: str | None = None) -> list[str]:
-    """이벤트 텍스트에서 대상 지역 목록을 추출한다 (항상 1개 이상).
+def _match_keyword_map(blob: str) -> list[str]:
+    return [
+        code for code, keywords in COUNTRY_KEYWORDS.items()
+        if any(keyword in blob for keyword in keywords)
+    ]
 
-    geo_text(상세 전문)는 국가·권역 매칭에만 쓴다 — 본문 유의사항의
-    '해외 이용 시 …' 상용구가 국내 이벤트를 해외공통으로 오분류하지 않도록,
-    해외공통 신호 판정은 큐레이션된 텍스트(제목·요약·대상)에 한정한다."""
+
+def extract_countries(text: str | None, geo_text: str | None = None) -> list[str]:
+    """추출한 지정 국가 코드 또는 ``ALL`` 하나 이상을 반환한다."""
     blob = _STOP_PHRASES_RE.sub(" ", text or "")
     combined = f"{blob} {_STOP_PHRASES_RE.sub(' ', geo_text or '')}"
-    found = _match_keyword_map(combined, COUNTRY_KEYWORDS)
-    found += _match_keyword_map(combined, REGION_KEYWORDS)
-    if found:
-        return found
-    if any(signal in blob for signal in _OVERSEAS_SIGNALS):
+    found = _match_keyword_map(combined)
+    return found or [OVERSEAS_COMMON]
+
+
+def normalize_country_codes(values: str | None) -> list[str]:
+    """기존 한글/권역 저장값을 API 계약의 코드 목록으로 변환한다."""
+    if not values:
         return [OVERSEAS_COMMON]
-    return [DOMESTIC_ETC]
+    codes: list[str] = []
+    for value in values.split(","):
+        value = value.strip()
+        if value in COUNTRY_NAMES:
+            code = value
+        else:
+            code = next(
+                (key for key, keywords in COUNTRY_KEYWORDS.items() if value in keywords),
+                OVERSEAS_COMMON,
+            )
+        if code not in codes:
+            codes.append(code)
+    return codes or [OVERSEAS_COMMON]
 
 
 def expand_country_filter(selected: str) -> set[str]:
-    """선택 지역을 매칭 대상 집합으로 전개한다.
-
-    국가 → {국가, 소속 권역들, 해외공통} / 권역 → {권역, 소속 국가들, 해외공통}
-    해외공통·국내·기타는 자기 자신만.
-    """
-    if selected in (OVERSEAS_COMMON, DOMESTIC_ETC):
-        return {selected}
-    expanded = {selected, OVERSEAS_COMMON}
-    if selected in REGION_MEMBERS:
-        expanded.update(REGION_MEMBERS[selected])
-    expanded.update(
-        region for region, members in REGION_MEMBERS.items() if selected in members
-    )
-    return expanded
+    """국가 선택은 해당 코드와 해외공통 혜택만 포함한다."""
+    return {selected} if selected == OVERSEAS_COMMON else {selected, OVERSEAS_COMMON}
 
 
 def match_rank(event_countries: list[str], selected: str) -> int:
-    """정렬 우선순위 — 0: 선택 지역 명시, 1: 선택과 권역 관계, 2: 해외공통 등.
-
-    권역 관계 = 선택한 권역의 소속국 이벤트, 또는 선택한 국가를 품는 권역 이벤트."""
-    if selected in event_countries:
-        return 0
-    members = REGION_MEMBERS.get(selected, ())
-    if any(c in members or selected in REGION_MEMBERS.get(c, ())
-           for c in event_countries):
-        return 1
-    return 2
+    """정렬 우선순위: 선택 국가(0), 해외공통(2)."""
+    if selected == OVERSEAS_COMMON:
+        return 2
+    return 0 if selected in event_countries else 2

@@ -37,16 +37,16 @@ def list_active_benefits(
 
 
 def _filter_by_country(rows: list[CardBenefit], country: str) -> list[CardBenefit]:
-    """선택 지역을 전개(국가∪권역∪해외공통)해 필터하고 명시 우선으로 정렬한다.
-
-    지역 미분류(과거 행) 는 재수집 백필 전까지 국가 필터에서 제외된다."""
-    from app.services.card_benefit_geo import expand_country_filter, match_rank
+    """선택 국가와 해외공통 혜택을 반환하고 지정 국가를 먼저 정렬한다."""
+    from app.services.card_benefit_geo import (
+        expand_country_filter, match_rank, normalize_country_codes,
+    )
 
     allowed = expand_country_filter(country)
     picked = [
-        (match_rank(r.countries.split(","), country), i, r)
+        (match_rank(normalize_country_codes(r.countries), country), i, r)
         for i, r in enumerate(rows)
-        if r.countries and allowed.intersection(r.countries.split(","))
+        if allowed.intersection(normalize_country_codes(r.countries))
     ]
     picked.sort(key=lambda item: (item[0], item[1]))  # 명시 우선, 기존 정렬 유지
     return [r for _, _, r in picked]

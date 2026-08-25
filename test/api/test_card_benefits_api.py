@@ -127,11 +127,11 @@ def test_card_benefits_excludes_not_started_events(client):
 def seed_geo_benefits(client):
     db = client.session_factory()
     rows = [
-        ("bc:vn", "베트남 다낭 호텔 25% 할인", "베트남", "2026.08.01"),
+        ("bc:vn", "베트남 다낭 호텔 25% 할인", "VN", "2026.08.01"),
         ("bc:sea", "동남아 전 가맹점 5% 할인", "동남아", "2026.08.02"),
-        ("bc:jp", "일본 편의점 적립", "일본", "2026.08.03"),
-        ("bc:ov", "해외 결제 캐시백", "해외공통", "2026.08.04"),
-        ("bc:dom", "서울랜드 1+1", "국내·기타", "2026.08.05"),
+        ("bc:jp", "일본 편의점 적립", "JP", "2026.08.03"),
+        ("bc:ov", "해외 결제 캐시백", "ALL", "2026.08.04"),
+        ("bc:de", "독일 여행 할인", "독일", "2026.08.05"),
     ]
     for sid, title, countries, start in rows:
         db.add(CardBenefit(
@@ -145,20 +145,20 @@ def seed_geo_benefits(client):
     db.close()
 
 
-def test_card_benefits_country_filter_expands(client):
-    """'베트남' 선택 = 베트남 명시 ∪ 동남아 권역 ∪ 해외공통, 명시 우선 정렬."""
+def test_card_benefits_country_filter_uses_code_and_all(client):
+    """VN 선택 = VN 명시 ∪ ALL, 명시 우선 정렬."""
     seed_geo_benefits(client)
-    res = client.get("/api/card-benefits", params={"country": "베트남"})
+    res = client.get("/api/card-benefits", params={"country": "VN"})
     data = res.json()["data"]
     titles = [x["title"] for x in data]
     assert "베트남 다낭 호텔 25% 할인" in titles
     assert "동남아 전 가맹점 5% 할인" in titles
     assert "해외 결제 캐시백" in titles
     assert "일본 편의점 적립" not in titles
-    assert "서울랜드 1+1" not in titles
-    # 명시(베트남) → 권역(동남아) → 해외공통 순
+    assert "동남아 전 가맹점 5% 할인" in titles  # 기존 권역값은 ALL로 정규화
+    # 명시(VN) → 해외공통 순
     assert titles[0] == "베트남 다낭 호텔 25% 할인"
-    assert titles[-1] == "해외 결제 캐시백"
+    assert all(item["geo_match"] == "common" for item in data[1:])
 
 
 def test_card_benefits_country_meta_and_field(client):
@@ -167,15 +167,12 @@ def test_card_benefits_country_meta_and_field(client):
     body = res.json()
     assert body["data"][0]["countries"]  # 지역 필드 포함 (리스트)
     assert isinstance(body["data"][0]["countries"], list)
-    # 국가 칩 구성용 집계 (지역명·아이콘·전개 건수)
-    places = {p["name"]: p for p in body["meta"]["countries"]}
-    # 칩 건수는 '지역 특화' 건수 (해외공통 제외 전개) — 해외공통이 모든 칩에
-    # 합산되면 숫자가 전부 비슷해져 변별력이 사라진다. 클릭 시 해외공통은
-    # 후순위로 함께 노출되므로 누락은 아니다.
-    assert places["베트남"]["count"] == 2  # 베트남 명시 + 동남아 권역
-    assert places["일본"]["count"] == 1
-    assert places["해외공통"]["count"] == 1
-    assert places["베트남"]["flag"] == "🇻🇳"
+    # 국가 칩은 코드로 식별하고, 표시명은 별도 메타데이터로 제공한다.
+    places = {p["code"]: p for p in body["meta"]["countries"]}
+    # 국가 칩 건수는 국가 명시 혜택만, ALL 칩은 해외공통 혜택 수다.
+    assert places["VN"] == {"code": "VN", "name": "베트남", "flag": "🇻🇳", "count": 1}
+    assert places["JP"]["count"] == 1
+    assert places["ALL"]["count"] == 3
 
 
 def test_card_benefits_invalid_country_rejected(client):
@@ -188,11 +185,11 @@ def test_card_benefits_country_filter_marks_geo_match(client):
     """country 지정 시 각 항목에 매칭 유형(geo_match)을 표시한다 — 프론트가
     '특화 혜택'과 '해외 공통 혜택' 섹션을 시각적으로 나누는 데 쓴다."""
     seed_geo_benefits(client)
-    res = client.get("/api/card-benefits", params={"country": "베트남"})
+    res = client.get("/api/card-benefits", params={"country": "VN"})
     data = res.json()["data"]
     by_title = {x["title"]: x.get("geo_match") for x in data}
     assert by_title["베트남 다낭 호텔 25% 할인"] == "exact"
-    assert by_title["동남아 전 가맹점 5% 할인"] == "related"
+    assert by_title["동남아 전 가맹점 5% 할인"] == "common"
     assert by_title["해외 결제 캐시백"] == "common"
     # country 미지정 시엔 geo_match 없음
     res_all = client.get("/api/card-benefits")
