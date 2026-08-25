@@ -1,0 +1,154 @@
+table_name	ordinal_position	column_name	data_type	is_nullable	coalesce
+categories	1	id	integer	NO	nextval('categories_id_seq'::regclass)
+categories	2	slug	character varying	NO	
+categories	3	name	character varying	NO	
+categories	4	description	character varying	YES	
+categories	5	display_order	integer	NO	0
+categories	6	is_active	boolean	NO	true
+categories	7	created_at	timestamp with time zone	NO	now()
+articles	1	id	integer	NO	nextval('articles_id_seq'::regclass)
+articles	2	category_id	integer	NO	
+articles	3	article_type	character varying	NO	
+articles	4	title	character varying	NO	
+articles	5	summary	character varying	YES	
+articles	6	body_html	text	YES	
+articles	7	key_visual_html	text	YES	
+articles	8	author_name	character varying	YES	
+articles	9	source_type	character varying	NO	
+articles	10	source_url	character varying	YES	
+articles	11	thumbnail_url	character varying	YES	
+articles	12	content_filename	character varying	YES	
+articles	13	read_minutes	integer	NO	4
+articles	14	likes_count	integer	NO	0
+articles	15	comments_count	integer	NO	0
+articles	16	view_count	integer	NO	0
+articles	17	status	character varying	NO	'published'::character varying
+articles	18	published_at	timestamp with time zone	NO	
+articles	19	created_at	timestamp with time zone	NO	now()
+articles	20	updated_at	timestamp with time zone	NO	now()
+members	1	id	integer	NO	nextval('members_id_seq'::regclass)
+members	2	nickname	character varying	NO	
+members	3	password_hash	character varying	YES	
+members	4	role	character varying	YES	
+members	5	interests	character varying	YES	
+members	6	created_at	timestamp with time zone	NO	now()
+auth_sessions	1	id	integer	NO	nextval('auth_sessions_id_seq'::regclass)
+auth_sessions	2	member_id	integer	NO	
+auth_sessions	3	token_hash	character varying	NO	
+auth_sessions	4	expires_at	timestamp with time zone	NO	
+auth_sessions	5	created_at	timestamp with time zone	NO	now()
+community_posts	1	id	integer	NO	nextval('community_posts_id_seq'::regclass)
+community_posts	2	member_id	integer	YES	
+community_posts	3	author_name	character varying	NO	
+community_posts	4	tag	character varying	NO	
+community_posts	5	title	character varying	NO	
+community_posts	6	body	text	NO	
+community_posts	7	likes_count	integer	NO	0
+community_posts	8	comments_count	integer	NO	0
+community_posts	9	status	character varying	NO	'published'::character varying
+community_posts	10	created_at	timestamp with time zone	NO	now()
+community_post_likes	1	post_id	integer	NO	
+community_post_likes	2	member_id	integer	NO	
+community_post_likes	3	created_at	timestamp with time zone	NO	now()
+community_comments	1	id	integer	NO	nextval('community_comments_id_seq'::regclass)
+community_comments	2	post_id	integer	NO	
+community_comments	3	member_id	integer	YES	
+community_comments	4	author_name	character varying	NO	
+community_comments	5	body	text	NO	
+community_comments	6	created_at	timestamp with time zone	NO	now()
+meetup_events	1	id	integer	NO	nextval('meetup_events_id_seq'::regclass)
+meetup_events	2	source_id	character varying	NO	
+meetup_events	3	title	character varying	NO	
+meetup_events	4	host_name	character varying	YES	
+meetup_events	5	source_url	character varying	NO	
+meetup_events	6	event_start	timestamp with time zone	YES	
+meetup_events	7	event_end	timestamp with time zone	YES	
+meetup_events	8	place	character varying	YES	
+meetup_events	9	area	character varying	YES	
+meetup_events	10	address	character varying	YES	
+meetup_events	11	price_min	integer	YES	
+meetup_events	12	is_free	boolean	YES	
+meetup_events	13	view_count	integer	NO	0
+meetup_events	14	event_system_type	character varying	YES	
+meetup_events	15	category	character varying	YES	
+meetup_events	16	cover_image_url	character varying	YES	
+meetup_events	17	status	character varying	NO	'published'::character varying
+meetup_events	18	collected_at	timestamp with time zone	NO	now()
+meetup_collect_runs	1	id	integer	NO	nextval('meetup_collect_runs_id_seq'::regclass)
+meetup_collect_runs	2	status	character varying	NO	
+meetup_collect_runs	3	candidates_count	integer	NO	0
+meetup_collect_runs	4	added_count	integer	NO	0
+meetup_collect_runs	5	error_message	text	YES	
+meetup_collect_runs	6	created_at	timestamp with time zone	NO	now()
+courses	1	id	integer	NO	nextval('courses_id_seq'::regclass)
+courses	2	source_type	character varying	NO	
+courses	3	source_id	character varying	NO	
+courses	4	source_category_code	character varying	NO	
+courses	5	source_category_name	character varying	NO	
+courses	6	source_category_url	character varying	NO	
+courses	7	source_rank	integer	NO	0
+courses	8	title	character varying	NO	
+courses	9	summary	text	YES	
+courses	10	source_url	character varying	NO	
+courses	11	thumbnail_url	character varying	YES	
+courses	12	sub_category_name	character varying	YES	
+courses	13	format_name	character varying	YES	
+courses	14	qualification	character varying	YES	
+courses	15	running_time_minutes	integer	YES	
+courses	16	sale_price	integer	YES	
+courses	17	list_price	integer	YES	
+courses	18	badges	character varying	NO	
+courses	19	status	character varying	NO	'published'::character varying
+courses	20	collected_at	timestamp with time zone	NO	now()
+courses	21	updated_at	timestamp with time zone	NO	now()
+fastcampus_collect_runs	1	id	integer	NO	nextval('fastcampus_collect_runs_id_seq'::regclass)
+fastcampus_collect_runs	2	status	character varying	NO	
+fastcampus_collect_runs	3	candidates_count	integer	NO	0
+fastcampus_collect_runs	4	added_count	integer	NO	0
+fastcampus_collect_runs	5	updated_count	integer	NO	0
+fastcampus_collect_runs	6	hidden_count	integer	NO	0
+fastcampus_collect_runs	7	error_message	text	YES	
+fastcampus_collect_runs	8	created_at	timestamp with time zone	NO	now()
+writer_sessions	1	telegram_user_id	bigint	NO	nextval('writer_sessions_telegram_user_id_seq'::regclass)
+writer_sessions	2	summary	text	YES	
+writer_sessions	3	updated_at	timestamp with time zone	NO	now()
+writer_messages	1	id	integer	NO	nextval('writer_messages_id_seq'::regclass)
+writer_messages	2	telegram_user_id	bigint	NO	
+writer_messages	3	role	character varying	NO	
+writer_messages	4	content	text	NO	
+writer_messages	5	created_at	timestamp with time zone	NO	now()
+brunch_collect_runs	1	id	integer	NO	nextval('brunch_collect_runs_id_seq'::regclass)
+brunch_collect_runs	2	window_start	timestamp with time zone	NO	
+brunch_collect_runs	3	window_end	timestamp with time zone	NO	
+brunch_collect_runs	4	status	character varying	NO	
+brunch_collect_runs	5	candidates_count	integer	NO	0
+brunch_collect_runs	6	picked_article_id	integer	YES	
+brunch_collect_runs	7	error_message	text	YES	
+brunch_collect_runs	8	created_at	timestamp with time zone	NO	now()
+newsletter_collect_runs	1	id	integer	NO	nextval('newsletter_collect_runs_id_seq'::regclass)
+newsletter_collect_runs	2	status	character varying	NO	
+newsletter_collect_runs	3	candidates_count	integer	NO	0
+newsletter_collect_runs	4	added_count	integer	NO	0
+newsletter_collect_runs	5	error_message	text	YES	
+newsletter_collect_runs	6	created_at	timestamp with time zone	NO	now()
+card_benefits	1	id	integer	NO	nextval('card_benefits_id_seq'::regclass)
+card_benefits	2	source_id	character varying	NO	
+card_benefits	3	card_company	character varying	NO	
+card_benefits	4	title	character varying	NO	
+card_benefits	5	event_period	character varying	NO	
+card_benefits	6	event_start_date	date	YES	
+card_benefits	7	event_end_date	date	YES	
+card_benefits	8	target_cards	character varying	YES	
+card_benefits	9	benefit_summary	character varying	YES	
+card_benefits	10	benefit_tags	character varying	YES	
+card_benefits	11	detail_url	character varying	NO	
+card_benefits	12	image_url	character varying	YES	
+card_benefits	13	status	character varying	NO	'published'::character varying
+card_benefits	14	collected_at	timestamp with time zone	NO	now()
+card_benefits	15	countries	character varying	YES	
+card_benefit_collect_runs	1	id	integer	NO	nextval('card_benefit_collect_runs_id_seq'::regclass)
+card_benefit_collect_runs	2	status	character varying	NO	
+card_benefit_collect_runs	3	candidates_count	integer	NO	0
+card_benefit_collect_runs	4	added_count	integer	NO	0
+card_benefit_collect_runs	5	error_message	text	YES	
+card_benefit_collect_runs	6	created_at	timestamp with time zone	NO	now()

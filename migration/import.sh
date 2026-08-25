@@ -120,6 +120,7 @@ cat "$RESTORE_BODY" >> "$RESTORE_SQL"
 
 # 같은 트랜잭션에서 복원 데이터 건수를 검사해 실패 시 전체 복원을 롤백한다.
 MANIFEST_ROWS=0
+EXPECTED_TABLE_COUNT="$(nexus_table_count)"
 SEEN_TABLES=" "
 while IFS=$'\t' read -r table expected; do
   [[ "$table" == "table_name" ]] && continue
@@ -134,8 +135,8 @@ while IFS=$'\t' read -r table expected; do
   printf '\nDO $$ BEGIN IF (SELECT count(*) FROM public."%s") <> %s THEN RAISE EXCEPTION '\''row count mismatch: %s'\''; END IF; END $$;\n' \
     "$table" "$expected" "$table" >> "$RESTORE_SQL"
 done < "$COUNTS_FILE"
-if [[ "$MANIFEST_ROWS" -ne 15 ]]; then
-  echo "건수 매니페스트의 NEXUS 테이블 수가 15개가 아닙니다: $MANIFEST_ROWS" >&2
+if [[ "$MANIFEST_ROWS" -ne "$EXPECTED_TABLE_COUNT" ]]; then
+  echo "건수 매니페스트의 NEXUS 테이블 수가 허용 목록과 다릅니다: 기대 $EXPECTED_TABLE_COUNT, 실제 $MANIFEST_ROWS" >&2
   exit 1
 fi
 
