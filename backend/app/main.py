@@ -53,7 +53,7 @@ def create_app(
         if scheduler is not None:
             scheduler.shutdown(wait=False)
 
-    app = FastAPI(title="NEXUS API", lifespan=lifespan)
+    app = FastAPI(title="EDU.AI API", lifespan=lifespan)
     app.state.cache = app_cache
     app.add_middleware(
         CORSMiddleware,

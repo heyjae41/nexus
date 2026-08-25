@@ -1,4 +1,4 @@
-// NEXUS E2E 스모크: 홈 → 큐레이션 → 상세 → 좋아요, 반응형(모바일) 확인
+// EDU.AI E2E 스모크: 홈 → 큐레이션 → 상세 → 좋아요, 반응형(모바일) 확인
 import { expect, test } from '@playwright/test'
 
 test('홈: 히어로와 큐레이션 섹션이 렌더링된다', async ({ page }) => {

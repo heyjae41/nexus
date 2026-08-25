@@ -1,4 +1,4 @@
-"""루트 migration 번들의 안전한 NEXUS 전용 DB 이관 계약."""
+"""루트 migration 번들의 안전한 EDU.AI 전용 DB 이관 계약."""
 
 import hashlib
 from pathlib import Path

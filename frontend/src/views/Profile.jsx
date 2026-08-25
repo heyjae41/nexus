@@ -121,7 +121,7 @@ export default function Profile({ user, setUser }) {
 
   return (
     <main style={{ padding: '42px 40px 80px', maxWidth: 680, margin: '0 auto' }}>
-      <p style={{ color: '#E8123C', fontSize: 11, fontFamily: 'monospace', letterSpacing: '.06em', margin: '0 0 10px' }}>NEXUS · MY PROFILE</p>
+      <p style={{ color: '#E8123C', fontSize: 11, fontFamily: 'monospace', letterSpacing: '.06em', margin: '0 0 10px' }}>EDU.AI · MY PROFILE</p>
       <h1 style={{ color: '#fff', fontSize: 29, margin: '0 0 32px' }}>내 정보</h1>
 
       <section style={{ padding: 22, background: '#15151A', border: '1px solid rgba(255,255,255,.09)', borderRadius: 16, marginBottom: 24 }}>

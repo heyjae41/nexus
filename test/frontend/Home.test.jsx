@@ -28,7 +28,7 @@ const mockHomeData = {
           articleType: 'newsletter',
           title: '테스트 뉴스레터 아티클',
           summary: '요약 1',
-          authorName: 'NEXUS 에디터',
+          authorName: 'EDU.AI 에디터',
           readMinutes: 5,
           likesCount: 100,
           commentsCount: 10,

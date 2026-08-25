@@ -1,4 +1,4 @@
-# NEXUS 소유 테이블만 나열한다. 공유 DB의 타 프로젝트 테이블은 추가하지 않는다.
+# EDU.AI 소유 테이블만 나열한다. 공유 DB의 타 프로젝트 테이블은 추가하지 않는다.
 categories
 articles
 members

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NEXUS DB 이관 스크립트 공통 함수. 직접 실행하지 않는다.
+# EDU.AI DB 이관 스크립트 공통 함수. 직접 실행하지 않는다.
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TABLE_FILE="$MIGRATION_DIR/nexus_tables.txt"

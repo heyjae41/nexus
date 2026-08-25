@@ -1,4 +1,4 @@
-# NEXUS 수집잡 구조 및 운영 가이드
+# EDU.AI 수집잡 구조 및 운영 가이드
 
 > 조사 기준: 2026-07-22 08:09 CEST
 >
@@ -8,7 +8,7 @@
 
 ## 1. 개요
 
-NEXUS의 수집 기능은 FastAPI 프로세스 내부의 APScheduler가 실행한다. 등록된 최상위 잡은 두 개다.
+EDU.AI의 수집 기능은 FastAPI 프로세스 내부의 APScheduler가 실행한다. 등록된 최상위 잡은 두 개다.
 
 ```text
 FastAPI 시작
@@ -357,7 +357,7 @@ ai, 인공지능, 머신러닝, 데이터과학, 딥러닝, 생성형, gpt, llm,
 
 중복 키는 `articles.source_url`이며 DB UNIQUE 제약이 있다.
 
-중요한 세부사항: 후보에 원본 `published_at`이 존재하지만 실제 Article의 `published_at`에는 수집 윈도우의 `window_end`, 즉 NEXUS 수집 시각을 저장한다. 목록 정렬은 Brunch 원본 게시 시각이 아니라 NEXUS 수집 시각 기준이다.
+중요한 세부사항: 후보에 원본 `published_at`이 존재하지만 실제 Article의 `published_at`에는 수집 윈도우의 `window_end`, 즉 EDU.AI 수집 시각을 저장한다. 목록 정렬은 Brunch 원본 게시 시각이 아니라 EDU.AI 수집 시각 기준이다.
 
 ### 5.5 수집 이력
 
