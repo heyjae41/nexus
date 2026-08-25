@@ -136,12 +136,15 @@ def test_collect_extracts_countries(db):
                        title="해외 결제 캐시백", benefit_summary=None),
         make_candidate(source_id="hana:dom", detail_url="https://ex.com/dom",
                        title="서울랜드 이용권", benefit_summary=None),
+        make_candidate(source_id="hana:resort", detail_url="https://ex.com/resort",
+                       title="하이원 리조트", benefit_summary="워터파크 최대 55% 할인"),
     ])
     rows = {r.source_id: r for r in db.query(CardBenefit).all()}
     assert rows["hana:jp"].countries == "JP"
     assert set(rows["hana:sea"].countries.split(",")) == {"VN", "TH"}
     assert rows["hana:ov"].countries == "ALL"
     assert rows["hana:dom"].countries == "KR"
+    assert rows["hana:resort"].countries == "KR"
 
 
 def test_collect_uses_detail_geo_text_for_countries(db):

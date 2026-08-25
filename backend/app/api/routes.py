@@ -170,11 +170,11 @@ def card_benefits(
         return items
 
     items = cache.get_or_set(
-        f"card_benefits:v2:list:{company or 'all'}:{country or 'all'}", load_items
+        f"card_benefits:v3:list:{company or 'all'}:{country or 'all'}", load_items
     )
     # 칩 집계는 country 와 무관 — company 단위로 별도 캐시해 중복 계산을 피한다
     facets = cache.get_or_set(
-        f"card_benefits:v2:facets:{company or 'all'}",
+        f"card_benefits:v3:facets:{company or 'all'}",
         lambda: _country_facets(list_active_benefits(db, company=company)),
     )
     return api_response(items, meta={"total": len(items), "countries": facets})

@@ -38,10 +38,12 @@ def list_active_benefits(
 
 def _is_domestic_only(row: CardBenefit) -> bool:
     """신규 KR 분류와 과거 ALL 오분류 모두 API 진입 전에 제외한다."""
-    from app.services.card_benefit_geo import DOMESTIC_ONLY, is_domestic_only
+    from app.services.card_benefit_geo import (
+        DOMESTIC_STORAGE_VALUES, is_domestic_only,
+    )
 
     stored = {value.strip() for value in (row.countries or "").split(",")}
-    if DOMESTIC_ONLY in stored:
+    if DOMESTIC_STORAGE_VALUES.intersection(stored):
         return True
     text = " ".join(filter(None, (row.title, row.benefit_summary)))
     return is_domestic_only(text)

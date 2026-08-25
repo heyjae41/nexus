@@ -152,6 +152,65 @@ def test_card_benefits_excludes_domestic_only_rows_misclassified_as_all(client):
     assert body["meta"]["countries"] == []
 
 
+def test_card_benefits_excludes_domestic_storage_value_and_resort_names(client):
+    """국내·기타 원본값과 국내 리조트/시설명은 API에 노출하지 않는다."""
+    db = client.session_factory()
+    rows = [
+        ("bc:high1", "BC카드 전용 하이원 리조트 최대 55% 할인", "국내·기타"),
+        ("bc:yongpyong", "BC카드 전용 모나용평 최대 70% 할인", "ALL"),
+        ("bc:phoenix", "BC카드 전용 휘닉스 파크 최대 54% 할인", "ALL"),
+        ("bc:waterpark", "6개 워터파크 할인 혜택", "국내·기타"),
+        ("bc:generic", "하나카드 고객전용 특별 패키지", "국내·기타"),
+    ]
+    for source_id, title, countries in rows:
+        db.add(
+            CardBenefit(
+                source_id=source_id,
+                card_company="BC카드",
+                title=title,
+                event_period="2026.08.01 ~ 2026.12.31",
+                event_start_date=date(2026, 8, 1),
+                event_end_date=date(2026, 12, 31),
+                benefit_summary="객실 패키지 및 부대시설 할인",
+                countries=countries,
+                detail_url=f"https://example.com/{source_id}",
+            )
+        )
+    db.commit()
+    db.close()
+
+    body = client.get("/api/card-benefits").json()
+
+    assert body["data"] == []
+    assert body["meta"]["countries"] == []
+
+
+def test_card_benefits_keeps_airport_services_for_overseas_travel(client):
+    """국내 공항에서 제공돼도 해외여행 지원 혜택이면 유지한다."""
+    db = client.session_factory()
+    db.add(
+        CardBenefit(
+            source_id="woori:airport",
+            card_company="우리카드",
+            title="인천/김포공항 주차대행서비스 할인",
+            event_period="2026.08.01 ~ 2026.12.31",
+            event_start_date=date(2026, 8, 1),
+            event_end_date=date(2026, 12, 31),
+            benefit_summary="출국 고객 대상 공항 서비스",
+            countries="ALL",
+            detail_url="https://example.com/airport",
+        )
+    )
+    db.commit()
+    db.close()
+
+    body = client.get("/api/card-benefits").json()
+
+    assert [item["title"] for item in body["data"]] == [
+        "인천/김포공항 주차대행서비스 할인"
+    ]
+
+
 def seed_geo_benefits(client):
     db = client.session_factory()
     rows = [
