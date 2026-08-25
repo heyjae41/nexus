@@ -1,7 +1,8 @@
 """card.Pick 국가 코드 분류·필터 계약 테스트."""
 from app.services.card_benefit_geo import (
-    COUNTRY_FLAGS, COUNTRY_NAMES, OVERSEAS_COMMON, expand_country_filter,
-    extract_countries, match_rank, normalize_country_codes,
+    COUNTRY_FLAGS, COUNTRY_NAMES, DOMESTIC_ONLY, OVERSEAS_COMMON,
+    expand_country_filter, extract_countries, is_domestic_only,
+    match_rank, normalize_country_codes,
 )
 
 
@@ -16,11 +17,21 @@ def test_extracts_multiple_configured_codes():
     assert set(extract_countries("일본·태국·베트남 여행 시 캐시백")) == {"JP", "TH", "VN"}
 
 
-def test_unconfigured_country_region_and_unclassified_values_become_all():
+def test_unconfigured_overseas_region_and_unclassified_values_become_all():
     assert extract_countries("동남아 전 가맹점 5% 할인") == [OVERSEAS_COMMON]
     assert extract_countries("독일 여행 혜택") == [OVERSEAS_COMMON]
-    assert extract_countries("서울랜드 파크이용권 1+1") == [OVERSEAS_COMMON]
     assert extract_countries(None) == [OVERSEAS_COMMON]
+
+
+def test_domestic_only_benefits_are_classified_separately_from_overseas_common():
+    assert extract_countries("서울랜드 파크이용권 1+1") == [DOMESTIC_ONLY]
+    assert extract_countries(
+        "롯데렌터카 제주 최대 89%, 내륙 최대 65% 할인"
+    ) == [DOMESTIC_ONLY]
+    assert is_domestic_only("제주도 지역 렌터카 예약 할인") is True
+    assert is_domestic_only("국내외 호텔 최대 25% 할인") is False
+    assert is_domestic_only("제주 출발 해외여행 항공권 할인") is False
+    assert is_domestic_only("한국 출발 독일 여행 할인") is False
 
 
 def test_false_positive_guards_preserve_all_fallback():
@@ -33,6 +44,7 @@ def test_normalizes_legacy_values_to_configured_codes_or_all():
     assert normalize_country_codes("베트남,일본") == ["VN", "JP"]
     assert normalize_country_codes("동남아,독일,해외공통") == ["ALL"]
     assert normalize_country_codes(None) == ["ALL"]
+    assert normalize_country_codes(DOMESTIC_ONLY) == []
 
 
 def test_filter_uses_code_and_all_only():

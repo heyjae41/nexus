@@ -1,12 +1,14 @@
 """card.Pick 국가 코드 분류 및 필터 지원.
 
-공개 API와 신규 수집 데이터는 지정된 ISO 3166-1 alpha-2 코드와 ``ALL``만
-사용한다. 지정 목록에 없는 국가·권역·미분류 항목은 모두 해외공통 ``ALL``이다.
+공개 API는 지정된 ISO 3166-1 alpha-2 코드와 ``ALL``만 사용한다. 국내 전용
+혜택은 내부 표식 ``KR``로 분류하고 API에서 제외한다. 지정 목록에 없는 해외
+국가·권역·미분류 항목은 해외공통 ``ALL``이다.
 """
 
 import re
 
 OVERSEAS_COMMON = "ALL"
+DOMESTIC_ONLY = "KR"
 
 # API/필터에서 허용하는 국가 코드와 표시명. 이 목록 밖의 장소는 ALL로 분류한다.
 COUNTRY_NAMES: dict[str, str] = {
@@ -51,6 +53,13 @@ _STOP_PHRASES_RE = re.compile(
     r"세부\s*(?:조건|내용|사항|정보|혜택|기준|일정|안내|방법|사용|절차|설명)"
     r"|파리바게뜨|런던제화|로마자"
 )
+_DOMESTIC_RE = re.compile(
+    r"국내|(?:대한민국|한국)\s*(?:내|전용|여행|숙박|호텔)"
+    r"|제주(?:도)?|내륙|서울랜드"
+)
+_OVERSEAS_RE = re.compile(
+    r"해외|국외|글로벌|전\s*세계|세계\s*각국|국내\s*(?:외|[/·&]\s*외)"
+)
 
 
 def _match_keyword_map(blob: str) -> list[str]:
@@ -60,21 +69,43 @@ def _match_keyword_map(blob: str) -> list[str]:
     ]
 
 
+def is_domestic_only(text: str | None, geo_text: str | None = None) -> bool:
+    """국가·해외 단서 없이 국내 지역/이용 단서만 있는 혜택인지 판정한다.
+
+    상세 본문의 ``해외 이용 시 수수료`` 같은 상용구는 해외 혜택 근거로 쓰지
+    않지만, 제목·요약의 명시적 해외 단서는 국내 판정보다 우선한다.
+    """
+    primary = _STOP_PHRASES_RE.sub(" ", text or "")
+    detail = _STOP_PHRASES_RE.sub(" ", geo_text or "")
+    combined = f"{primary} {detail}"
+    if _match_keyword_map(combined) or _OVERSEAS_RE.search(primary):
+        return False
+    return bool(_DOMESTIC_RE.search(combined))
+
+
 def extract_countries(text: str | None, geo_text: str | None = None) -> list[str]:
-    """추출한 지정 국가 코드 또는 ``ALL`` 하나 이상을 반환한다."""
+    """지정 국가, 국내 전용 ``KR``, 해외공통 ``ALL``을 반환한다."""
     blob = _STOP_PHRASES_RE.sub(" ", text or "")
     combined = f"{blob} {_STOP_PHRASES_RE.sub(' ', geo_text or '')}"
     found = _match_keyword_map(combined)
-    return found or [OVERSEAS_COMMON]
+    if found:
+        return found
+    if is_domestic_only(text, geo_text):
+        return [DOMESTIC_ONLY]
+    return [OVERSEAS_COMMON]
 
 
 def normalize_country_codes(values: str | None) -> list[str]:
-    """기존 한글/권역 저장값을 API 계약의 코드 목록으로 변환한다."""
+    """기존 저장값을 공개 API 코드로 변환하고 국내 전용값은 제거한다."""
     if not values:
         return [OVERSEAS_COMMON]
     codes: list[str] = []
+    domestic_only = False
     for value in values.split(","):
         value = value.strip()
+        if value == DOMESTIC_ONLY or is_domestic_only(value):
+            domestic_only = True
+            continue
         if value in COUNTRY_NAMES:
             code = value
         else:
@@ -84,7 +115,7 @@ def normalize_country_codes(values: str | None) -> list[str]:
             )
         if code not in codes:
             codes.append(code)
-    return codes or [OVERSEAS_COMMON]
+    return codes or ([] if domestic_only else [OVERSEAS_COMMON])
 
 
 def expand_country_filter(selected: str) -> set[str]:

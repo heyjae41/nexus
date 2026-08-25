@@ -124,6 +124,34 @@ def test_card_benefits_excludes_not_started_events(client):
     assert "다음달 혜택" not in titles
 
 
+def test_card_benefits_excludes_domestic_only_rows_misclassified_as_all(client):
+    """기존 데이터가 ALL이어도 국내 전용이면 API와 국가 집계에서 제외한다."""
+    db = client.session_factory()
+    db.add(
+        CardBenefit(
+            source_id="lotte:domestic-rental",
+            card_company="롯데카드",
+            title="롯데카드로 결제하면 렌터카 최대 89% 할인 혜택!",
+            event_period="2026.08.12 ~ 2026.12.31",
+            event_start_date=date(2026, 8, 12),
+            event_end_date=date(2026, 12, 31),
+            benefit_summary=(
+                "롯데렌터카 제주 최대 89%, 내륙 최대 65% 할인 "
+                "제주도 지역 롯데렌터카 예약 혜택"
+            ),
+            countries="ALL",
+            detail_url="https://m.lottecard.co.kr/domestic-rental",
+        )
+    )
+    db.commit()
+    db.close()
+
+    body = client.get("/api/card-benefits").json()
+
+    assert body["data"] == []
+    assert body["meta"]["countries"] == []
+
+
 def seed_geo_benefits(client):
     db = client.session_factory()
     rows = [
