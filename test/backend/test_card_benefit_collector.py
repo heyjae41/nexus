@@ -141,7 +141,7 @@ def test_collect_extracts_countries(db):
     assert rows["hana:jp"].countries == "JP"
     assert set(rows["hana:sea"].countries.split(",")) == {"VN", "TH"}
     assert rows["hana:ov"].countries == "ALL"
-    assert rows["hana:dom"].countries == "ALL"
+    assert rows["hana:dom"].countries == "KR"
 
 
 def test_collect_uses_detail_geo_text_for_countries(db):

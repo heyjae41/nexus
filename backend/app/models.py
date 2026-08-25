@@ -327,7 +327,8 @@ class CardBenefit(Base):
     event_end_date: Mapped[date | None] = mapped_column(Date)
     target_cards: Mapped[str | None] = mapped_column(String(500))
     benefit_summary: Mapped[str | None] = mapped_column(String(500))  # 혜택 내용 한 줄 요약
-    countries: Mapped[str | None] = mapped_column(String(200))  # 대상 지역, 쉼표 구분 (일본,동남아,해외공통…)
+    # 공개 국가 코드 또는 내부 국내 전용 표식 KR. KR 행은 API에서 제외한다.
+    countries: Mapped[str | None] = mapped_column(String(200))
     benefit_tags: Mapped[str | None] = mapped_column(String(200))  # 쉼표 구분: 할인,캐시백
     detail_url: Mapped[str] = mapped_column(String(1000), unique=True, nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(1000))

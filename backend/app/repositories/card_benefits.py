@@ -30,10 +30,21 @@ def list_active_benefits(
     stmt = stmt.order_by(
         CardBenefit.event_start_date.desc().nulls_last(), CardBenefit.id.desc()
     )
-    rows = list(db.scalars(stmt))
+    rows = [row for row in db.scalars(stmt) if not _is_domestic_only(row)]
     if country:
         rows = _filter_by_country(rows, country)
     return rows
+
+
+def _is_domestic_only(row: CardBenefit) -> bool:
+    """신규 KR 분류와 과거 ALL 오분류 모두 API 진입 전에 제외한다."""
+    from app.services.card_benefit_geo import DOMESTIC_ONLY, is_domestic_only
+
+    stored = {value.strip() for value in (row.countries or "").split(",")}
+    if DOMESTIC_ONLY in stored:
+        return True
+    text = " ".join(filter(None, (row.title, row.benefit_summary)))
+    return is_domestic_only(text)
 
 
 def _filter_by_country(rows: list[CardBenefit], country: str) -> list[CardBenefit]:
