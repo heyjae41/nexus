@@ -1,0 +1,160 @@
+;
+; Archive created at 2026-08-25 19:46:36 KST
+;     dbname: paybooc_ai
+;     TOC Entries: 149
+;     Compression: gzip
+;     Dump Version: 1.15-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 16.14
+;     Dumped by pg_dump version: 16.14
+;
+;
+; Selected TOC Entries:
+;
+238; 1259 16532 TABLE public articles postgres
+237; 1259 16531 SEQUENCE public articles_id_seq postgres
+3681; 0 0 SEQUENCE OWNED BY public articles_id_seq postgres
+240; 1259 16559 TABLE public auth_sessions postgres
+239; 1259 16558 SEQUENCE public auth_sessions_id_seq postgres
+3682; 0 0 SEQUENCE OWNED BY public auth_sessions_id_seq postgres
+247; 1259 16633 TABLE public brunch_collect_runs postgres
+246; 1259 16632 SEQUENCE public brunch_collect_runs_id_seq postgres
+3683; 0 0 SEQUENCE OWNED BY public brunch_collect_runs_id_seq postgres
+236; 1259 16520 TABLE public card_benefit_collect_runs postgres
+235; 1259 16519 SEQUENCE public card_benefit_collect_runs_id_seq postgres
+3684; 0 0 SEQUENCE OWNED BY public card_benefit_collect_runs_id_seq postgres
+234; 1259 16504 TABLE public card_benefits postgres
+233; 1259 16503 SEQUENCE public card_benefits_id_seq postgres
+3685; 0 0 SEQUENCE OWNED BY public card_benefits_id_seq postgres
+216; 1259 16386 TABLE public categories postgres
+215; 1259 16385 SEQUENCE public categories_id_seq postgres
+3686; 0 0 SEQUENCE OWNED BY public categories_id_seq postgres
+245; 1259 16611 TABLE public community_comments postgres
+244; 1259 16610 SEQUENCE public community_comments_id_seq postgres
+3687; 0 0 SEQUENCE OWNED BY public community_comments_id_seq postgres
+243; 1259 16594 TABLE public community_post_likes postgres
+242; 1259 16575 TABLE public community_posts postgres
+241; 1259 16574 SEQUENCE public community_posts_id_seq postgres
+3688; 0 0 SEQUENCE OWNED BY public community_posts_id_seq postgres
+220; 1259 16410 TABLE public courses postgres
+219; 1259 16409 SEQUENCE public courses_id_seq postgres
+3689; 0 0 SEQUENCE OWNED BY public courses_id_seq postgres
+222; 1259 16428 TABLE public fastcampus_collect_runs postgres
+221; 1259 16427 SEQUENCE public fastcampus_collect_runs_id_seq postgres
+3690; 0 0 SEQUENCE OWNED BY public fastcampus_collect_runs_id_seq postgres
+226; 1259 16459 TABLE public meetup_collect_runs postgres
+225; 1259 16458 SEQUENCE public meetup_collect_runs_id_seq postgres
+3691; 0 0 SEQUENCE OWNED BY public meetup_collect_runs_id_seq postgres
+224; 1259 16442 TABLE public meetup_events postgres
+223; 1259 16441 SEQUENCE public meetup_events_id_seq postgres
+3692; 0 0 SEQUENCE OWNED BY public meetup_events_id_seq postgres
+218; 1259 16398 TABLE public members postgres
+217; 1259 16397 SEQUENCE public members_id_seq postgres
+3693; 0 0 SEQUENCE OWNED BY public members_id_seq postgres
+232; 1259 16492 TABLE public newsletter_collect_runs postgres
+231; 1259 16491 SEQUENCE public newsletter_collect_runs_id_seq postgres
+3694; 0 0 SEQUENCE OWNED BY public newsletter_collect_runs_id_seq postgres
+230; 1259 16481 TABLE public writer_messages postgres
+229; 1259 16480 SEQUENCE public writer_messages_id_seq postgres
+3695; 0 0 SEQUENCE OWNED BY public writer_messages_id_seq postgres
+228; 1259 16471 TABLE public writer_sessions postgres
+227; 1259 16470 SEQUENCE public writer_sessions_telegram_user_id_seq postgres
+3696; 0 0 SEQUENCE OWNED BY public writer_sessions_telegram_user_id_seq postgres
+3403; 2604 16535 DEFAULT public articles id postgres
+3411; 2604 16562 DEFAULT public auth_sessions id postgres
+3421; 2604 16636 DEFAULT public brunch_collect_runs id postgres
+3399; 2604 16523 DEFAULT public card_benefit_collect_runs id postgres
+3396; 2604 16507 DEFAULT public card_benefits id postgres
+3363; 2604 16389 DEFAULT public categories id postgres
+3419; 2604 16614 DEFAULT public community_comments id postgres
+3413; 2604 16578 DEFAULT public community_posts id postgres
+3369; 2604 16413 DEFAULT public courses id postgres
+3374; 2604 16431 DEFAULT public fastcampus_collect_runs id postgres
+3384; 2604 16462 DEFAULT public meetup_collect_runs id postgres
+3380; 2604 16445 DEFAULT public meetup_events id postgres
+3367; 2604 16401 DEFAULT public members id postgres
+3392; 2604 16495 DEFAULT public newsletter_collect_runs id postgres
+3390; 2604 16484 DEFAULT public writer_messages id postgres
+3388; 2604 16474 DEFAULT public writer_sessions telegram_user_id postgres
+3665; 0 16532 TABLE DATA public articles postgres
+3667; 0 16559 TABLE DATA public auth_sessions postgres
+3674; 0 16633 TABLE DATA public brunch_collect_runs postgres
+3663; 0 16520 TABLE DATA public card_benefit_collect_runs postgres
+3661; 0 16504 TABLE DATA public card_benefits postgres
+3643; 0 16386 TABLE DATA public categories postgres
+3672; 0 16611 TABLE DATA public community_comments postgres
+3670; 0 16594 TABLE DATA public community_post_likes postgres
+3669; 0 16575 TABLE DATA public community_posts postgres
+3647; 0 16410 TABLE DATA public courses postgres
+3649; 0 16428 TABLE DATA public fastcampus_collect_runs postgres
+3653; 0 16459 TABLE DATA public meetup_collect_runs postgres
+3651; 0 16442 TABLE DATA public meetup_events postgres
+3645; 0 16398 TABLE DATA public members postgres
+3659; 0 16492 TABLE DATA public newsletter_collect_runs postgres
+3657; 0 16481 TABLE DATA public writer_messages postgres
+3655; 0 16471 TABLE DATA public writer_sessions postgres
+3697; 0 0 SEQUENCE SET public articles_id_seq postgres
+3698; 0 0 SEQUENCE SET public auth_sessions_id_seq postgres
+3699; 0 0 SEQUENCE SET public brunch_collect_runs_id_seq postgres
+3700; 0 0 SEQUENCE SET public card_benefit_collect_runs_id_seq postgres
+3701; 0 0 SEQUENCE SET public card_benefits_id_seq postgres
+3702; 0 0 SEQUENCE SET public categories_id_seq postgres
+3703; 0 0 SEQUENCE SET public community_comments_id_seq postgres
+3704; 0 0 SEQUENCE SET public community_posts_id_seq postgres
+3705; 0 0 SEQUENCE SET public courses_id_seq postgres
+3706; 0 0 SEQUENCE SET public fastcampus_collect_runs_id_seq postgres
+3707; 0 0 SEQUENCE SET public meetup_collect_runs_id_seq postgres
+3708; 0 0 SEQUENCE SET public meetup_events_id_seq postgres
+3709; 0 0 SEQUENCE SET public members_id_seq postgres
+3710; 0 0 SEQUENCE SET public newsletter_collect_runs_id_seq postgres
+3711; 0 0 SEQUENCE SET public writer_messages_id_seq postgres
+3712; 0 0 SEQUENCE SET public writer_sessions_telegram_user_id_seq postgres
+3467; 2606 16550 CONSTRAINT public articles articles_content_filename_key postgres
+3469; 2606 16546 CONSTRAINT public articles articles_pkey postgres
+3471; 2606 16548 CONSTRAINT public articles articles_source_url_key postgres
+3475; 2606 16565 CONSTRAINT public auth_sessions auth_sessions_pkey postgres
+3477; 2606 16567 CONSTRAINT public auth_sessions auth_sessions_token_hash_key postgres
+3490; 2606 16642 CONSTRAINT public brunch_collect_runs brunch_collect_runs_pkey postgres
+3465; 2606 16530 CONSTRAINT public card_benefit_collect_runs card_benefit_collect_runs_pkey postgres
+3458; 2606 16517 CONSTRAINT public card_benefits card_benefits_detail_url_key postgres
+3460; 2606 16513 CONSTRAINT public card_benefits card_benefits_pkey postgres
+3462; 2606 16515 CONSTRAINT public card_benefits card_benefits_source_id_key postgres
+3425; 2606 16394 CONSTRAINT public categories categories_pkey postgres
+3427; 2606 16396 CONSTRAINT public categories categories_slug_key postgres
+3486; 2606 16619 CONSTRAINT public community_comments community_comments_pkey postgres
+3484; 2606 16599 CONSTRAINT public community_post_likes community_post_likes_pkey postgres
+3480; 2606 16586 CONSTRAINT public community_posts community_posts_pkey postgres
+3433; 2606 16421 CONSTRAINT public courses courses_pkey postgres
+3435; 2606 16423 CONSTRAINT public courses courses_source_id_key postgres
+3437; 2606 16425 CONSTRAINT public courses courses_source_url_key postgres
+3440; 2606 16440 CONSTRAINT public fastcampus_collect_runs fastcampus_collect_runs_pkey postgres
+3449; 2606 16469 CONSTRAINT public meetup_collect_runs meetup_collect_runs_pkey postgres
+3443; 2606 16452 CONSTRAINT public meetup_events meetup_events_pkey postgres
+3445; 2606 16454 CONSTRAINT public meetup_events meetup_events_source_id_key postgres
+3447; 2606 16456 CONSTRAINT public meetup_events meetup_events_source_url_key postgres
+3429; 2606 16408 CONSTRAINT public members members_nickname_key postgres
+3431; 2606 16406 CONSTRAINT public members members_pkey postgres
+3456; 2606 16502 CONSTRAINT public newsletter_collect_runs newsletter_collect_runs_pkey postgres
+3454; 2606 16489 CONSTRAINT public writer_messages writer_messages_pkey postgres
+3451; 2606 16479 CONSTRAINT public writer_sessions writer_sessions_pkey postgres
+3472; 1259 16556 INDEX public ix_articles_category_status_published postgres
+3473; 1259 16557 INDEX public ix_articles_type_published postgres
+3478; 1259 16573 INDEX public ix_auth_sessions_member postgres
+3463; 1259 16518 INDEX public ix_card_benefits_start postgres
+3487; 1259 16630 INDEX public ix_community_comments_member postgres
+3488; 1259 16631 INDEX public ix_community_comments_post postgres
+3481; 1259 16593 INDEX public ix_community_posts_member postgres
+3482; 1259 16592 INDEX public ix_community_posts_status_created postgres
+3438; 1259 16426 INDEX public ix_courses_status_category_rank postgres
+3441; 1259 16457 INDEX public ix_meetup_events_start postgres
+3452; 1259 16490 INDEX public ix_writer_messages_user_created postgres
+3491; 2606 16551 FK CONSTRAINT public articles articles_category_id_fkey postgres
+3492; 2606 16568 FK CONSTRAINT public auth_sessions auth_sessions_member_id_fkey postgres
+3498; 2606 16643 FK CONSTRAINT public brunch_collect_runs brunch_collect_runs_picked_article_id_fkey postgres
+3496; 2606 16625 FK CONSTRAINT public community_comments community_comments_member_id_fkey postgres
+3497; 2606 16620 FK CONSTRAINT public community_comments community_comments_post_id_fkey postgres
+3494; 2606 16605 FK CONSTRAINT public community_post_likes community_post_likes_member_id_fkey postgres
+3495; 2606 16600 FK CONSTRAINT public community_post_likes community_post_likes_post_id_fkey postgres
+3493; 2606 16587 FK CONSTRAINT public community_posts community_posts_member_id_fkey postgres

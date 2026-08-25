@@ -1,6 +1,6 @@
 # NEXUS PostgreSQL 스키마·데이터 이관
 
-로컬 `paybooc_ai`의 NEXUS 소유 테이블 11개만 개발 서버 PostgreSQL로 옮기는 도구다.
+로컬 `paybooc_ai`의 NEXUS 소유 테이블 17개만 개발 서버 PostgreSQL로 옮기는 도구다.
 동일 DB를 공유하는 타 프로젝트 테이블 `bc_merchant_validation`, `naver_merchant_capture`는 덤프·삭제·복원 대상에서 제외한다.
 
 ## 포함 파일
@@ -10,7 +10,8 @@
 - `export.sh`: 로컬 DB의 스키마+데이터 커스텀 덤프 및 검증 매니페스트 생성
 - `import.sh`: 기존 NEXUS 테이블 교체 후 트랜잭션 단위 복원
 - `verify.sh`: 테이블별 행 수와 컬럼 정의를 소스 매니페스트와 비교
-- `artifacts/`: 실제 데이터 덤프와 검증 파일. 권한 700/600으로 생성되며 개인정보가 포함될 수 있어 Git에서 제외
+- `bootstrap/`: 신규 서버 최초 이전용으로 검증해 커밋한 스키마·데이터 번들
+- `artifacts/`: 이후 export 결과. 개인정보가 포함될 수 있어 Git에서 제외
 
 ## 1. 로컬 DB 내보내기
 
@@ -37,7 +38,7 @@ bash migration/export.sh ./local.env ./migration/artifacts
 
 ## 2. 개발 서버로 전송
 
-덤프에는 회원 이메일, 커뮤니티 글, 작가 세션 등이 포함될 수 있으므로 공개 저장소나 메신저에 올리지 않는다. SSH/SCP 등 암호화된 경로로 `artifacts` 전체를 전송한다.
+커밋된 `bootstrap`은 저장소를 clone/pull하면 함께 내려온다. 이후 새로 생성한 `artifacts`에는 회원 이메일, 커뮤니티 글, 작가 세션 등이 포함될 수 있으므로 공개 저장소나 메신저에 올리지 않고 SSH/SCP 등 암호화된 경로로 전송한다.
 
 ```bash
 scp -r migration/artifacts user@dev-server:/path/to/nexus/migration/
@@ -47,18 +48,18 @@ scp -r migration/artifacts user@dev-server:/path/to/nexus/migration/
 
 ## 3. 대상 DB 가져오기
 
-대상의 기존 NEXUS 테이블 11개를 삭제한 뒤 덤프 데이터로 교체한다. 삭제·복원·행 수·스키마 검증은 하나의 트랜잭션이므로 중간에 실패하면 기존 NEXUS 데이터까지 원상 복구된다. `CASCADE`를 사용하지 않으며 타 프로젝트 공유 테이블은 삭제하지 않는다.
+대상의 기존 NEXUS 테이블 17개를 삭제한 뒤 덤프 데이터로 교체한다. 삭제·복원·행 수·스키마 검증은 하나의 트랜잭션이므로 중간에 실패하면 기존 NEXUS 데이터까지 원상 복구된다. `CASCADE`를 사용하지 않으며 타 프로젝트 공유 테이블은 삭제하지 않는다.
 
 API 요청이나 스케줄러 쓰기와 충돌하지 않도록 대상 서버의 백엔드 프로세스를 먼저 중지한다. 복원과 검증이 끝난 뒤 백엔드를 다시 시작한다.
 
 ```bash
-bash migration/import.sh ./.env.server ./migration/artifacts/nexus.dump
+bash migration/import.sh ./.env.server ./migration/bootstrap/nexus.dump
 ```
 
-`row_counts.tsv`, `schema_columns.tsv`, `restore.list`, `SHA256SUMS`는 필수이며 복원 과정에서 자동 검증한다. 수동 재검증:
+커밋된 `bootstrap` 번들은 테이블 17개와 데이터 1,090행을 포함한다. `row_counts.tsv`, `schema_columns.tsv`, `restore.list`, `SHA256SUMS`는 필수이며 복원 과정에서 자동 검증한다. 수동 재검증:
 
 ```bash
-bash migration/verify.sh ./.env.server ./migration/artifacts
+bash migration/verify.sh ./.env.server ./migration/bootstrap
 ```
 
 ## 4. 애플리케이션 확인
@@ -81,7 +82,7 @@ Docker 배포에서는 nginx가 `/api/internal/*` 외부 호출을 차단하므�
 ## 안전 원칙
 
 - 운영/개발 대상 DB에 가져오기 전에 별도 백업을 만든다.
-- import는 NEXUS 테이블 11개만 삭제 후 교체하며 공유 테이블은 삭제하지 않는다.
+- import는 NEXUS 테이블 17개만 삭제 후 교체하며 공유 테이블은 삭제하지 않는다.
 - `CASCADE`를 사용하지 않으므로 타 프로젝트 객체가 NEXUS 테이블을 참조하면 삭제하지 않고 전체 작업이 실패한다.
 - 덤프·스키마·검증 파일의 SHA-256이 모두 일치해야 복원을 시작한다.
 - 덤프는 `--no-owner --no-privileges`로 생성해 로컬 DB role/ACL을 이식하지 않는다.
