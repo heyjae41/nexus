@@ -9,6 +9,7 @@ import re
 
 OVERSEAS_COMMON = "ALL"
 DOMESTIC_ONLY = "KR"
+DOMESTIC_STORAGE_VALUES = frozenset({DOMESTIC_ONLY, "국내", "국내기타", "국내·기타"})
 
 # API/필터에서 허용하는 국가 코드와 표시명. 이 목록 밖의 장소는 ALL로 분류한다.
 COUNTRY_NAMES: dict[str, str] = {
@@ -55,10 +56,15 @@ _STOP_PHRASES_RE = re.compile(
 )
 _DOMESTIC_RE = re.compile(
     r"국내|(?:대한민국|한국)\s*(?:내|전용|여행|숙박|호텔)"
-    r"|제주(?:도)?|내륙|서울랜드"
+    r"|제주(?:도)?|내륙|서울랜드|서울|부산|강원|경주|여수|속초|강릉|양양|전주"
+    r"|하이원|모나\s*용평|용평|휘닉스\s*파크|휘닉스파크|강원랜드"
+    r"|워터\s*파크|블루캐니언|캐리비안|에버랜드|롯데월드|오션월드|아쿠아필드"
+    r"|시그니엘|그랜드\s*조선|웨스틴\s*조선|레스케이프|메이필드호텔"
+    r"|파르나스호텔|콘래드\s*서울|포시즌스\s*호텔\s*서울|KTX"
 )
 _OVERSEAS_RE = re.compile(
     r"해외|국외|글로벌|전\s*세계|세계\s*각국|국내\s*(?:외|[/·&]\s*외)"
+    r"|공항|국제선|출국|면세점|로밍|여행자보험"
 )
 
 
@@ -103,7 +109,7 @@ def normalize_country_codes(values: str | None) -> list[str]:
     domestic_only = False
     for value in values.split(","):
         value = value.strip()
-        if value == DOMESTIC_ONLY or is_domestic_only(value):
+        if value in DOMESTIC_STORAGE_VALUES or is_domestic_only(value):
             domestic_only = True
             continue
         if value in COUNTRY_NAMES:
