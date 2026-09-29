@@ -5,7 +5,8 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.28-alpine
+RUN apk upgrade --no-cache openssl libssl3 libcrypto3
 ENV BACKEND_UPSTREAM=backend:8000
 ENV NGINX_ENVSUBST_FILTER=BACKEND_UPSTREAM
 COPY docker/nginx.conf /etc/nginx/templates/default.conf.template
