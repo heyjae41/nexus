@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Nav from './components/Nav'
 import AuthModal from './components/AuthModal'
 import Footer from './components/Footer'
@@ -20,6 +20,9 @@ import Onboarding from './views/Onboarding'
 import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
 import Profile from './views/Profile'
+import AdminShell from './views/admin/AdminShell'
+import AdminWrite from './views/admin/AdminWrite'
+import AdminPermissions from './views/admin/AdminPermissions'
 import { useLocalStorageState } from './utils/useLocalStorageState'
 import { usePageTitle } from './utils/pageTitle'
 import { fetchCurrentMember, logoutMember, registerAccount } from './api/client'
@@ -103,6 +106,11 @@ function AppInner() {
         <Route path="/checkout/:classId" element={<Checkout />} />
         <Route path="/dashboard" element={<Dashboard user={user} enrolled={enrolled} />} />
         <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
+        <Route path="/admin" element={<AdminShell user={user} />}>
+          <Route index element={<Navigate to="write" replace />} />
+          <Route path="write" element={<AdminWrite />} />
+          <Route path="permissions" element={<AdminPermissions />} />
+        </Route>
       </Routes>
       {!isArticle && <Footer />}
       <MobileNav user={user} onLogin={() => setLoginOpen(true)} />

@@ -29,6 +29,8 @@ describe('titleForPath — 라우트별 문서 제목', () => {
     ['/checkout/2', '수강신청 — EDU.AI'],
     ['/dashboard', '대시보드 — EDU.AI'],
     ['/profile', '내 정보 — EDU.AI'],
+    ['/admin/write', '어드민 — EDU.AI'],
+    ['/admin/permissions', '어드민 — EDU.AI'],
   ])('%s → %s (메뉴 명칭과 동일한 섹션명)', (path, expected) => {
     expect(titleForPath(path)).toBe(expected)
   })

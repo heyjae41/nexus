@@ -114,6 +114,10 @@ class Member(Base):
     password_hash: Mapped[str | None] = mapped_column(String(300))
     role: Mapped[str | None] = mapped_column(String(20))
     interests: Mapped[str | None] = mapped_column(String(300))
+    # 서비스 권한. 프로필 role(기획자/개발자)과 별개이며 user | admin 만 허용한다.
+    access_role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="user", server_default=text("'user'")
+    )
     created_at: Mapped[datetime] = _ts_now_col()
 
 

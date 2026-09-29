@@ -1,10 +1,26 @@
 """글 리포지토리."""
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.orm import Session, aliased
 
 from app.models import Article, Category
+
+AUTHORED_SOURCE = "authored"
+AUTHORED_PRIORITY_HOURS = 24
+
+
+def _list_order(now: datetime | None = None):
+    """직접 작성 글은 발행 후 24시간 동안 같은 목록의 맨 앞에 둔다."""
+    moment = now or datetime.now(timezone.utc)
+    cutoff = moment - timedelta(hours=AUTHORED_PRIORITY_HOURS)
+    fresh = and_(
+        Article.source_type == AUTHORED_SOURCE,
+        Article.published_at >= cutoff,
+    )
+    priority = case((fresh, 1), else_=0)
+    return priority.desc(), Article.published_at.desc(), Article.id.desc()
 
 
 @dataclass(frozen=True)
@@ -33,6 +49,7 @@ def list_articles(
     article_type: str | None = None,
     page: int = 1,
     size: int = 12,
+    now: datetime | None = None,
 ) -> Page:
     conditions = [Article.status == "published"]
     if category_slug is not None:
@@ -44,7 +61,7 @@ def list_articles(
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     items = list(
         db.scalars(
-            base.order_by(Article.published_at.desc(), Article.id.desc())
+            base.order_by(*_list_order(now))
             .offset((page - 1) * size)
             .limit(size)
         )
@@ -91,7 +108,7 @@ def list_articles_by_category(
 
 
 def latest_articles_per_type(
-    db: Session, category_id: int, types: tuple[str, ...]
+    db: Session, category_id: int, types: tuple[str, ...], now: datetime | None = None,
 ) -> list[Article]:
     """포맷별 최신 1건을 주어진 포맷 순서대로 반환한다 (글이 없는 포맷은 건너뜀).
 
@@ -102,7 +119,7 @@ def latest_articles_per_type(
         func.row_number()
         .over(
             partition_by=Article.article_type,
-            order_by=(Article.published_at.desc(), Article.id.desc()),
+            order_by=_list_order(now),
         )
         .label("rn")
     )
