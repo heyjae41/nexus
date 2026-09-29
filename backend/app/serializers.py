@@ -70,8 +70,17 @@ def serialize_member(member) -> dict:
         "id": member.id,
         "nickname": member.nickname,
         "role": member.role,
+        "accessRole": member.access_role or "user",
         "interests": interests,
         "createdAt": member.created_at.isoformat() if member.created_at else None,
+    }
+
+
+def serialize_access_member(member) -> dict:
+    return {
+        "id": member.id,
+        "nickname": member.nickname,
+        "accessRole": member.access_role or "user",
     }
 
 

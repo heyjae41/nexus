@@ -133,6 +133,21 @@ function RelatedCard({ art, onNavigate }) {
   )
 }
 
+const FORMAT_LABEL = { newsletter: '뉴스레터', column: '컬럼', guide: '가이드' }
+
+function withViewerFields(article) {
+  if (!article) return article
+  const next = { ...article }
+  if (!next.author && next.authorName) {
+    next.author = { name: next.authorName, initial: String(next.authorName).slice(0, 1) }
+  }
+  if (!next.koType && FORMAT_LABEL[next.articleType]) next.koType = FORMAT_LABEL[next.articleType]
+  if (!next.subtitle && next.summary) next.subtitle = next.summary
+  if (!next.readTime && next.readMinutes) next.readTime = `${next.readMinutes}분`
+  if (!next.date && next.publishedAt) next.date = String(next.publishedAt).slice(0, 10)
+  return next
+}
+
 /* ---- Main view ---- */
 export default function ArticleDetail() {
   const { id } = useParams()
@@ -184,7 +199,7 @@ export default function ArticleDetail() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [id, loadArticle])
 
-  const article = { ...staticArt, ...apiArticle }
+  const article = withViewerFields({ ...staticArt, ...apiArticle })
   const displayLikeCount = fmtEn(likeCount)
 
   const handleLike = async () => {

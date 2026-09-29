@@ -16,6 +16,7 @@ const SECTION_TITLES = [
   ['/checkout', '수강신청'],
   ['/dashboard', '대시보드'],
   ['/profile', '내 정보'],
+  ['/admin', '어드민'],
 ]
 
 export function titleForPath(pathname) {

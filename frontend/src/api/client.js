@@ -152,3 +152,23 @@ export async function createComment(postId, { memberId, body } = {}) {
 export async function likePost(postId, memberId) {
   return requestJson(`/api/community/posts/${postId}/like`, 'POST', { memberId })
 }
+
+export async function createAuthoredArticle({ articleType, title, summary, bodyHtml }) {
+  return requestJson('/api/admin/articles', 'POST', { articleType, title, summary, bodyHtml })
+}
+
+export async function uploadArticleImage(file) {
+  const body = new FormData()
+  body.append('file', file)
+  const json = await request('/api/admin/media', { method: 'POST', body })
+  return json.data ?? json
+}
+
+export async function fetchAdminMembers() {
+  const json = await request('/api/admin/members')
+  return json.data ?? []
+}
+
+export async function updateMemberAccess(id, accessRole) {
+  return requestJson(`/api/admin/members/${id}`, 'PATCH', { accessRole })
+}

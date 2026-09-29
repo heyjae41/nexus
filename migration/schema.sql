@@ -509,6 +509,7 @@ CREATE TABLE public.members (
     password_hash character varying(300),
     role character varying(20),
     interests character varying(300),
+    access_role character varying(20) DEFAULT 'user'::character varying NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
