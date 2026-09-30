@@ -124,5 +124,18 @@ def _store(data: bytes, ext: str, media_dir: str) -> str:
     thumb_dir.mkdir(parents=True, exist_ok=True)
     path = thumb_dir / filename
     if not path.exists():
-        path.write_bytes(data)
+        _write_once(path, data)
     return f"{MEDIA_URL_PREFIX}/{THUMBNAIL_SUBDIR}/{filename}"
+
+
+def _write_once(path: Path, data: bytes) -> None:
+    """새 파일로만 쓴다 — S3 마운트는 rename·덮어쓰기를 거부하므로 exists 검사와 쓰기 사이에
+    다른 프로세스(스케줄러·즉시 인제스트·CronJob)가 먼저 썼다면 그 파일을 그대로 쓴다."""
+    try:
+        with path.open("xb") as fh:
+            fh.write(data)
+    except FileExistsError:
+        return
+    except OSError:
+        if not path.exists():
+            raise
