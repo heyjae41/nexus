@@ -107,9 +107,9 @@ function AppInner() {
         <Route path="/dashboard" element={<Dashboard user={user} enrolled={enrolled} />} />
         <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
         <Route path="/admin" element={<AdminShell user={user} />}>
-          <Route index element={<Navigate to="write" replace />} />
-          <Route path="write" element={<AdminWrite />} />
-          <Route path="permissions" element={<AdminPermissions />} />
+          <Route index element={<Navigate to={user?.accessRole === 'admin' ? 'write' : 'permissions'} replace />} />
+          <Route path="write" element={user?.accessRole === 'admin' ? <AdminWrite /> : <Navigate to="/admin/permissions" replace />} />
+          <Route path="permissions" element={user?.superAdmin ? <AdminPermissions /> : <Navigate to="/admin/write" replace />} />
         </Route>
       </Routes>
       {!isArticle && <Footer />}

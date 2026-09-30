@@ -17,6 +17,12 @@ function isActive(pathname, match) {
   return match.some(m => pathname.startsWith(m))
 }
 
+
+function adminEntryPath(user) {
+  if (!user?.superAdmin && user?.accessRole !== 'admin') return null
+  return user.accessRole === 'admin' ? '/admin/write' : '/admin/permissions'
+}
+
 export default function Nav({ user, onLogin, onLogout }) {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -110,8 +116,8 @@ export default function Nav({ user, onLogin, onLogout }) {
 
         {/* Login — 중복 CTA 없이 로그인 또는 닉네임 하나만 표시 */}
         <div className="topnav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {user?.accessRole === 'admin' && (
-            <Link to="/admin/write" className="admin-entry" style={{
+          {adminEntryPath(user) && (
+            <Link to={adminEntryPath(user)} className="admin-entry" style={{
               color: '#fff', fontSize: 13, fontWeight: 800, textDecoration: 'none',
               border: '1px solid rgba(232,18,60,.7)', borderRadius: 24, padding: '7px 14px',
             }}>
@@ -177,8 +183,8 @@ export default function Nav({ user, onLogin, onLogout }) {
           <div className="mobile-menu-account">
             {user ? (
               <>
-                {user.accessRole === 'admin' && (
-                  <Link to="/admin/write" onClick={() => setMenuOpen(false)} className="admin-entry">Admin</Link>
+                {adminEntryPath(user) && (
+                  <Link to={adminEntryPath(user)} onClick={() => setMenuOpen(false)} className="admin-entry">Admin</Link>
                 )}
                 <Link to="/profile" onClick={() => setMenuOpen(false)} aria-label={`${displayName(user)} 내 정보`} className="mobile-profile-link">
                   <span className="mobile-profile-avatar">{displayName(user).slice(0, 1)}</span>

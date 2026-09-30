@@ -23,13 +23,22 @@ vi.mock('@/api/client', () => ({
 import { createAuthoredArticle, fetchAdminMembers, updateMemberAccess } from '@/api/client'
 
 describe('어드민 진입', () => {
-  it('어드민에게만 우측 Admin 버튼을 보여 준다', () => {
+  it('글쓰기 어드민에게 글쓰기 Admin 버튼을 보여 준다', () => {
     render(
       <MemoryRouter>
         <Nav user={{ nickname: '운영자', accessRole: 'admin' }} />
       </MemoryRouter>,
     )
     expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/admin/write')
+  })
+
+  it('수퍼어드민에게 권한관리 Admin 버튼을 보여 준다', () => {
+    render(
+      <MemoryRouter>
+        <Nav user={{ nickname: '수퍼', accessRole: 'user', superAdmin: true }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/admin/permissions')
   })
 
   it('일반 사용자에게는 Admin 버튼을 보여 주지 않는다', () => {
@@ -41,11 +50,11 @@ describe('어드민 진입', () => {
     expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument()
   })
 
-  it('Admin 화면 왼쪽에 권한관리와 글쓰기 메뉴를 둔다', () => {
+  it('수퍼어드민이자 글쓰기 어드민이면 두 메뉴를 둔다', () => {
     render(
       <MemoryRouter initialEntries={['/admin/write']}>
         <Routes>
-          <Route path="/admin" element={<AdminShell user={{ nickname: '운영자', accessRole: 'admin' }} />}>
+          <Route path="/admin" element={<AdminShell user={{ nickname: '운영자', accessRole: 'admin', superAdmin: true }} />}>
             <Route path="write" element={<AdminWrite />} />
             <Route path="permissions" element={<div>권한 화면</div>} />
           </Route>
@@ -55,6 +64,20 @@ describe('어드민 진입', () => {
     expect(screen.getByRole('link', { name: '권한관리' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '글쓰기' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '글쓰기' })).toBeInTheDocument()
+  })
+
+  it('글쓰기 어드민에게는 권한관리 메뉴를 보여 주지 않는다', () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/write']}>
+        <Routes>
+          <Route path="/admin" element={<AdminShell user={{ nickname: '운영자', accessRole: 'admin' }} />}>
+            <Route path="write" element={<AdminWrite />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('link', { name: '권한관리' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '글쓰기' })).toBeInTheDocument()
   })
 })
 

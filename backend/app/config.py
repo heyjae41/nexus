@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     aitimes_base_url: str = "https://www.aitimes.com"
     newsletter_window_days: int = 7
 
-    # 로그인 시 어드민으로 승격할 닉네임. 쉼표로 구분. 권한 화면의 최초 부여용.
-    admin_nicknames: str = ""
+    # 권한관리 화면을 열 닉네임. 쉼표로 구분. 글쓰기 권한은 members.access_role 이다.
+    super_admin: str = ""
 
     @property
     def meetup_category_list(self) -> list[str]:
@@ -83,8 +83,8 @@ class Settings(BaseSettings):
         return _split_pairs(self.newsletter_stibee_lists)
 
     @property
-    def admin_nickname_set(self) -> set[str]:
-        return {name.strip() for name in self.admin_nicknames.split(",") if name.strip()}
+    def super_admin_set(self) -> set[str]:
+        return {name.strip() for name in self.super_admin.split(",") if name.strip()}
 
     @property
     def database_url(self) -> str:

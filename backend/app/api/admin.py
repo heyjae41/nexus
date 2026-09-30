@@ -10,7 +10,7 @@ from app.api.routes import get_cache
 from app.cache import VersionedCache
 from app.db import get_db
 from app.models import Member
-from app.repositories.access import list_members, set_access_role
+from app.repositories.access import is_super_admin, list_members, set_access_role
 from app.serializers import (
     api_response,
     serialize_access_member,
@@ -25,6 +25,12 @@ router = APIRouter(prefix="/api/admin")
 def require_admin(member: Member = Depends(require_member)) -> Member:
     if member.access_role != "admin":
         raise HTTPException(status_code=403, detail="어드민 권한이 필요합니다")
+    return member
+
+
+def require_super_admin(member: Member = Depends(require_member)) -> Member:
+    if not is_super_admin(member):
+        raise HTTPException(status_code=403, detail="수퍼어드민만 권한을 바꿀 수 있습니다")
     return member
 
 
@@ -82,7 +88,7 @@ async def upload_media(
 
 @router.get("/members")
 def admin_members(
-    _member: Member = Depends(require_admin),
+    _member: Member = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
     return api_response([serialize_access_member(item) for item in list_members(db)])
@@ -92,12 +98,12 @@ def admin_members(
 def update_member_access(
     member_id: int,
     payload: AccessIn,
-    member: Member = Depends(require_admin),
+    _member: Member = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
     try:
         updated = set_access_role(
-            db, actor_id=member.id, member_id=member_id, access_role=payload.access_role,
+            db, member_id=member_id, access_role=payload.access_role,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

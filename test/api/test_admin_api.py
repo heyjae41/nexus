@@ -39,18 +39,26 @@ def _curation(client):
 
 def test_new_member_access_role_defaults_to_user(client):
     res = _register(client, "일반회원")
-    assert res.json()["data"]["accessRole"] == "user"
+    data = res.json()["data"]
+    assert data["accessRole"] == "user"
+    assert data["superAdmin"] is False
     denied = client.post("/api/admin/articles", json={
         "articleType": "column", "title": "제목", "bodyHtml": "<p>본문</p>",
     })
     assert denied.status_code == 403
 
 
-def test_configured_nickname_is_promoted_on_register(client, monkeypatch):
+def test_super_admin_is_not_a_writer_until_granted(client, monkeypatch):
     from app.config import get_settings
-    monkeypatch.setattr(get_settings(), "admin_nicknames", "운영자")
-    res = _register(client, "운영자")
-    assert res.json()["data"]["accessRole"] == "admin"
+    monkeypatch.setattr(get_settings(), "super_admin", "수퍼")
+    res = _register(client, "수퍼")
+    data = res.json()["data"]
+    assert data["accessRole"] == "user"
+    assert data["superAdmin"] is True
+    denied = client.post("/api/admin/articles", json={
+        "articleType": "column", "title": "제목", "bodyHtml": "<p>본문</p>",
+    })
+    assert denied.status_code == 403
 
 
 def test_admin_publishes_article_visible_to_readers_and_pinned(client):
@@ -129,30 +137,37 @@ def test_user_cannot_upload(client):
     assert res.status_code == 403
 
 
-def test_admin_changes_access_role_but_not_self(client):
+def test_writer_cannot_grant_access(client):
     _register(client, "운영자")
     _promote(client, "운영자")
+    listed = client.get("/api/admin/members")
+    assert listed.status_code == 403
+
+
+def test_super_admin_grants_writer_in_database(client, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "super_admin", "수퍼, heyaj2")
+    _register(client, "작가")
     client.post("/api/auth/logout")
-    _register(client, "일반회원")
-    client.post("/api/auth/logout")
-    client.post("/api/auth/login", json={"nickname": "운영자", "password": PW})
+    _register(client, "수퍼")
 
     listed = client.get("/api/admin/members")
     assert listed.status_code == 200
     names = {item["nickname"]: item for item in listed.json()["data"]}
-    assert names["일반회원"]["accessRole"] == "user"
+    assert names["작가"]["accessRole"] == "user"
     assert "password" not in str(listed.json()).lower()
 
     promoted = client.patch(
-        f"/api/admin/members/{names['일반회원']['id']}",
+        f"/api/admin/members/{names['작가']['id']}",
         json={"accessRole": "admin"},
     )
     assert promoted.status_code == 200
     assert promoted.json()["data"]["accessRole"] == "admin"
 
-    self_demote = client.patch(
-        f"/api/admin/members/{names['운영자']['id']}",
-        json={"accessRole": "user"},
-    )
-    assert self_demote.status_code == 400
-    assert "자신" in self_demote.json()["error"]
+    client.post("/api/auth/logout")
+    client.post("/api/auth/login", json={"nickname": "작가", "password": PW})
+    _curation(client)
+    created = client.post("/api/admin/articles", json={
+        "articleType": "guide", "title": "가이드", "bodyHtml": "<p>본문</p>",
+    })
+    assert created.status_code == 201, created.text

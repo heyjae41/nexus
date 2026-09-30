@@ -33,7 +33,7 @@ export default function AdminPermissions() {
   return (
     <section>
       <h1 className="admin-title">권한관리</h1>
-      <p className="admin-lead">사용자와 어드민만 구분합니다. 어드민은 큐레이션 글을 쓸 수 있습니다.</p>
+      <p className="admin-lead">어드민으로 바꾸면 그 회원이 큐레이션 글을 쓸 수 있습니다.</p>
       {error && <p role="alert" className="admin-error">{error}</p>}
       {loading ? <p className="admin-lead">불러오는 중...</p> : (
         <table className="admin-table">

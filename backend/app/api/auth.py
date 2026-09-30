@@ -9,7 +9,6 @@ from app.api.routes import get_cache
 from app.cache import VersionedCache
 from app.db import get_db
 from app.models import Member
-from app.repositories.access import promote_configured_admin
 from app.repositories.auth import (
     SESSION_DAYS,
     create_session,
@@ -72,7 +71,6 @@ def _clear_session_cookie(response: Response) -> None:
 
 def _session_response(db: Session, response: Response, request: Request, member: Member):
     """세션 발급 → 쿠키 세팅 → 회원 응답 (가입/로그인 공통 꼬리)."""
-    member = promote_configured_admin(db, member)
     token = create_session(db, member.id)
     _set_session_cookie(response, request, token)
     return api_response(serialize_member(member))

@@ -53,6 +53,6 @@ Copy `.env.example` to `.env`; never commit secrets or `.writer_whitelist`. Pres
 ## Learned Workspace Facts
 
 - `origin` is GitLab at `http://gitlab.ktbc.ai/heyjae/nexus.git`. Jenkins `edu-dev` (DEV-EKS) scans `axs/nexus-fe` and `axs/nexus-be` and fails the pipeline on Critical CVEs; frontend failures have come from Alpine packages in `docker/frontend.Dockerfile`.
-- Service access is `Member.access_role` (`user` or `admin` only), separate from the profile role. Admins use the header Admin entry; `/admin` has 권한관리 and 글쓰기.
+- `SUPER_ADMIN` is a comma-separated nickname list in the environment. Only those accounts open 권한관리 and set `Member.access_role` to `admin`. Writing uses that column, which stays separate from the profile role.
 - Direct curation posts (뉴스레터, 컬럼, 가이드) use source `authored`, store images under `/api/media/authored`, and stay at the front of that category for 24 hours after publish (`AUTHORED_PRIORITY_HOURS`).
 - Files under `.cursor/hooks/state/` are local continual-learning hook state, not application source, and should stay uncommitted.

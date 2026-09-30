@@ -2,6 +2,7 @@
 from typing import Any
 
 from app.models import Article, Category, Course
+from app.repositories.access import is_super_admin
 from app.services.links import with_ref
 
 
@@ -71,6 +72,7 @@ def serialize_member(member) -> dict:
         "nickname": member.nickname,
         "role": member.role,
         "accessRole": member.access_role or "user",
+        "superAdmin": is_super_admin(member),
         "interests": interests,
         "createdAt": member.created_at.isoformat() if member.created_at else None,
     }
