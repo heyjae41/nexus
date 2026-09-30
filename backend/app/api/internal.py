@@ -15,6 +15,7 @@ from app.serializers import api_response, serialize_article_card
 from app.services.brunch import collect_and_pick
 from app.services.brunch_fetcher import DEFAULT_KEYWORDS, fetch_candidates, filter_by_window
 from app.services.ingest import scan_contents_dir
+from app.services.media_storage import backfill_thumbnails
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,15 @@ def ingest_run(
     result = scan_contents_dir(db, cache, settings.contents_dir)
     return api_response(
         {"ingested": result.ingested, "already": result.already, "skipped": result.skipped}
+    )
+
+
+@router.post("/media/backfill")
+def media_backfill(db: Session = Depends(get_db)):
+    """영구 볼륨 마운트 이전에 사라진 인제스트 썸네일을 DB 의 key_visual_html 로 재생성한다."""
+    result = backfill_thumbnails(db, get_settings().media_dir)
+    return api_response(
+        {"checked": result.checked, "restored": result.restored, "failed": result.failed}
     )
 
 

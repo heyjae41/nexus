@@ -1,6 +1,8 @@
 """환경변수(.env) 기반 서비스 설정."""
 from functools import lru_cache
+from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,8 +40,12 @@ class Settings(BaseSettings):
     contents_dir: str = "./contents"
     ingest_interval_seconds: int = 60
 
-    # Media (인제스트 글의 key-visual 대표 이미지를 파일로 저장·서빙)
+    # Media — 영구 보관 파일(에디터 본문 이미지, 인제스트 썸네일)의 루트.
+    # 배포 파드에서는 /app/media 에 S3 가 마운트되어 재기동 후에도 남는다
+    # (docker/backend.Dockerfile 이 MEDIA_DIR=/app/media 로 고정).
     media_dir: str = "./media"
+    # true 면 media_dir 이 마운트 포인트가 아닐 때 기동을 거부한다 (배포 이미지 기본값)
+    media_require_mount: bool = False
 
     # Brunch collector
     brunch_collect_interval_hours: int = 12
@@ -69,6 +75,16 @@ class Settings(BaseSettings):
 
     # 권한관리 화면을 열 닉네임. 쉼표로 구분. 글쓰기 권한은 members.access_role 이다.
     super_admin: str = ""
+
+    @field_validator("media_dir")
+    @classmethod
+    def _absolute_media_dir(cls, value: str) -> str:
+        """기동 시점의 cwd 기준으로 절대경로를 고정한다 — 이후 chdir 에 흔들리지 않는다.
+
+        빈 값은 cwd 전체(/app: 소스·.env·.writer_whitelist)를 /api/media 로 노출하므로 거부한다."""
+        if not value.strip():
+            raise ValueError("MEDIA_DIR 은 비워 둘 수 없습니다")
+        return str(Path(value.strip()).expanduser().resolve())
 
     @property
     def meetup_category_list(self) -> list[str]:

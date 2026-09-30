@@ -1,7 +1,6 @@
 """FastAPI 앱 팩토리."""
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +16,7 @@ from app.cache import VersionedCache, create_cache
 from app.config import get_settings
 from app.serializers import api_response
 from app.services.image_chunks import MemoryImageChunks, build_image_chunks
+from app.services.media_storage import ensure_media_storage
 from app.services.secret_keys import describe_super_admin_env
 
 
@@ -77,11 +77,11 @@ def create_app(
     app.include_router(community_router)
     app.include_router(internal_router)
 
-    # 인제스트 글의 key-visual 대표 이미지 서빙 — nginx·vite 모두 /api/ 를 백엔드로
+    # 영구 미디어(에디터 이미지·인제스트 썸네일) 서빙 — nginx·vite 모두 /api/ 를 백엔드로
     # 프록시하므로 /api/media 로 마운트하면 별도 프록시 설정이 필요 없다.
-    media_dir = Path(settings.media_dir)
-    media_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/api/media", HardenedStaticFiles(directory=str(media_dir)), name="media")
+    # 배포 파드는 /app/media 에 S3 가 마운트되며, 마운트가 없으면 여기서 기동을 거부한다.
+    ensure_media_storage(settings.media_dir, settings.media_require_mount)
+    app.mount("/api/media", HardenedStaticFiles(directory=settings.media_dir), name="media")
 
     @app.exception_handler(HTTPException)
     async def http_exc_handler(request: Request, exc: HTTPException):

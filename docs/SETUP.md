@@ -133,6 +133,8 @@ postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/
 
 ## 8. 알려진 환경 이슈
 
+- 배포 파드에서 업로드 이미지가 재기동 후 사라지면 `/app/media` S3 마운트와 `MEDIA_DIR` 을 확인한다
+  (`docs/ARCHITECTURE.md` 의 '영구 미디어 저장소'). 로컬은 `./media` 를 쓴다.
 - 사내망에서 `uv pip install` 이 TLS(UnknownIssuer) 로 실패할 수 있다 → `python -m pip install` 사용.
 - Vite 개발 서버가 켜진 상태에서 git 브랜치 전환 시 설정 파일이 일시적으로 사라지면
   서버가 잘못된 상태로 자동 재시작될 수 있다 → 증상(빈 화면, "React is not defined") 시 `npm run dev` 재실행.

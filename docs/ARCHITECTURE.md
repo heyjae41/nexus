@@ -205,6 +205,7 @@ updated_count, hidden_count, error_message, created_at`.
 - `POST /api/community/posts/{id}/comments` · `POST /api/community/posts/{id}/like` — 댓글/토글 좋아요
 - 오류 시맨틱: 온보딩 미완료 403 / 대상 리소스 없음 404 / 검증 실패 400
 - `POST /api/internal/ingest/run` — 인제스트 수동 실행(스케줄러와 동일 코드 경로, 테스트용)
+- `POST /api/internal/media/backfill` — 사라진 인제스트 썸네일 재생성(위 '영구 미디어 저장소')
 - `POST /api/internal/brunch/run` · `POST /api/internal/newsletter/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
 
 ## 테스트 전략 (TDD)
@@ -213,6 +214,22 @@ updated_count, hidden_count, error_message, created_at`.
 - 단위/API 테스트 DB: SQLite in-memory(SQLAlchemy 공용 타입만 사용) — 로컬 PG 불필요.
 - 캐시 테스트: InMemory 백엔드로 정책(버전 무효화) 검증 + Redis 연동은 통합 마커.
 - 품질 게이트: ruff(문법/린트), radon(복잡도 B 이상), jscpd(중복), code-reviewer 에이전트 리뷰.
+
+## 영구 미디어 저장소 (`MEDIA_DIR`)
+
+에디터 본문 이미지(`authored/`)와 인제스트 썸네일(`thumbnails/`)은 전부 `settings.media_dir` 아래에만
+쓰고 `/api/media/...` 로 서빙한다. 컨테이너 파일시스템은 휘발성이라 배포 파드는 `/app/media` 에 S3 를
+마운트하며, `docker/backend.Dockerfile` 이 `MEDIA_DIR=/app/media` 를 고정한다(파드는 `.env` 를 읽지 않음).
+재기동과 무관하게 보관해야 하는 파일은 모두 이 경로 아래에 둔다. S3 마운트는 rename·덮어쓰기를 거부하므로
+새 파일은 임의 이름으로 쓰고(에디터 이미지), 같은 내용은 해시 이름으로 재사용한다(썸네일, `open('xb')` 로
+동시 쓰기 경합도 흡수).
+
+- **기동 검증**: `MEDIA_REQUIRE_MOUNT=true`(배포 이미지 기본값)면 `media_dir` 이 마운트 포인트가 아닐 때
+  `create_app` 이 RuntimeError 로 기동을 거부한다 — 마운트 누락 시 휘발성 디렉터리에 쓰다 다시 잃는 사고 방지.
+  기동 로그에 `[media] dir=... mount=yes|no` 한 줄이 남는다. 로컬/CI 는 false.
+- **복구**: 마운트 이전에 인제스트돼 파일이 사라진 썸네일은 `POST /api/internal/media/backfill` 이
+  DB 의 `key_visual_html` 로 같은 URL(내용 해시)에 재생성한다. 에디터로 올린 본문 이미지는 원본이 DB 에
+  없어 복구할 수 없다(재업로드 필요).
 
 ## 배포 (Docker)
 
