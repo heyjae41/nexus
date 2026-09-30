@@ -104,6 +104,11 @@
   color: rgba(255,255,255,.82);
   margin: 0;
   max-width: 640px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
   animation: fadeup .7s .12s ease both;
 }
 
