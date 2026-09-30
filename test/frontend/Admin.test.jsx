@@ -109,7 +109,7 @@ describe('어드민 글쓰기', () => {
 describe('권한관리', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('사용자를 어드민으로 바꾼다', async () => {
+  it('권한을 바꾼 뒤 저장을 눌러야 반영한다', async () => {
     fetchAdminMembers.mockResolvedValue([{ id: 2, nickname: '일반', accessRole: 'user' }])
     updateMemberAccess.mockResolvedValue({ id: 2, nickname: '일반', accessRole: 'admin' })
     const ue = userEvent.setup()
@@ -119,7 +119,12 @@ describe('권한관리', () => {
       </MemoryRouter>,
     )
     const select = await screen.findByRole('combobox', { name: '일반 권한' })
+    const save = screen.getByRole('button', { name: '저장' })
+    expect(save).toBeDisabled()
     await ue.selectOptions(select, 'admin')
+    expect(updateMemberAccess).not.toHaveBeenCalled()
+    expect(save).toBeEnabled()
+    await ue.click(save)
     await waitFor(() => expect(updateMemberAccess).toHaveBeenCalledWith(2, 'admin'))
     expect(select).toHaveValue('admin')
   })

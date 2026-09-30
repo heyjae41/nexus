@@ -118,6 +118,7 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+.admin-save-row { display: flex; justify-content: flex-end; margin-top: 20px; }
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td {
   text-align: left;
