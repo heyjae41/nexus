@@ -149,7 +149,7 @@ function withViewerFields(article) {
 }
 
 /* ---- Main view ---- */
-export default function ArticleDetail() {
+export default function ArticleDetail({ user = null }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const [apiArticle, setApiArticle] = useState(null)
@@ -201,6 +201,11 @@ export default function ArticleDetail() {
 
   const article = withViewerFields({ ...staticArt, ...apiArticle })
   const displayLikeCount = fmtEn(likeCount)
+  const canEdit = Boolean(
+    user?.nickname
+    && article?.sourceType === 'authored'
+    && article?.authorName === user.nickname
+  )
 
   const handleLike = async () => {
     if (likeInFlight.current) return
@@ -297,6 +302,11 @@ export default function ArticleDetail() {
       <div style={{ maxWidth: readW, margin: '16px auto', padding: '0 20px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn actn" onClick={handleLike} style={btnStyle(liked)}>♥ 좋아요 {displayLikeCount}</button>
         <button className="btn actn" onClick={() => setSaved(s => !s)} style={btnStyle(saved)}>🔖 {saved ? '저장됨' : '저장'}</button>
+        {canEdit && (
+          <Link to={`/articles/${id}/edit`} className="btn actn" style={{ ...btnStyle(false), textDecoration: 'none' }}>
+            수정
+          </Link>
+        )}
         <div style={{ flex: 1 }} />
         <button className="btn actn" style={btnStyle(false)}>↗ 공유</button>
       </div>

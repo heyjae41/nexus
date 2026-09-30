@@ -157,11 +157,25 @@ export async function createAuthoredArticle({ articleType, title, summary, bodyH
   return requestJson('/api/admin/articles', 'POST', { articleType, title, summary, bodyHtml })
 }
 
+export async function updateAuthoredArticle(id, { articleType, title, summary, bodyHtml }) {
+  return requestJson(`/api/admin/articles/${id}`, 'PATCH', { articleType, title, summary, bodyHtml })
+}
+
 export async function uploadArticleImage(file) {
   const body = new FormData()
   body.append('file', file)
-  const json = await request('/api/admin/media', { method: 'POST', body })
-  return json.data ?? json
+  let json
+  try {
+    json = await request('/api/admin/media', { method: 'POST', body })
+  } catch (err) {
+    if (String(err.message).includes('413')) {
+      throw new Error('이미지는 5MB 이하여야 합니다.')
+    }
+    throw err
+  }
+  const uploaded = json.data ?? json
+  if (!uploaded?.url) throw new Error('이미지 주소를 받지 못했습니다.')
+  return uploaded
 }
 
 export async function fetchAdminMembers() {

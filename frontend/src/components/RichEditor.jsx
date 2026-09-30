@@ -13,11 +13,17 @@ const TOOLS = [
   { name: '인용', mark: 'blockquote', run: (editor) => editor.chain().focus().toggleBlockquote().run() },
 ]
 
-export default function RichEditor({ onChange, uploadImage }) {
+function imageFiles(data) {
+  return [...(data?.files || [])].filter(file => file.type.startsWith('image/'))
+}
+
+export default function RichEditor({ onChange, uploadImage, initialHtml = '', onUploading }) {
   const fileRef = useRef(null)
+  const uploadRef = useRef(async () => {})
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -27,9 +33,25 @@ export default function RichEditor({ onChange, uploadImage }) {
       Image.configure({ allowBase64: false }),
       Placeholder.configure({ placeholder: '본문을 작성하세요. 이미지도 넣을 수 있습니다.' }),
     ],
-    content: '',
+    content: initialHtml,
     onUpdate: ({ editor: current }) => onChange(current.getHTML()),
-    editorProps: { attributes: { class: 'rich-editor-body', 'aria-label': '본문' } },
+    editorProps: {
+      attributes: { class: 'rich-editor-body', 'aria-label': '본문' },
+      handlePaste: (_view, event) => {
+        const files = imageFiles(event.clipboardData)
+        if (!files.length) return false
+        event.preventDefault()
+        files.forEach(file => { uploadRef.current(file) })
+        return true
+      },
+      handleDrop: (_view, event) => {
+        const files = imageFiles(event.dataTransfer)
+        if (!files.length) return false
+        event.preventDefault()
+        files.forEach(file => { uploadRef.current(file) })
+        return true
+      },
+    },
   })
 
   const applyLink = () => {
@@ -40,17 +62,34 @@ export default function RichEditor({ onChange, uploadImage }) {
     setLinkOpen(false)
   }
 
-  const onFile = async (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  const uploadFile = async (file) => {
     if (!file || !editor) return
     setError('')
+    setUploading(true)
+    onUploading?.(true)
     try {
       const uploaded = await uploadImage(file)
-      editor.chain().focus().setImage({ src: uploaded.url }).run()
+      const src = uploaded?.url
+      if (!src?.startsWith('/api/media/')) {
+        throw new Error('이미지 주소를 받지 못했습니다.')
+      }
+      const inserted = editor.chain().focus().setImage({ src }).run()
+      if (!inserted || !editor.getHTML().includes(src)) {
+        throw new Error('이미지를 본문에 넣지 못했습니다.')
+      }
     } catch (err) {
       setError(err.message || '이미지를 올리지 못했습니다.')
+    } finally {
+      setUploading(false)
+      onUploading?.(false)
     }
+  }
+  uploadRef.current = uploadFile
+
+  const onFile = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) uploadFile(file)
   }
 
   return (
@@ -67,7 +106,7 @@ export default function RichEditor({ onChange, uploadImage }) {
           </button>
         ))}
         <button type="button" onClick={() => setLinkOpen(open => !open)}>링크</button>
-        <button type="button" onClick={() => fileRef.current?.click()}>이미지</button>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}>이미지</button>
         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={onFile} />
       </div>
       {linkOpen && (
@@ -81,8 +120,9 @@ export default function RichEditor({ onChange, uploadImage }) {
           <button type="button" onClick={applyLink}>적용</button>
         </div>
       )}
+      {uploading && <p className="admin-lead" style={{ margin: '8px 12px' }}>이미지 올리는 중...</p>}
+      {error && <p role="alert" className="admin-error" style={{ padding: '0 12px 8px' }}>{error}</p>}
       <EditorContent editor={editor} />
-      {error && <p role="alert" className="admin-error" style={{ padding: '0 12px 12px' }}>{error}</p>}
     </div>
   )
 }

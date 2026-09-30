@@ -1,4 +1,6 @@
 """직접 작성 글 HTML 허용 목록. 스크립트·이벤트 핸들러는 저장 전에 제거한다."""
+from urllib.parse import urlparse
+
 from bs4 import BeautifulSoup, Comment
 
 ALLOWED_TAGS = {
@@ -84,7 +86,18 @@ def _safe_href(value) -> str | None:
 
 
 def _safe_img_src(value) -> str | None:
-    src = str(value or "").strip()
-    if not src.startswith("/api/media/") or ".." in src or "\\" in src:
+    path = _media_path(str(value or "").strip())
+    if path is None or ".." in path or "\\" in path:
         return None
-    return src
+    return path
+
+
+def _media_path(src: str) -> str | None:
+    if src.startswith("/api/media/"):
+        return src.split("?", 1)[0].split("#", 1)[0]
+    if not src.lower().startswith(("http://", "https://")):
+        return None
+    path = urlparse(src).path
+    if path.startswith("/api/media/"):
+        return path
+    return None

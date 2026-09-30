@@ -16,7 +16,7 @@ from app.serializers import (
     serialize_access_member,
     serialize_article_detail,
 )
-from app.services.authored import publish_authored_article
+from app.services.authored import publish_authored_article, update_authored_article
 from app.services.image_store import save_article_image
 
 router = APIRouter(prefix="/api/admin")
@@ -68,6 +68,31 @@ def create_authored_article(
             summary=payload.summary,
             body_html=payload.body_html,
         )
+    except ValueError as exc:
+        raise _value_error(exc) from exc
+    return api_response(serialize_article_detail(article))
+
+
+@router.patch("/articles/{article_id}")
+def patch_authored_article(
+    article_id: int,
+    payload: ArticleIn,
+    member: Member = Depends(require_member),
+    db: Session = Depends(get_db),
+    cache: VersionedCache = Depends(get_cache),
+):
+    try:
+        article = update_authored_article(
+            db, cache, member, article_id,
+            article_type=payload.article_type,
+            title=payload.title,
+            summary=payload.summary,
+            body_html=payload.body_html,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise _value_error(exc) from exc
     return api_response(serialize_article_detail(article))

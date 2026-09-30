@@ -21,7 +21,7 @@ import Checkout from './views/Checkout'
 import Dashboard from './views/Dashboard'
 import Profile from './views/Profile'
 import AdminShell from './views/admin/AdminShell'
-import AdminWrite from './views/admin/AdminWrite'
+import AdminWrite, { ArticleEdit } from './views/admin/AdminWrite'
 import AdminPermissions from './views/admin/AdminPermissions'
 import { useLocalStorageState } from './utils/useLocalStorageState'
 import { usePageTitle } from './utils/pageTitle'
@@ -92,7 +92,8 @@ function AppInner() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/curation" element={<Curation />} />
-        <Route path="/articles/:id" element={<ArticleDetail />} />
+        <Route path="/articles/:id" element={<ArticleDetail user={user} />} />
+        <Route path="/articles/:id/edit" element={<ArticleEdit user={user} />} />
         <Route path="/classes" element={<Classes />} />
         <Route path="/classes/:id" element={<ClassDetail user={user} enrolled={enrolled} onEnroll={enroll} />} />
         <Route path="/community" element={<Community user={user} setUser={setUser} />} />

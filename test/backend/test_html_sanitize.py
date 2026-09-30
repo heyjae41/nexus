@@ -25,3 +25,11 @@ def test_drops_javascript_links():
     clean = sanitize_article_html('<a href="javascript:alert(1)">클릭</a>')
     assert "javascript" not in clean.lower()
     assert "클릭" in clean
+
+
+def test_keeps_absolute_media_url_as_site_path():
+    clean = sanitize_article_html(
+        '<img src="https://edu.dev.bccard.ai/api/media/authored/a.png" alt="도표">'
+    )
+    assert 'src="/api/media/authored/a.png"' in clean
+    assert "edu.dev.bccard.ai" not in clean

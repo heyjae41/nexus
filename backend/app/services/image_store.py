@@ -29,6 +29,8 @@ def _validated_type(data: bytes, content_type: str | None) -> str:
     if len(data) > MAX_IMAGE_BYTES:
         raise ValueError("이미지는 5MB 이하여야 합니다")
     kind = (content_type or "").split(";", 1)[0].strip().lower()
+    if kind == "image/jpg":
+        kind = "image/jpeg"
     if kind not in _SIGNATURES or not _matches(data, kind):
         raise ValueError("png, jpg, gif, webp 이미지만 올릴 수 있습니다")
     return kind

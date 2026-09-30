@@ -171,3 +171,131 @@ def test_super_admin_grants_writer_in_database(client, monkeypatch):
         "articleType": "guide", "title": "가이드", "bodyHtml": "<p>본문</p>",
     })
     assert created.status_code == 201, created.text
+
+
+def test_author_can_update_own_authored_article(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = client.post("/api/admin/articles", json={
+        "articleType": "column",
+        "title": "처음 제목",
+        "summary": "처음 요약",
+        "bodyHtml": "<p>처음 본문</p>",
+    })
+    assert created.status_code == 201, created.text
+    article_id = created.json()["data"]["id"]
+    published_at = created.json()["data"]["publishedAt"]
+    before = client.cache._version()
+
+    updated = client.patch(f"/api/admin/articles/{article_id}", json={
+        "articleType": "guide",
+        "title": "고친 제목",
+        "summary": "고친 요약",
+        "bodyHtml": '<p onclick="x">고친 본문</p><script>bad()</script>',
+    })
+    assert updated.status_code == 200, updated.text
+    body = updated.json()["data"]
+    assert body["title"] == "고친 제목"
+    assert body["articleType"] == "guide"
+    assert body["summary"] == "고친 요약"
+    assert body["authorName"] == "운영자"
+    assert body["sourceType"] == "authored"
+    assert body["publishedAt"] == published_at
+    assert "고친 본문" in body["bodyHtml"]
+    assert "script" not in body["bodyHtml"].lower()
+    assert "onclick" not in body["bodyHtml"]
+    assert client.cache._version() == before + 1
+
+    public = client.get(f"/api/articles/{article_id}")
+    assert public.json()["data"]["title"] == "고친 제목"
+    assert "고친 본문" in public.json()["data"]["bodyHtml"]
+
+
+def test_other_member_cannot_update_authored_article(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = client.post("/api/admin/articles", json={
+        "articleType": "column",
+        "title": "운영자 글",
+        "bodyHtml": "<p>본문</p>",
+    })
+    article_id = created.json()["data"]["id"]
+    _register(client, "다른사람")
+    _promote(client, "다른사람")
+    denied = client.patch(f"/api/admin/articles/{article_id}", json={
+        "articleType": "column",
+        "title": "가로챈 제목",
+        "bodyHtml": "<p>가로챔</p>",
+    })
+    assert denied.status_code == 403
+    public = client.get(f"/api/articles/{article_id}")
+    assert public.json()["data"]["title"] == "운영자 글"
+
+
+def test_collected_article_cannot_be_updated(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    db = client.session_factory()
+    category_id = db.scalars(select(Category).where(Category.slug == "curation")).one().id
+    collected = Article(
+        category_id=category_id,
+        article_type="column",
+        title="브런치 글",
+        author_name="운영자",
+        source_type="brunch",
+        source_url="https://brunch.co.kr/@w/edit-me",
+        published_at=datetime.now(timezone.utc),
+        status="published",
+    )
+    db.add(collected)
+    db.commit()
+    article_id = collected.id
+    db.close()
+    denied = client.patch(f"/api/admin/articles/{article_id}", json={
+        "articleType": "column",
+        "title": "고치면 안 됨",
+        "bodyHtml": "<p>본문</p>",
+    })
+    assert denied.status_code == 403
+
+
+def test_uploaded_image_is_served_and_kept_in_the_article(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    uploaded = client.post(
+        "/api/admin/media",
+        files={"file": ("shot.png", PNG, "image/png")},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    url = uploaded.json()["data"]["url"]
+    fetched = client.get(url)
+    assert fetched.status_code == 200, fetched.text
+    assert fetched.content.startswith(b"\x89PNG")
+
+    created = client.post("/api/admin/articles", json={
+        "articleType": "column",
+        "title": "그림 있는 글",
+        "bodyHtml": f'<p>설명</p><img src="https://edu.dev.bccard.ai{url}" alt="도표">',
+    })
+    assert created.status_code == 201, created.text
+    body = created.json()["data"]["bodyHtml"]
+    assert f'src="{url}"' in body
+    assert "edu.dev.bccard.ai" not in body
+    public = client.get(f"/api/articles/{created.json()['data']['id']}")
+    assert f'src="{url}"' in public.json()["data"]["bodyHtml"]
+
+
+def test_jpg_content_type_alias_is_stored(client):
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    jpeg = b"\xff\xd8\xff" + b"\x00" * 16
+    uploaded = client.post(
+        "/api/admin/media",
+        files={"file": ("shot.jpg", jpeg, "image/jpg")},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    assert uploaded.json()["data"]["url"].endswith(".jpg")

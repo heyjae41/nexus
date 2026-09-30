@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.cache import VersionedCache
 from app.models import Article, Member
-from app.repositories.articles import AUTHORED_SOURCE, create_article
+from app.repositories.articles import AUTHORED_SOURCE, create_article, get_article
 from app.repositories.categories import get_category_by_slug
 from app.services.html_sanitize import first_media_src, plain_text, sanitize_article_html
 
@@ -45,6 +45,39 @@ def publish_authored_article(
         read_minutes=_read_minutes(text),
         published_at=datetime.now(timezone.utc),
     )
+    cache.bump_version()
+    return article
+
+
+def update_authored_article(
+    db: Session,
+    cache: VersionedCache,
+    member: Member,
+    article_id: int,
+    *,
+    article_type: str,
+    title: str,
+    summary: str | None,
+    body_html: str,
+) -> Article:
+    article = get_article(db, article_id)
+    if article is None:
+        raise LookupError("글을 찾을 수 없습니다")
+    if article.source_type != AUTHORED_SOURCE or article.author_name != member.nickname:
+        raise PermissionError("직접 작성한 글만 수정할 수 있습니다")
+    clean_title = _title(title)
+    html = sanitize_article_html(body_html)
+    text = plain_text(html)
+    if not text and first_media_src(html) is None:
+        raise ValueError("본문을 입력해 주세요")
+    article.article_type = _article_type(article_type)
+    article.title = clean_title
+    article.summary = _summary(summary, text, clean_title)
+    article.body_html = html
+    article.thumbnail_url = first_media_src(html)
+    article.read_minutes = _read_minutes(text)
+    db.commit()
+    db.refresh(article)
     cache.bump_version()
     return article
 
