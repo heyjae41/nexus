@@ -25,7 +25,7 @@ def client():
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False, future=True)
     cache = VersionedCache(InMemoryCacheBackend(), prefix="nexus:", ttl_seconds=300)
-    app = create_app(cache=cache, enable_scheduler=False)
+    app = create_app(cache=cache, enable_scheduler=False, log_secrets=False)
 
     def override_db():
         session = factory()

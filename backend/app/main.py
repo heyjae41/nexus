@@ -15,6 +15,7 @@ from app.api.routes import router
 from app.cache import VersionedCache, create_cache
 from app.config import get_settings
 from app.serializers import api_response
+from app.services.secret_keys import log_secret_keys_from_aws
 
 
 class HardenedStaticFiles(StaticFiles):
@@ -36,6 +37,7 @@ class HardenedStaticFiles(StaticFiles):
 def create_app(
     cache: VersionedCache | None = None,
     enable_scheduler: bool = True,
+    log_secrets: bool = True,
 ) -> FastAPI:
     settings = get_settings()
     app_cache = cache or create_cache(
@@ -44,6 +46,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if log_secrets:
+            log_secret_keys_from_aws()
         scheduler = None
         if enable_scheduler:
             from app.services.scheduler import build_scheduler
