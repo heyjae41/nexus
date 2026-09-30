@@ -1,7 +1,7 @@
 """Secrets Manager 조회 로그는 키 이름만 남긴다."""
 import json
 
-from app.services.secret_keys import describe_secret_keys, log_configured_secrets
+from app.services.secret_keys import describe_secret_keys, describe_super_admin_env, log_configured_secrets
 
 
 def test_describe_secret_keys_lists_names_without_values():
@@ -27,3 +27,9 @@ def test_log_configured_secrets_reports_lookup_error_without_payload():
     log_configured_secrets(Broken(), ("nexus-app-credentials",), printer=lines.append)
     assert lines == ["[secrets] nexus-app-credentials error=RuntimeError"]
     assert "hidden-secret-body" not in lines[0]
+
+
+def test_describe_super_admin_env_prints_only_that_value():
+    assert describe_super_admin_env("heyjae") == "[secrets] SUPER_ADMIN=heyjae"
+    assert describe_super_admin_env(None) == "[secrets] SUPER_ADMIN=<empty>"
+    assert describe_super_admin_env("") == "[secrets] SUPER_ADMIN=<empty>"

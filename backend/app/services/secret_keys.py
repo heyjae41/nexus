@@ -11,6 +11,13 @@ SECRET_IDS = (
 REGION = "ap-northeast-2"
 
 
+
+def describe_super_admin_env(value: str | None) -> str:
+    if not value:
+        return "[secrets] SUPER_ADMIN=<empty>"
+    return f"[secrets] SUPER_ADMIN={value}"
+
+
 def describe_secret_keys(secret_id: str, secret_string: str) -> str:
     keys = _key_names(secret_string)
     present = "yes" if "SUPER_ADMIN" in keys else "no"

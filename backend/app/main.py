@@ -1,4 +1,5 @@
 """FastAPI 앱 팩토리."""
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from app.api.routes import router
 from app.cache import VersionedCache, create_cache
 from app.config import get_settings
 from app.serializers import api_response
-from app.services.secret_keys import log_secret_keys_from_aws
+from app.services.secret_keys import describe_super_admin_env
 
 
 class HardenedStaticFiles(StaticFiles):
@@ -47,7 +48,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if log_secrets:
-            log_secret_keys_from_aws()
+            print(describe_super_admin_env(os.environ.get("SUPER_ADMIN")))
         scheduler = None
         if enable_scheduler:
             from app.services.scheduler import build_scheduler
