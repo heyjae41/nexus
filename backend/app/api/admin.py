@@ -1,7 +1,7 @@
 """어드민 글쓰기·권한관리."""
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from app.serializers import (
     serialize_article_detail,
 )
 from app.services.authored import publish_authored_article, update_authored_article
+from app.services.image_chunks import accept_image_chunk
 from app.services.image_store import save_article_image
 
 router = APIRouter(prefix="/api/admin")
@@ -47,6 +48,16 @@ class AccessIn(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     access_role: Literal["user", "admin"] = Field(alias="accessRole")
+
+
+class ImagePartIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    upload_id: str = Field(alias="uploadId", min_length=16, max_length=64, pattern=r"^[A-Za-z0-9]+$")
+    index: int = Field(ge=0, le=1100)
+    total: int = Field(ge=1, le=1100)
+    content_type: str = Field(alias="contentType", max_length=100)
+    data: str = Field(min_length=4, max_length=7800)
 
 
 def _value_error(exc: ValueError) -> HTTPException:
@@ -108,6 +119,25 @@ async def upload_media(
         url = save_article_image(data, file.content_type)
     except ValueError as exc:
         raise _value_error(exc) from exc
+    return api_response({"url": url})
+
+
+@router.post("/media/parts")
+def upload_media_part(
+    payload: ImagePartIn,
+    request: Request,
+    member: Member = Depends(require_admin),
+):
+    try:
+        blob = accept_image_chunk(
+            request.app.state.image_chunks, member.id, payload.upload_id,
+            payload.index, payload.total, payload.content_type, payload.data,
+        )
+        url = save_article_image(blob, payload.content_type) if blob is not None else None
+    except ValueError as exc:
+        raise _value_error(exc) from exc
+    if url is None:
+        return api_response({"received": payload.index})
     return api_response({"url": url})
 
 

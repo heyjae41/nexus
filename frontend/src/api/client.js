@@ -161,21 +161,34 @@ export async function updateAuthoredArticle(id, { articleType, title, summary, b
   return requestJson(`/api/admin/articles/${id}`, 'PATCH', { articleType, title, summary, bodyHtml })
 }
 
-export async function uploadArticleImage(file) {
-  const body = new FormData()
-  body.append('file', file)
-  let json
-  try {
-    json = await request('/api/admin/media', { method: 'POST', body })
-  } catch (err) {
-    if (String(err.message).includes('413')) {
-      throw new Error('이미지는 5MB 이하여야 합니다.')
-    }
-    throw err
+const IMAGE_PART_BYTES = 5598
+
+function bytesToBase64(bytes) {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+export async function uploadArticleImage(file, onProgress) {
+  // 앞단이 8192바이트를 넘는 본문을 403으로 거절한다. 사진은 그 한도 아래 조각으로 올린다.
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const total = Math.max(1, Math.ceil(bytes.length / IMAGE_PART_BYTES))
+  const uploadId = crypto.randomUUID().replace(/-/g, '')
+  let url = ''
+  for (let index = 0; index < total; index += 1) {
+    const slice = bytes.subarray(index * IMAGE_PART_BYTES, (index + 1) * IMAGE_PART_BYTES)
+    const result = await requestJson('/api/admin/media/parts', 'POST', {
+      uploadId,
+      index,
+      total,
+      contentType: file.type || 'application/octet-stream',
+      data: bytesToBase64(slice),
+    })
+    if (result?.url) url = result.url
+    onProgress?.(index + 1, total)
   }
-  const uploaded = json.data ?? json
-  if (!uploaded?.url) throw new Error('이미지 주소를 받지 못했습니다.')
-  return uploaded
+  if (!url) throw new Error('이미지 주소를 받지 못했습니다.')
+  return { url }
 }
 
 export async function fetchAdminMembers() {

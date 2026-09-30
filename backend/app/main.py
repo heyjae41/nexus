@@ -16,6 +16,7 @@ from app.api.routes import router
 from app.cache import VersionedCache, create_cache
 from app.config import get_settings
 from app.serializers import api_response
+from app.services.image_chunks import MemoryImageChunks, build_image_chunks
 from app.services.secret_keys import describe_super_admin_env
 
 
@@ -39,6 +40,7 @@ def create_app(
     cache: VersionedCache | None = None,
     enable_scheduler: bool = True,
     log_secrets: bool = True,
+    image_chunks: MemoryImageChunks | None = None,
 ) -> FastAPI:
     settings = get_settings()
     app_cache = cache or create_cache(
@@ -61,6 +63,7 @@ def create_app(
 
     app = FastAPI(title="EDU.AI API", lifespan=lifespan)
     app.state.cache = app_cache
+    app.state.image_chunks = image_chunks or MemoryImageChunks()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],
@@ -90,4 +93,4 @@ def create_app(
     return app
 
 
-app = create_app()
+app = create_app(image_chunks=build_image_chunks(get_settings().redis_url))

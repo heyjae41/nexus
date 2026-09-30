@@ -1,4 +1,6 @@
 """어드민 글쓰기·이미지·권한 API."""
+import base64
+import json
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -299,3 +301,29 @@ def test_jpg_content_type_alias_is_stored(client):
     )
     assert uploaded.status_code == 200, uploaded.text
     assert uploaded.json()["data"]["url"].endswith(".jpg")
+
+
+def test_image_upload_is_assembled_from_small_parts(client):
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    raw = PNG + b"\x00" * 40
+    parts = [raw[:20], raw[20:]]
+    upload_id = "a" * 32
+    for index, part in ((1, parts[1]), (0, parts[0])):
+        payload = {
+            "uploadId": upload_id,
+            "index": index,
+            "total": 2,
+            "contentType": "image/png",
+            "data": base64.b64encode(part).decode(),
+        }
+        assert len(json.dumps(payload).encode()) < 8192
+        res = client.post("/api/admin/media/parts", json=payload)
+        assert res.status_code == 200, res.text
+        if index == 1:
+            assert "url" not in res.json()["data"]
+        else:
+            url = res.json()["data"]["url"]
+    fetched = client.get(url)
+    assert fetched.status_code == 200
+    assert fetched.content == raw

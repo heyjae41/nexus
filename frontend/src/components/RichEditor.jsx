@@ -24,6 +24,7 @@ export default function RichEditor({ onChange, uploadImage, initialHtml = '', on
   const [linkUrl, setLinkUrl] = useState('')
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -66,9 +67,12 @@ export default function RichEditor({ onChange, uploadImage, initialHtml = '', on
     if (!file || !editor) return
     setError('')
     setUploading(true)
+    setUploadStatus('이미지 올리는 중...')
     onUploading?.(true)
     try {
-      const uploaded = await uploadImage(file)
+      const uploaded = await uploadImage(file, (done, total) => {
+        setUploadStatus(`이미지 올리는 중... ${done}/${total}`)
+      })
       const src = uploaded?.url
       if (!src?.startsWith('/api/media/')) {
         throw new Error('이미지 주소를 받지 못했습니다.')
@@ -81,6 +85,7 @@ export default function RichEditor({ onChange, uploadImage, initialHtml = '', on
       setError(err.message || '이미지를 올리지 못했습니다.')
     } finally {
       setUploading(false)
+      setUploadStatus('')
       onUploading?.(false)
     }
   }
@@ -120,7 +125,7 @@ export default function RichEditor({ onChange, uploadImage, initialHtml = '', on
           <button type="button" onClick={applyLink}>적용</button>
         </div>
       )}
-      {uploading && <p className="admin-lead" style={{ margin: '8px 12px' }}>이미지 올리는 중...</p>}
+      {uploading && <p className="admin-lead" style={{ margin: '8px 12px' }}>{uploadStatus}</p>}
       {error && <p role="alert" className="admin-error" style={{ padding: '0 12px 8px' }}>{error}</p>}
       <EditorContent editor={editor} />
     </div>
