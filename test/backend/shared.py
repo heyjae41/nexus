@@ -1,6 +1,11 @@
-"""backend 단위 테스트 공용 헬퍼 (수집·인제스트 테스트에서 공유)."""
+"""backend 단위 테스트 공용 헬퍼 (수집·인제스트·리포지토리 테스트에서 공유)."""
+from datetime import datetime, timezone
+
 from app.cache import InMemoryCacheBackend, VersionedCache
 from app.models import Category
+from app.repositories.articles import create_article
+
+DEFAULT_PUBLISHED_AT = datetime(2026, 7, 7, tzinfo=timezone.utc)
 
 
 def make_cache():
@@ -10,6 +15,28 @@ def make_cache():
 def seed_curation(db):
     db.add(Category(slug="curation", name="큐레이션", display_order=1))
     db.commit()
+
+
+def seed_category(db, slug="curation", name="큐레이션", order=1) -> Category:
+    cat = Category(slug=slug, name=name, display_order=order)
+    db.add(cat)
+    db.commit()
+    return cat
+
+
+def make_article(db, cat, **over):
+    """내부 뉴스레터 기본값으로 글 1건 생성 — 키워드로 일부만 덮어쓴다."""
+    fields = {
+        "category_id": cat.id,
+        "article_type": "newsletter",
+        "title": "제목",
+        "summary": "요약",
+        "body_html": "<p>본문</p>",
+        "author_name": "AI사업팀",
+        "source_type": "internal",
+        "published_at": DEFAULT_PUBLISHED_AT,
+    }
+    return create_article(db, **{**fields, **over})
 
 
 class FakeResponse:

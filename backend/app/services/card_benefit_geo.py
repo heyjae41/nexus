@@ -108,20 +108,24 @@ def normalize_country_codes(values: str | None) -> list[str]:
     codes: list[str] = []
     domestic_only = False
     for value in values.split(","):
-        value = value.strip()
-        if value in DOMESTIC_STORAGE_VALUES or is_domestic_only(value):
+        code = _public_code(value.strip())
+        if code is None:
             domestic_only = True
-            continue
-        if value in COUNTRY_NAMES:
-            code = value
-        else:
-            code = next(
-                (key for key, keywords in COUNTRY_KEYWORDS.items() if value in keywords),
-                OVERSEAS_COMMON,
-            )
-        if code not in codes:
+        elif code not in codes:
             codes.append(code)
     return codes or ([] if domestic_only else [OVERSEAS_COMMON])
+
+
+def _public_code(value: str) -> str | None:
+    """저장값 하나 → 공개 코드. 국내 전용이면 None, 모르는 해외 권역은 해외공통."""
+    if value in DOMESTIC_STORAGE_VALUES or is_domestic_only(value):
+        return None
+    if value in COUNTRY_NAMES:
+        return value
+    return next(
+        (key for key, keywords in COUNTRY_KEYWORDS.items() if value in keywords),
+        OVERSEAS_COMMON,
+    )
 
 
 def expand_country_filter(selected: str) -> set[str]:

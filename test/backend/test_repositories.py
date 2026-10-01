@@ -2,35 +2,9 @@
 from datetime import datetime, timezone
 
 from app.models import Category
-from app.repositories.articles import (
-    create_article,
-    get_article,
-    increment_view,
-    list_articles,
-)
+from app.repositories.articles import get_article, increment_view, list_articles
 from app.repositories.categories import list_active_categories
-
-
-def seed_category(db, slug="curation", name="큐레이션", order=1) -> Category:
-    cat = Category(slug=slug, name=name, display_order=order)
-    db.add(cat)
-    db.commit()
-    return cat
-
-
-def make_article(db, cat, **over):
-    fields = {
-        "category_id": cat.id,
-        "article_type": "newsletter",
-        "title": "제목",
-        "summary": "요약",
-        "body_html": "<p>본문</p>",
-        "author_name": "AI사업팀",
-        "source_type": "internal",
-        "published_at": datetime(2026, 7, 7, tzinfo=timezone.utc),
-    }
-    fields.update(over)
-    return create_article(db, **fields)
+from shared import make_article, seed_category  # 리포지토리 테스트 공용 헬퍼
 
 
 def test_list_active_categories_ordered(db):
