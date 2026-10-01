@@ -1,32 +1,16 @@
 """직접 작성 글의 24시간 우선 노출."""
 from datetime import datetime, timedelta, timezone
 
-from app.models import Category
-from app.repositories.articles import create_article, latest_articles_per_type, list_articles
+from app.repositories.articles import latest_articles_per_type, list_articles
+
+from shared import make_article as _make_article  # 리포지토리 테스트 공용 헬퍼
+from shared import seed_category
 
 NOW = datetime(2026, 9, 29, 6, 0, tzinfo=timezone.utc)
 
 
-def seed_category(db) -> Category:
-    cat = Category(slug="curation", name="큐레이션", display_order=1)
-    db.add(cat)
-    db.commit()
-    return cat
-
-
 def make_article(db, cat, **over):
-    fields = {
-        "category_id": cat.id,
-        "article_type": "newsletter",
-        "title": "제목",
-        "summary": "요약",
-        "body_html": "<p>본문</p>",
-        "author_name": "AI사업팀",
-        "source_type": "internal",
-        "published_at": NOW,
-    }
-    fields.update(over)
-    return create_article(db, **fields)
+    return _make_article(db, cat, **{"published_at": NOW, **over})
 
 
 def test_fresh_authored_article_leads_its_format(db):

@@ -17,6 +17,44 @@ def _period(start: date, end: date) -> str:
     return f"{start:%Y.%m.%d} ~ {end:%Y.%m.%d}"
 
 
+def _add_benefit(client, **fields):
+    """진행 중인 혜택 1건을 DB 에 직접 넣는다 — 캐시는 건드리지 않는다.
+
+    기본 기간은 오늘 기준 상대값(어제~30일 뒤). 고정 날짜는 지나는 순간 '종료'로 걸러져
+    제외 테스트가 아무것도 검증하지 않은 채 통과하게 되므로 쓰지 않는다."""
+    start = fields.pop("event_start_date", date.today() - timedelta(days=1))
+    end = fields.pop("event_end_date", date.today() + timedelta(days=30))
+    row = {
+        "card_company": "하나카드",
+        "event_period": _period(start, end),
+        "event_start_date": start,
+        "event_end_date": end,
+    }
+    db = client.session_factory()
+    db.add(CardBenefit(**{**row, **fields}))
+    db.commit()
+    db.close()
+
+
+def _in_progress(start: date | None, end: date | None) -> bool:
+    return (start is None or start <= date.today()) and (end is None or end >= date.today())
+
+
+def _assert_rows_in_progress(client) -> None:
+    db = client.session_factory()
+    rows = db.query(CardBenefit).all()
+    db.close()
+    assert rows and all(_in_progress(r.event_start_date, r.event_end_date) for r in rows)
+
+
+def _visible(client) -> dict:
+    return client.get("/api/card-benefits").json()
+
+
+def _visible_titles(client) -> list[str]:
+    return [item["title"] for item in _visible(client)["data"]]
+
+
 def seed_benefits(client, count=3):
     """진행 중인 혜택 count 건 — 고정 날짜는 시간이 지나면 '종료'로 걸러져 깨지므로 오늘 기준 상대 날짜."""
     end = date.today() + timedelta(days=30)
@@ -76,22 +114,13 @@ def test_card_benefits_filter_by_company(client):
 
 def test_card_benefits_excludes_ended_events(client):
     """종료된(어제까지) 이벤트는 기본 노출에서 제외한다."""
-    db = client.session_factory()
-    db.add(
-        CardBenefit(
-            source_id="hana:old", card_company="하나카드", title="지난 혜택",
-            event_period="2026.01.01 ~ 2026.01.31",
-            event_start_date=date(2026, 1, 1),
-            event_end_date=date.today() - timedelta(days=1),
-            detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=old",
-        )
+    _add_benefit(
+        client, source_id="hana:old", title="지난 혜택",
+        event_period="2026.01.01 ~ 2026.01.31", event_start_date=date(2026, 1, 1),
+        event_end_date=date.today() - timedelta(days=1),
+        detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=old",
     )
-    db.commit()
-    db.close()
-
-    res = client.get("/api/card-benefits")
-    titles = [x["title"] for x in res.json()["data"]]
-    assert "지난 혜택" not in titles
+    assert "지난 혜택" not in _visible_titles(client)
 
 
 def test_card_benefits_cached_until_version_bump(client):
@@ -116,54 +145,31 @@ def test_card_benefits_cached_until_version_bump(client):
 
 def test_card_benefits_excludes_not_started_events(client):
     """시작일이 미래인 이벤트는 '진행 중'이 아니므로 노출하지 않는다."""
-    db = client.session_factory()
-    db.add(
-        CardBenefit(
-            source_id="hana:future", card_company="하나카드", title="다음달 혜택",
-            event_period="미래", event_start_date=date.today() + timedelta(days=10),
-            event_end_date=date.today() + timedelta(days=40),
-            detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=future",
-        )
+    _add_benefit(
+        client, source_id="hana:future", title="다음달 혜택", event_period="미래",
+        event_start_date=date.today() + timedelta(days=10),
+        event_end_date=date.today() + timedelta(days=40),
+        detail_url="https://m.hanacard.co.kr/MKEVT1010M.web?EVN_SEQ=future",
     )
-    db.commit()
-    db.close()
-
-    res = client.get("/api/card-benefits")
-    titles = [x["title"] for x in res.json()["data"]]
-    assert "다음달 혜택" not in titles
+    assert "다음달 혜택" not in _visible_titles(client)
 
 
 def test_card_benefits_excludes_domestic_only_rows_misclassified_as_all(client):
     """기존 데이터가 ALL이어도 국내 전용이면 API와 국가 집계에서 제외한다."""
-    db = client.session_factory()
-    db.add(
-        CardBenefit(
-            source_id="lotte:domestic-rental",
-            card_company="롯데카드",
-            title="롯데카드로 결제하면 렌터카 최대 89% 할인 혜택!",
-            event_period="2026.08.12 ~ 2026.12.31",
-            event_start_date=date(2026, 8, 12),
-            event_end_date=date(2026, 12, 31),
-            benefit_summary=(
-                "롯데렌터카 제주 최대 89%, 내륙 최대 65% 할인 "
-                "제주도 지역 롯데렌터카 예약 혜택"
-            ),
-            countries="ALL",
-            detail_url="https://m.lottecard.co.kr/domestic-rental",
-        )
+    _add_benefit(
+        client, source_id="lotte:domestic-rental", card_company="롯데카드",
+        title="롯데카드로 결제하면 렌터카 최대 89% 할인 혜택!",
+        benefit_summary="롯데렌터카 제주 최대 89%, 내륙 최대 65% 할인 제주도 지역 롯데렌터카 예약 혜택",
+        countries="ALL", detail_url="https://m.lottecard.co.kr/domestic-rental",
     )
-    db.commit()
-    db.close()
-
-    body = client.get("/api/card-benefits").json()
-
+    _assert_rows_in_progress(client)  # 날짜가 아니라 국내 판정으로 제외되는지 보장
+    body = _visible(client)
     assert body["data"] == []
     assert body["meta"]["countries"] == []
 
 
 def test_card_benefits_excludes_domestic_storage_value_and_resort_names(client):
     """국내·기타 원본값과 국내 리조트/시설명은 API에 노출하지 않는다."""
-    db = client.session_factory()
     rows = [
         ("bc:high1", "BC카드 전용 하이원 리조트 최대 55% 할인", "국내·기타"),
         ("bc:yongpyong", "BC카드 전용 모나용평 최대 70% 할인", "ALL"),
@@ -172,73 +178,41 @@ def test_card_benefits_excludes_domestic_storage_value_and_resort_names(client):
         ("bc:generic", "하나카드 고객전용 특별 패키지", "국내·기타"),
     ]
     for source_id, title, countries in rows:
-        db.add(
-            CardBenefit(
-                source_id=source_id,
-                card_company="BC카드",
-                title=title,
-                event_period="2026.08.01 ~ 2026.12.31",
-                event_start_date=date(2026, 8, 1),
-                event_end_date=date(2026, 12, 31),
-                benefit_summary="객실 패키지 및 부대시설 할인",
-                countries=countries,
-                detail_url=f"https://example.com/{source_id}",
-            )
+        _add_benefit(
+            client, source_id=source_id, card_company="BC카드", title=title,
+            benefit_summary="객실 패키지 및 부대시설 할인", countries=countries,
+            detail_url=f"https://example.com/{source_id}",
         )
-    db.commit()
-    db.close()
-
-    body = client.get("/api/card-benefits").json()
-
+    _assert_rows_in_progress(client)
+    body = _visible(client)
     assert body["data"] == []
     assert body["meta"]["countries"] == []
 
 
 def test_card_benefits_keeps_airport_services_for_overseas_travel(client):
     """국내 공항에서 제공돼도 해외여행 지원 혜택이면 유지한다."""
-    db = client.session_factory()
-    db.add(
-        CardBenefit(
-            source_id="woori:airport",
-            card_company="우리카드",
-            title="인천/김포공항 주차대행서비스 할인",
-            event_period="2026.08.01 ~ 2026.12.31",
-            event_start_date=date(2026, 8, 1),
-            event_end_date=date(2026, 12, 31),
-            benefit_summary="출국 고객 대상 공항 서비스",
-            countries="ALL",
-            detail_url="https://example.com/airport",
-        )
+    _add_benefit(
+        client, source_id="woori:airport", card_company="우리카드",
+        title="인천/김포공항 주차대행서비스 할인", benefit_summary="출국 고객 대상 공항 서비스",
+        countries="ALL", detail_url="https://example.com/airport",
     )
-    db.commit()
-    db.close()
-
-    body = client.get("/api/card-benefits").json()
-
-    assert [item["title"] for item in body["data"]] == [
-        "인천/김포공항 주차대행서비스 할인"
-    ]
+    assert _visible_titles(client) == ["인천/김포공항 주차대행서비스 할인"]
 
 
 def seed_geo_benefits(client):
-    db = client.session_factory()
     rows = [
-        ("bc:vn", "베트남 다낭 호텔 25% 할인", "VN", "2026.08.01"),
-        ("bc:sea", "동남아 전 가맹점 5% 할인", "동남아", "2026.08.02"),
-        ("bc:jp", "일본 편의점 적립", "JP", "2026.08.03"),
-        ("bc:ov", "해외 결제 캐시백", "ALL", "2026.08.04"),
-        ("bc:de", "독일 여행 할인", "독일", "2026.08.05"),
+        ("bc:vn", "베트남 다낭 호텔 25% 할인", "VN"),
+        ("bc:sea", "동남아 전 가맹점 5% 할인", "동남아"),
+        ("bc:jp", "일본 편의점 적립", "JP"),
+        ("bc:ov", "해외 결제 캐시백", "ALL"),
+        ("bc:de", "독일 여행 할인", "독일"),
     ]
-    for sid, title, countries, start in rows:
-        db.add(CardBenefit(
-            source_id=sid, card_company="BC카드", title=title,
-            event_period=f"{start} ~ 2026.12.31",
-            event_start_date=date(*map(int, start.split("."))),
-            event_end_date=date(2026, 12, 31),
-            countries=countries, detail_url=f"https://ex.com/{sid}",
-        ))
-    db.commit()
-    db.close()
+    for i, (sid, title, countries) in enumerate(rows):
+        _add_benefit(
+            client, source_id=sid, card_company="BC카드", title=title, countries=countries,
+            event_start_date=date.today() - timedelta(days=len(rows) - i),  # 뒤일수록 최신
+            detail_url=f"https://ex.com/{sid}",
+        )
 
 
 def test_card_benefits_country_filter_uses_code_and_all(client):
