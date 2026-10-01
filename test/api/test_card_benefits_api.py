@@ -13,17 +13,24 @@ REQUIRED_KEYS = {
 }
 
 
+def _period(start: date, end: date) -> str:
+    return f"{start:%Y.%m.%d} ~ {end:%Y.%m.%d}"
+
+
 def seed_benefits(client, count=3):
+    """진행 중인 혜택 count 건 — 고정 날짜는 시간이 지나면 '종료'로 걸러져 깨지므로 오늘 기준 상대 날짜."""
+    end = date.today() + timedelta(days=30)
     db = client.session_factory()
     for i in range(count):
+        start = date.today() - timedelta(days=30 - i)  # i 가 클수록 최신 시작일
         db.add(
             CardBenefit(
                 source_id=f"hana:{i}",
                 card_company="하나카드" if i % 2 == 0 else "우리카드",
                 title=f"여행 혜택 {i}",
-                event_period=f"2026.08.0{i + 1} ~ 2026.09.30",
-                event_start_date=date(2026, 8, i + 1),
-                event_end_date=date(2026, 9, 30),
+                event_period=_period(start, end),
+                event_start_date=start,
+                event_end_date=end,
                 target_cards="전 카드",
                 benefit_summary=f"여행 혜택 {i} 요약 — 최대 {i + 1}만원 할인",
                 benefit_tags="할인,캐시백",
@@ -50,7 +57,9 @@ def test_card_benefits_returns_required_columns(client):
     assert item["detail_url"].endswith("ref=nexus.bccard.ai")
     assert "EVN_SEQ=2" in item["detail_url"]
     assert item["card_company"] == "하나카드"
-    assert item["event_period"] == "2026.08.03 ~ 2026.09.30"
+    assert item["event_period"] == _period(
+        date.today() - timedelta(days=28), date.today() + timedelta(days=30)
+    )
     assert item["image_url"] == "https://m.hanacard.co.kr/img2.png"
     # 이벤트 혜택 요약도 API 항목으로 내린다 (목록 카드 제목 아래 노출용)
     assert item["benefit_summary"] == "여행 혜택 2 요약 — 최대 3만원 할인"
