@@ -205,6 +205,12 @@ updated_count, hidden_count, error_message, created_at`.
 - `POST /api/community/posts/{id}/comments` · `POST /api/community/posts/{id}/like` — 댓글/토글 좋아요
 - 오류 시맨틱: 온보딩 미완료 403 / 대상 리소스 없음 404 / 검증 실패 400
 - `POST /api/internal/ingest/run` — 인제스트 수동 실행(스케줄러와 동일 코드 경로, 테스트용)
+- `POST /api/admin/articles` · `PATCH /api/admin/articles/{id}` — 어드민 글 생성(어드민)·수정(작성자). 단일 JSON.
+- `POST /api/admin/articles/parts` — 같은 저장을 8KB 미만 조각으로. 앞단 WAF(AWS 공통 규칙
+  `SizeRestrictions_BODY`, 8KB 고정)가 큰 요청 본문을 403 HTML 로 거절하므로 프론트는 항상 이 경로를
+  쓴다. 매 조각에 제목·요약·유형 메타를 함께 싣고, 마지막 조각이 도착한 요청이 곧 저장이다(생성 201·수정 200).
+  조각 저장소는 이미지 조각과 같은 Redis(`nexus:imgup:*`, 600초 TTL)이고, Redis 미가용 시 프로세스 메모리
+  폴백이라 다중 파드에서는 Redis 가 필요하다. `POST /api/admin/media/parts` 는 본문 이미지 조각.
 - `POST /api/internal/media/backfill` — 사라진 인제스트 썸네일 재생성(위 '영구 미디어 저장소')
 - `POST /api/internal/brunch/run` · `POST /api/internal/newsletter/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
 

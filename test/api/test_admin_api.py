@@ -327,3 +327,105 @@ def test_image_upload_is_assembled_from_small_parts(client):
     fetched = client.get(url)
     assert fetched.status_code == 200
     assert fetched.content == raw
+
+
+# --- 글 본문 조각 저장: 앞단(WAF)이 8KB 넘는 요청 본문을 403 으로 거절한다 ---
+
+def _body_part_payload(upload_id, index, total, part, **meta):
+    return {
+        "uploadId": upload_id, "index": index, "total": total,
+        "contentType": "text/html", "data": base64.b64encode(part).decode(),
+        "articleType": "guide", "title": "긴 글", "summary": "요약", **meta,
+    }
+
+
+def _post_body_parts(client, body_html: str, **meta):
+    raw = body_html.encode("utf-8")
+    size = 3900
+    parts = [raw[i:i + size] for i in range(0, len(raw), size)] or [b""]
+    upload_id = "b" * 32
+    last = None
+    for index, part in enumerate(parts):
+        payload = _body_part_payload(upload_id, index, len(parts), part, **meta)
+        assert len(json.dumps(payload).encode()) < 8192, "조각 요청은 8KB 미만이어야 한다"
+        last = client.post("/api/admin/articles/parts", json=payload)
+        assert last.status_code in (200, 201), last.text
+        if index < len(parts) - 1:
+            assert last.json()["data"] == {"received": index}
+    return last
+
+
+def test_long_article_is_created_from_small_parts(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    body = "<p>" + ("한글 본문 내용입니다. " * 1500) + "</p>"  # 8KB 를 훌쩍 넘는 본문
+    assert len(body.encode()) > 8192
+    res = _post_body_parts(client, body)
+    assert res.status_code == 201
+    data = res.json()["data"]
+    assert data["title"] == "긴 글"
+    detail = client.get(f"/api/articles/{data['id']}").json()["data"]
+    assert "한글 본문 내용입니다." in detail["bodyHtml"]
+    assert detail["bodyHtml"].count("한글 본문 내용입니다.") == 1500
+
+
+def test_long_article_is_updated_from_small_parts_by_author_only(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = _post_body_parts(client, "<p>처음</p>").json()["data"]
+    body = "<p>" + ("수정된 본문. " * 1200) + "</p>"
+    res = _post_body_parts(client, body, articleId=created["id"], title="고친 제목")
+    assert res.status_code == 200
+    assert res.json()["data"]["title"] == "고친 제목"
+    assert "수정된 본문." in client.get(f"/api/articles/{created['id']}").json()["data"]["bodyHtml"]
+
+    client.post("/api/auth/logout")
+    _register(client, "다른운영자")
+    _promote(client, "다른운영자")
+    payload = _body_part_payload("c" * 32, 0, 1, b"<p>x</p>", articleId=created["id"])
+    assert client.post("/api/admin/articles/parts", json=payload).status_code == 403
+
+
+def test_non_admin_cannot_create_article_from_parts(client):
+    _register(client, "일반회원")
+    payload = _body_part_payload("d" * 32, 0, 1, b"<p>x</p>")
+    assert client.post("/api/admin/articles/parts", json=payload).status_code == 403
+
+
+def test_body_parts_reject_invalid_utf8(client):
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    payload = _body_part_payload("e" * 32, 0, 1, b"\xff\xfe<p>")
+    assert client.post("/api/admin/articles/parts", json=payload).status_code == 400
+
+
+def test_body_parts_are_rejected_before_storing_when_not_authorized(client):
+    """권한 검사는 첫 조각에서 — 아무 회원이나 조각으로 Redis 를 채우지 못하게 한다."""
+    _curation(client)
+    _register(client, "일반회원")
+    first_of_two = _body_part_payload("f" * 32, 0, 2, b"<p>x</p>")
+    assert client.post("/api/admin/articles/parts", json=first_of_two).status_code == 403
+
+    client.post("/api/auth/logout")
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = _post_body_parts(client, "<p>처음</p>").json()["data"]
+    client.post("/api/auth/logout")
+    _register(client, "다른운영자")
+    _promote(client, "다른운영자")
+    first_of_two = _body_part_payload("g" * 32, 0, 2, b"<p>x</p>", articleId=created["id"])
+    assert client.post("/api/admin/articles/parts", json=first_of_two).status_code == 403
+    missing = _body_part_payload("h" * 32, 0, 2, b"<p>x</p>", articleId=999_999)
+    assert client.post("/api/admin/articles/parts", json=missing).status_code == 404
+
+
+def test_body_parts_enforce_part_caps(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    too_many = _body_part_payload("i" * 32, 0, 500, b"<p>x</p>")
+    assert client.post("/api/admin/articles/parts", json=too_many).status_code == 400
+    too_big = _body_part_payload("j" * 32, 0, 2, b"x" * 4000)
+    assert client.post("/api/admin/articles/parts", json=too_big).status_code == 400

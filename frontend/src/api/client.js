@@ -153,15 +153,12 @@ export async function likePost(postId, memberId) {
   return requestJson(`/api/community/posts/${postId}/like`, 'POST', { memberId })
 }
 
-export async function createAuthoredArticle({ articleType, title, summary, bodyHtml }) {
-  return requestJson('/api/admin/articles', 'POST', { articleType, title, summary, bodyHtml })
-}
-
-export async function updateAuthoredArticle(id, { articleType, title, summary, bodyHtml }) {
-  return requestJson(`/api/admin/articles/${id}`, 'PATCH', { articleType, title, summary, bodyHtml })
-}
-
+// 앞단(WAF)이 8192바이트를 넘는 요청 본문을 403으로 거절한다 — 사진과 긴 글 본문은
+// 그 한도 아래 조각으로 나눠 보내고 서버가 조립한다. 글 본문 조각은 제목·요약 메타가
+// 매 요청에 같이 실리므로 사진 조각보다 작게 잡는다.
 const IMAGE_PART_BYTES = 5598
+const ARTICLE_PART_BYTES_MAX = 3900 // 서버 BODY_CHUNK_RAW 와 같다
+const PART_REQUEST_BUDGET = 8000 // WAF 한도 8192 에서 여유를 뺀 값
 
 function bytesToBase64(bytes) {
   let binary = ''
@@ -169,26 +166,50 @@ function bytesToBase64(bytes) {
   return btoa(binary)
 }
 
-export async function uploadArticleImage(file, onProgress) {
-  // 앞단이 8192바이트를 넘는 본문을 403으로 거절한다. 사진은 그 한도 아래 조각으로 올린다.
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  const total = Math.max(1, Math.ceil(bytes.length / IMAGE_PART_BYTES))
+async function postInParts(path, bytes, partBytes, extra, onProgress) {
+  const total = Math.max(1, Math.ceil(bytes.length / partBytes))
   const uploadId = crypto.randomUUID().replace(/-/g, '')
-  let url = ''
+  let last = null
   for (let index = 0; index < total; index += 1) {
-    const slice = bytes.subarray(index * IMAGE_PART_BYTES, (index + 1) * IMAGE_PART_BYTES)
-    const result = await requestJson('/api/admin/media/parts', 'POST', {
-      uploadId,
-      index,
-      total,
-      contentType: file.type || 'application/octet-stream',
-      data: bytesToBase64(slice),
+    const slice = bytes.subarray(index * partBytes, (index + 1) * partBytes)
+    last = await requestJson(path, 'POST', {
+      uploadId, index, total, data: bytesToBase64(slice), ...extra,
     })
-    if (result?.url) url = result.url
     onProgress?.(index + 1, total)
   }
-  if (!url) throw new Error('이미지 주소를 받지 못했습니다.')
-  return { url }
+  return last
+}
+
+function articlePartBytes(extra) {
+  // 제목·요약은 매 조각에 실리므로, 메타 봉투 크기를 실제로 재서 본문 조각 크기를 정한다
+  const envelope = JSON.stringify({ ...extra, uploadId: 'x'.repeat(32), index: 9999, total: 9999, data: '' })
+  const metaBytes = new TextEncoder().encode(envelope).length
+  const raw = Math.floor((PART_REQUEST_BUDGET - metaBytes) / 4) * 3
+  return Math.max(1024, Math.min(ARTICLE_PART_BYTES_MAX, raw))
+}
+
+async function saveArticleInParts({ articleId, articleType, title, summary, bodyHtml }) {
+  const extra = { articleType, title, summary, ...(articleId == null ? {} : { articleId }) }
+  const bytes = new TextEncoder().encode(bodyHtml ?? '')
+  const saved = await postInParts('/api/admin/articles/parts', bytes, articlePartBytes(extra), extra)
+  if (!saved?.id) throw new Error('글이 저장되지 않았습니다. 다시 시도해 주세요.')
+  return saved
+}
+
+export async function createAuthoredArticle({ articleType, title, summary, bodyHtml }) {
+  return saveArticleInParts({ articleType, title, summary, bodyHtml })
+}
+
+export async function updateAuthoredArticle(id, { articleType, title, summary, bodyHtml }) {
+  return saveArticleInParts({ articleId: id, articleType, title, summary, bodyHtml })
+}
+
+export async function uploadArticleImage(file, onProgress) {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const extra = { contentType: file.type || 'application/octet-stream' }
+  const result = await postInParts('/api/admin/media/parts', bytes, IMAGE_PART_BYTES, extra, onProgress)
+  if (!result?.url) throw new Error('이미지 주소를 받지 못했습니다.')
+  return { url: result.url }
 }
 
 export async function fetchAdminMembers() {

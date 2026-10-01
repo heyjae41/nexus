@@ -60,11 +60,7 @@ def update_authored_article(
     summary: str | None,
     body_html: str,
 ) -> Article:
-    article = get_article(db, article_id)
-    if article is None:
-        raise LookupError("글을 찾을 수 없습니다")
-    if article.source_type != AUTHORED_SOURCE or article.author_name != member.nickname:
-        raise PermissionError("직접 작성한 글만 수정할 수 있습니다")
+    article = assert_can_edit_authored(get_article(db, article_id), member)
     clean_title = _title(title)
     html = sanitize_article_html(body_html)
     text = plain_text(html)
@@ -79,6 +75,15 @@ def update_authored_article(
     db.commit()
     db.refresh(article)
     cache.bump_version()
+    return article
+
+
+def assert_can_edit_authored(article: Article | None, member: Member) -> Article:
+    """직접 작성한 글의 작성자만 수정할 수 있다 (없으면 LookupError, 남의 글이면 PermissionError)."""
+    if article is None:
+        raise LookupError("글을 찾을 수 없습니다")
+    if article.source_type != AUTHORED_SOURCE or article.author_name != member.nickname:
+        raise PermissionError("직접 작성한 글만 수정할 수 있습니다")
     return article
 
 
