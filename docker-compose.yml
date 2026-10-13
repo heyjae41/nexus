@@ -42,8 +42,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       CONTENTS_DIR: /app/contents
       MEDIA_DIR: /app/media
+      # 바인드 마운트도 컨테이너 안에서는 마운트 포인트 — 쓰기 불가면 기동을 멈춘다 (.env 의 false 를 덮어씀)
+      MEDIA_REQUIRE_MOUNT: "true"
     volumes:
       - ./contents:/app/contents
+      # 컨테이너는 uid 1000 비루트 — Linux 호스트에서는 ./media 가 uid 1000 소유여야 한다 (docs/SETUP.md)
       - ./media:/app/media
     depends_on:
       postgres:

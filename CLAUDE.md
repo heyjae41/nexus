@@ -41,6 +41,8 @@ SUPER_ADMIN 동작 등) 사실은 `AGENTS.md` 의 "Learned Workspace Facts" 에 
 9. **영구 파일은 `settings.media_dir` 아래에만**: 배포 파드는 `/app/media` 에 S3 마운트, 이미지가
    `MEDIA_DIR`/`MEDIA_REQUIRE_MOUNT=true` 고정. 그 밖의 컨테이너 경로는 휘발성. S3 마운트는 rename·덮어쓰기를
    거부하므로 임시파일→rename 패턴 금지, 새 이름으로 쓰거나 존재하면 건너뛴다 (`docs/ARCHITECTURE.md` 영구 미디어 저장소).
+   백엔드 컨테이너는 비루트 `USER 1000:1000`(S3 마운트가 보여 주는 소유자 uid 와 동일) 로 돌고 `/app` 은 읽기 전용이다 —
+   `media_dir` 밖에 쓰는 코드를 넣지 말고, uid 를 바꾸려면 PV mountOptions 와 함께 바꾼다.
 10. **HTML 은 저장 전에 반드시 새니타이저 통과**: 어드민·인제스트·키비주얼 모두 `html_sanitize`/`content_sanitize`
     프로필을 거친다. 출력 조립에 `str(node)` 사용 금지(이스케이프 풀림), CDATA·선언 노드 제거 유지.
 11. **권한 키는 닉네임이 아니라 회원 ID**: 글 수정은 `author_member_id` + 현재 어드민, 수퍼어드민 닉네임은

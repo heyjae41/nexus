@@ -274,8 +274,8 @@ updated_count, hidden_count, error_message, created_at`.
   인용; 발행 도구는 덮어쓰기 거부·발행일 범위(과거 30일~내일)·`read_minutes` 1~10·제어문자 제거·파일명 255 바이트;
   세션 도구는 저장 텍스트의 `===` 구분선을 무력화; 화이트리스트 파일이 깨져도 fail-closed; Redis URL 로그 마스킹;
   compose 기본 DB 비밀번호 제거; CI jscpd 버전 고정.
-  **미조치**: 백엔드 컨테이너 non-root `USER` (S3 마운트(mountpoint-s3) 소유권/uid 옵션을 인프라와 맞춘 뒤 적용),
-  GitHub Actions SHA 고정, 익명 좋아요의 캐시 버전 bump(불변식 1 — nginx 리밋 경로 수정으로 완화).
+  백엔드 컨테이너는 비루트 `USER 1000:1000` 으로 돈다(아래 '영구 미디어 저장소'의 실행 계정 항목).
+  **미조치**: GitHub Actions SHA 고정, 익명 좋아요의 캐시 버전 bump(불변식 1 — nginx 리밋 경로 수정으로 완화).
 
 ## 영구 미디어 저장소 (`MEDIA_DIR`)
 
@@ -288,7 +288,15 @@ updated_count, hidden_count, error_message, created_at`.
 
 - **기동 검증**: `MEDIA_REQUIRE_MOUNT=true`(배포 이미지 기본값)면 `media_dir` 이 마운트 포인트가 아닐 때
   `create_app` 이 RuntimeError 로 기동을 거부한다 — 마운트 누락 시 휘발성 디렉터리에 쓰다 다시 잃는 사고 방지.
-  기동 로그에 `[media] dir=... mount=yes|no` 한 줄이 남는다. 로컬/CI 는 false.
+  실행 계정이 `media_dir` 이나 이미 있는 `authored/`·`thumbnails/` 에 쓸 수 없을 때도(`os.access`) 같은 방식으로 거부한다.
+  기동 로그에 `[media] dir=... mount=yes|no writable=yes|no` 한 줄이 남는다. 로컬/CI 는 false.
+- **실행 계정**: `docker/backend.Dockerfile` 은 빌드(pip·COPY·`compileall`)를 root 로 마친 뒤 `USER 1000:1000`
+  으로 전환한다. `/app` 은 root 소유 0755 라 코드·`contents/` 는 읽기 전용이고, 쓰기는 `media_dir` 아래뿐이다.
+  uid 1000 은 dev 파드의 S3 마운트(PV `nexus-s3-pv-dev`, mountpoint-s3 `allow_other,default_permissions`)가
+  `/app/media` 를 보여 주는 소유자 uid(1000, 0755) 와 같아야 쓸 수 있어서 정한 값이다 — PV `mountOptions` 의
+  `uid` 를 바꾸면 Dockerfile 의 `USER` 도 같이 바꾼다. 로컬 compose 의 `./media` 바인드 마운트도 uid 1000 이
+  쓸 수 있어야 하며 compose 는 `MEDIA_REQUIRE_MOUNT=true` 를 고정한다(`docs/SETUP.md`). 배포 매니페스트에는 `securityContext.runAsNonRoot: true` 를 함께 두는 것을
+  권장한다(이미지의 숫자 uid 로 검증 가능).
 - **복구**: 마운트 이전에 인제스트돼 파일이 사라진 썸네일은 `POST /api/internal/media/backfill` 이
   DB 의 `key_visual_html` 로 같은 URL(내용 해시)에 재생성한다. 에디터로 올린 본문 이미지는 원본이 DB 에
   없어 복구할 수 없다(재업로드 필요).
