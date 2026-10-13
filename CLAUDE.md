@@ -48,7 +48,7 @@ SUPER_ADMIN 동작 등) 사실은 `AGENTS.md` 의 "Learned Workspace Facts" 에 
 12. **nginx 보안 헤더와 CSP**: `docker/nginx.conf` 의 모든 서빙 location 은 `security-headers.conf` 를 include
     한다(`add_header` 는 상속되지 않음). CSP 가 인라인 스크립트를 막으므로 `index.html` 에 인라인 `<script>` 금지,
     새 외부 스크립트·API·폰트 호스트는 CSP 에 추가. `/api/internal/*` 는 nginx 403 + 앱 게이트(루프백 또는
-    `X-Internal-Token`) 이중이다 — 운영 호출은 파드 안에서 한다.
+    `X-Internal-Token`) 이중이다 — 운영 호출은 파드 안에서 `python -m app.internal_call <path>` 로 한다(이미지에 curl 없음).
 
 ## 자주 쓰는 명령
 
@@ -61,6 +61,7 @@ cd frontend && npm run dev                                      # 프론트 — 
 curl -X POST localhost:8000/api/internal/{ingest,brunch,newsletter,meetup,classes,cardpick}/run  # 수집 수동 실행
 curl -X POST localhost:8000/api/internal/media/backfill        # 사라진 인제스트 썸네일 재생성
 curl -X POST localhost:8000/api/internal/content/resanitize    # 저장된 글 본문·키비주얼 재정화(1회성)
+(cd backend && python -m app.internal_call content/resanitize)  # 파드 안 동일 호출 (이미지에 curl 없음)
 docker compose up -d --build                                    # 전체 스택 — http://localhost:8080
 
 # 테스트 (pytest.ini 가 testpaths=test, pythonpath=backend 를 잡아 주므로 루트에서 실행)

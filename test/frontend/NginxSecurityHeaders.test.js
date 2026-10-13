@@ -31,9 +31,9 @@ describe('nginx 프록시 신뢰 경계 (docker/nginx.conf)', () => {
   it('레이트리밋은 ALB 주소가 아니라 X-Forwarded-For 의 실제 클라이언트 IP 로 센다', () => {
     expect(nginxConf).toContain('real_ip_header X-Forwarded-For;')
     expect(nginxConf).toContain('real_ip_recursive on;')
-    expect(nginxConf).toMatch(/set_real_ip_from 10\.0\.0\.0\/8;/)
-    expect(nginxConf).toMatch(/set_real_ip_from 172\.16\.0\.0\/12;/)
-    expect(nginxConf).toMatch(/set_real_ip_from 192\.168\.0\.0\/16;/)
+    // 신뢰 홉은 ALB 가 있는 VPC 대역뿐 — RFC1918 전체를 신뢰하면 사설 주소 클라이언트가 XFF 를 조작한다
+    expect(nginxConf).toMatch(/set_real_ip_from 172\.25\.72\.0\/24;/)
+    expect(nginxConf).not.toMatch(/set_real_ip_from (10\.0\.0\.0\/8|172\.16\.0\.0\/12|192\.168\.0\.0\/16);/)
   })
 
   it('좋아요 레이트리밋은 숫자 변형(+1, 1_0, %201)으로 빠져나갈 수 없다', () => {
@@ -60,7 +60,7 @@ describe('보안 응답 헤더 (docker/security-headers.conf)', () => {
     expect(csp).toContain("form-action 'self'")
     const scriptSrc = csp.match(/script-src ([^;]+)/)?.[1] ?? ''
     expect(scriptSrc).toContain("'self'")
-    expect(scriptSrc).toContain('https://www.googletagmanager.com')
+    expect(scriptSrc).toContain('https://*.googletagmanager.com')
     expect(scriptSrc).not.toContain("'unsafe-inline'")
     expect(scriptSrc).not.toContain("'unsafe-eval'")
     // 글 본문 외부 이미지·GA 비콘, 핫픽 API, 폰트 CDN

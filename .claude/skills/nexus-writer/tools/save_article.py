@@ -57,7 +57,7 @@ def main(
     contents_dir: Path | None = None,
 ) -> int:
     source, arg_user = _parse_args(sys.argv[1:] if argv is None else argv)
-    user_id = telegram_user_id if telegram_user_id is not None else arg_user
+    user_id = resolve_writer_id(telegram_user_id) if telegram_user_id is not None else arg_user
     whitelist = whitelist_path or str(PROJECT_ROOT / ".writer_whitelist")
     if not user_id or not is_allowed_writer(user_id, whitelist):
         print("DENIED: 화이트리스트에 등록되지 않은 사용자입니다 (저장하지 않음)")

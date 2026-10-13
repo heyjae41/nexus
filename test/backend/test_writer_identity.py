@@ -2,6 +2,7 @@
 
 모델이 고르는 argv 의 id 는 프롬프트 인젝션으로 바뀔 수 있다. 호스트가 넣은
 NEXUS_TELEGRAM_USER_ID 가 있으면 그것만 믿고, argv 는 같을 때만 허용한다."""
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -10,10 +11,22 @@ import pytest
 from app.services.writer_identity import HOST_USER_ENV, resolve_writer_id
 
 TOOLS = Path(__file__).resolve().parents[2] / ".claude/skills/nexus-writer/tools"
-sys.path.insert(0, str(TOOLS))
 
-import check_writer  # noqa: E402
-import session  # noqa: E402
+
+def _load_tool(name: str):
+    """도구 모듈을 고유 이름으로 적재한다 — 'session' 같은 일반 이름이 sys.path 에 남지 않게."""
+    sys.path.insert(0, str(TOOLS))  # 도구가 형제 모듈 _bootstrap 을 import 한다
+    try:
+        spec = importlib.util.spec_from_file_location(f"nexus_writer_tool_{name}", TOOLS / f"{name}.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(str(TOOLS))
+
+
+check_writer = _load_tool("check_writer")
+session = _load_tool("session")
 
 
 @pytest.mark.parametrize(

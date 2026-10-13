@@ -31,7 +31,7 @@ export function usePageTitle(pathname) {
     const title = titleForPath(pathname)
     document.title = title
     // 제목 설정이 끝난 뒤 page_view 를 보내야 GA 페이지 제목 차원이 정확하다
-    // (index.html 의 gtag config 는 send_page_view: false)
+    // (public/ga-init.js 의 gtag config 는 send_page_view: false)
     if (typeof window.gtag === 'function') {
       window.gtag('event', 'page_view', {
         page_title: title,

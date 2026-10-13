@@ -175,8 +175,9 @@ def test_internal_api_empty_token_setting_never_matches(client, monkeypatch):
     from app.config import get_settings
 
     get_settings.cache_clear()
-    client.headers["X-Internal-Token"] = ""
-    assert client.post("/api/internal/ingest/run").status_code == 403
+    for header in ("", "x"):
+        client.headers["X-Internal-Token"] = header
+        assert client.post("/api/internal/ingest/run").status_code == 403
     get_settings.cache_clear()
 
 
@@ -193,6 +194,8 @@ def test_internal_api_allows_loopback_without_token(client, tmp_path, monkeypatc
     assert res.status_code == 200, res.text
     with TestClient(client.app, client=("::1", 40000)) as local6:
         assert local6.post("/api/internal/ingest/run").status_code == 200
-    with TestClient(client.app, client=("10.0.0.7", 40000)) as remote:
-        assert remote.post("/api/internal/ingest/run").status_code == 403
+    # 서비스 메시 사이드카가 쓰는 127.0.0.6 같은 "루프백 대역" 은 정확한 127.0.0.1/::1 이 아니므로 거부
+    for host in ("10.0.0.7", "127.0.0.6", "testclient"):
+        with TestClient(client.app, client=(host, 40000)) as remote:
+            assert remote.post("/api/internal/ingest/run").status_code == 403, host
     get_settings.cache_clear()
