@@ -76,3 +76,15 @@ def test_estimate_read_minutes_targets_4min_for_2000_chars():
 def test_estimate_read_minutes_clamps():
     assert estimate_read_minutes("짧다") == 1
     assert estimate_read_minutes("가" * 100000) == 10
+
+
+# --- 보안 LOW: 파일시스템 한계(255 바이트)와 제어문자 ---
+
+def test_build_filename_fits_in_255_bytes():
+    name = build_filename(date(2026, 7, 7), "guide", "가" * 300)
+    assert len(name.encode("utf-8")) <= 255 and name.endswith(".html")
+    assert name.startswith("20260707_가이드_가")
+
+
+def test_build_filename_strips_control_characters():
+    assert build_filename(date(2026, 7, 7), "guide", "제\x00목\n줄") == "20260707_가이드_제목줄.html"

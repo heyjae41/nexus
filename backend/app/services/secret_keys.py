@@ -13,9 +13,8 @@ REGION = "ap-northeast-2"
 
 
 def describe_super_admin_env(value: str | None) -> str:
-    if not value:
-        return "[secrets] SUPER_ADMIN=<empty>"
-    return f"[secrets] SUPER_ADMIN={value}"
+    """설정 여부만 — 닉네임은 권한관리 진입 키라 값이 로그에 남으면 안 된다."""
+    return "[secrets] SUPER_ADMIN=set" if value else "[secrets] SUPER_ADMIN=<empty>"
 
 
 def describe_secret_keys(secret_id: str, secret_string: str) -> str:

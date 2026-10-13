@@ -150,7 +150,7 @@ def increment_view(db: Session, article_id: int) -> None:
 
 def increment_like(db: Session, article_id: int) -> int | None:
     article = db.get(Article, article_id)
-    if article is None:
+    if article is None or article.status != "published":
         return None
     db.execute(
         update(Article)

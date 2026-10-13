@@ -94,3 +94,32 @@ def test_oversized_image_returns_none(tmp_path, monkeypatch):
     monkeypatch.setattr(th, "MAX_THUMBNAIL_BYTES", 8)
     kv = f'<div class="key-visual"><img src="data:image/png;base64,{_PNG}"></div>'
     assert save_key_visual_thumbnail(kv, str(tmp_path)) is None
+
+
+def test_svg_thumbnail_uses_the_key_visual_allowlist(tmp_path):
+    """animate href·style url()·image·foreignObject 같은 블록리스트 틈새도 허용목록으로 막힌다."""
+    kv = (
+        '<svg viewBox="0 0 10 10"><style>rect{fill:url(https://evil/x)}</style>'
+        '<animate attributeName="href" to="javascript:evil()"/>'
+        '<image href="https://evil/track.png"/><foreignObject><div>x</div></foreignObject>'
+        '<rect width="4" height="4"><animate attributeName="width" values="4;8" dur="1s" repeatCount="indefinite"/></rect>'
+        '</svg>'
+    )
+    url = save_key_visual_thumbnail(kv, str(tmp_path))
+    content = (tmp_path / url.removeprefix("/api/media/")).read_text(encoding="utf-8").lower()
+    assert "javascript:" not in content and "url(" not in content
+    assert "<image" not in content and "foreignobject" not in content
+    assert 'attributename="width"' in content and 'xmlns="http://www.w3.org/2000/svg"' in content
+
+
+def test_svg_thumbnail_restores_case_sensitive_svg_names(tmp_path):
+    """독립 .svg 는 XML 로 파싱돼 대소문자를 가린다 — html.parser 가 소문자로 만든 viewBox·SMIL 이름을 되돌린다."""
+    kv = (
+        '<svg viewBox="0 0 720 300"><defs><linearGradient id="g" gradientUnits="userSpaceOnUse"/></defs>'
+        '<circle r="4"><animate attributeName="r" values="4;8" dur="1s" repeatCount="indefinite"/></circle>'
+        '<g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s" repeatCount="indefinite"/></g></svg>'
+    )
+    url = save_key_visual_thumbnail(kv, str(tmp_path))
+    content = (tmp_path / url.removeprefix("/api/media/")).read_text(encoding="utf-8")
+    for name in ("viewBox", "linearGradient", "gradientUnits", "attributeName", "repeatCount", "animateTransform"):
+        assert name in content, name

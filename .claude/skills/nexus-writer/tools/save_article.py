@@ -12,18 +12,21 @@
 입력 JSON 필드:
   title(필수), article_type(newsletter|column|guide, 필수),
   summary(필수), author(필수), body_html(필수), key_visual_html(필수),
-  published_date(yyyy-mm-dd, 생략 시 오늘), read_minutes(생략 시 본문 기준 자동)
+  published_date(yyyy-mm-dd, 생략 시 오늘, 과거 30일~내일), read_minutes(1~10, 생략 시 본문 기준 자동)
+같은 파일명이 이미 있으면 덮어쓰지 않고 오류로 끝난다.
 
 출력: 저장된 파일 경로 (stdout)
 """
 import json
+import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from _bootstrap import PROJECT_ROOT  # noqa: E402,F401 — app.* import 경로 설정
 
 from app.services.article_builder import (  # noqa: E402
+    MAX_MINUTES,
     build_filename,
     estimate_read_minutes,
     render_article_html,
@@ -34,6 +37,44 @@ from app.services.writer_whitelist import is_allowed_writer  # noqa: E402
 from bs4 import BeautifulSoup  # noqa: E402
 
 REQUIRED = ("title", "article_type", "summary", "author", "body_html", "key_visual_html")
+# 발행일은 오늘 기준 과거 30일 ~ 내일까지만 — 임의 백데이트/미래 날짜로 정렬·상단 고정을 조작하지 못하게
+PUBLISHED_PAST_DAYS = 30
+PUBLISHED_FUTURE_DAYS = 1
+TITLE_MAX = 300  # articles.title String(300) — 넘기면 인제스트가 60초마다 실패를 반복하는 독 파일이 된다
+_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _clean_text(value) -> str:
+    return _CONTROL_RE.sub("", str(value)).strip()
+
+
+def _published_date(raw) -> date:
+    if not raw:
+        return date.today()
+    try:
+        published = date.fromisoformat(str(raw))
+    except ValueError as exc:
+        raise ValueError(f"published_date 는 yyyy-mm-dd 형식이어야 합니다: {raw}") from exc
+    today = date.today()
+    if not (today - timedelta(days=PUBLISHED_PAST_DAYS) <= published <= today + timedelta(days=PUBLISHED_FUTURE_DAYS)):
+        raise ValueError(
+            f"published_date 는 오늘 기준 {PUBLISHED_PAST_DAYS}일 전부터 {PUBLISHED_FUTURE_DAYS}일 후까지만 가능합니다: {raw}"
+        )
+    return published
+
+
+def _read_minutes(raw, body_text: str) -> int:
+    if raw in (None, ""):
+        return estimate_read_minutes(body_text)
+    if isinstance(raw, bool) or isinstance(raw, float) or (isinstance(raw, str) and not raw.strip().isdecimal()):
+        raise ValueError(f"read_minutes 는 정수여야 합니다: {raw}")
+    try:
+        minutes = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"read_minutes 는 정수여야 합니다: {raw}") from exc
+    if minutes < 1:
+        raise ValueError(f"read_minutes 는 1 이상이어야 합니다: {raw}")
+    return min(minutes, MAX_MINUTES)
 
 
 def _parse_args(argv: list[str]) -> tuple[str, str | None]:
@@ -70,25 +111,27 @@ def main(
         print(f"오류: JSON 파싱 실패 - {exc}", file=sys.stderr)
         return 1
 
-    missing = [f for f in REQUIRED if not str(payload.get(f, "")).strip()]
+    text = {key: _clean_text(payload.get(key, "")) for key in ("title", "summary", "author")}
+    missing = [
+        f for f in REQUIRED
+        if not (text[f] if f in text else str(payload.get(f, ""))).strip()
+    ]
     if missing:
         print(f"오류: 필수 필드 누락 - {', '.join(missing)}", file=sys.stderr)
         return 1
-
-    published = (
-        date.fromisoformat(payload["published_date"])
-        if payload.get("published_date")
-        else date.today()
-    )
-    body_text = BeautifulSoup(payload["body_html"], "html.parser").get_text(" ", strip=True)
-    read_minutes = int(payload.get("read_minutes") or estimate_read_minutes(body_text))
+    if len(text["title"]) > TITLE_MAX:
+        print(f"오류: 제목은 {TITLE_MAX}자 이내여야 합니다 ({len(text['title'])}자)", file=sys.stderr)
+        return 1
 
     try:
-        filename = build_filename(published, payload["article_type"], payload["title"])
+        published = _published_date(payload.get("published_date"))
+        body_text = BeautifulSoup(payload["body_html"], "html.parser").get_text(" ", strip=True)
+        read_minutes = _read_minutes(payload.get("read_minutes"), body_text)
+        filename = build_filename(published, payload["article_type"], text["title"])
         html = render_article_html(
-            title=payload["title"],
-            summary=payload["summary"],
-            author=payload["author"],
+            title=text["title"],
+            summary=text["summary"],
+            author=text["author"],
             body_html=payload["body_html"],
             key_visual_html=payload["key_visual_html"],
             read_minutes=read_minutes,
@@ -100,7 +143,13 @@ def main(
     contents_dir = contents_dir or PROJECT_ROOT / "contents"
     contents_dir.mkdir(exist_ok=True)
     target = contents_dir / filename
-    target.write_text(html, encoding="utf-8")
+    try:
+        # 같은 이름을 덮어쓰면 인제스트(파일명 dedup)가 갱신하지 않아 파일과 DB 가 어긋난다
+        with target.open("x", encoding="utf-8") as fh:
+            fh.write(html)
+    except FileExistsError:
+        print(f"오류: 이미 같은 이름의 글이 있습니다 - {target.name} (제목이나 날짜를 바꾸세요)", file=sys.stderr)
+        return 1
     print(str(target))
 
     # 저장 직후 즉시 반영 (best-effort) — 실패해도 1분 스케줄러가 안전망으로 처리

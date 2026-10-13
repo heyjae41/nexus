@@ -130,7 +130,7 @@ cd frontend && npx playwright install chromium && npm run e2e
 ```bash
 docker compose up -d --build    # http://localhost:8080
 ```
-postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/api/internal/*` 는 nginx 가 차단하고
+postgres/redis 포함 4개 컨테이너 (`.env` 의 `DB_PASSWORD` 필수 — 기본값 없음). DB/Redis 포트는 외부 미노출, `/api/internal/*` 는 nginx 가 차단하고
 백엔드도 루프백(정확히 127.0.0.1/::1) 또는 `X-Internal-Token`(`INTERNAL_API_TOKEN`) 없는 호출을 403 으로 거른다.
 운영 호출은 컨테이너 안에서 한다 — 이미지에 curl 이 없으므로
 `docker compose exec backend python -m app.internal_call content/resanitize` (파드도 동일).

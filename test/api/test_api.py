@@ -158,3 +158,31 @@ def test_home_cache_invalidated_on_new_article(client, seed):
     after = client.get("/api/home").json()
     titles = [a["title"] for a in after["data"]["sections"][0]["articles"]]
     assert "새 가이드" in titles  # 캐시가 남아있으면 실패
+
+
+# --- 보안 LOW: 무한 page·임의 슬러그로 캐시 키 오염/오프셋 오버플로 방지, 미발행 글 좋아요 금지 ---
+
+def test_page_has_an_upper_bound(client, seed):
+    seed(client)
+    assert client.get("/api/articles?page=1000").status_code == 200
+    assert client.get("/api/articles?page=1001").status_code == 422
+    assert client.get("/api/articles?page=99999999999999999999").status_code == 422
+
+
+def test_category_and_type_filters_must_be_slugs(client, seed):
+    seed(client)
+    assert client.get("/api/articles?category=curation").status_code == 200
+    assert client.get("/api/articles?category=<script>").status_code == 422
+    assert client.get("/api/articles?category=cu%20ration").status_code == 422
+    assert client.get("/api/articles?type=news:letter").status_code == 422
+
+
+def test_like_rejects_unpublished_article(client, seed):
+    from app.models import Article
+
+    a1, _ = seed(client)
+    db = client.session_factory()
+    db.get(Article, a1.id).status = "draft"
+    db.commit()
+    db.close()
+    assert client.post(f"/api/articles/{a1.id}/like").status_code == 404

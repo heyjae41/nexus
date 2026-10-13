@@ -58,7 +58,7 @@ jobs:
           node-version: '22'
       - name: jscpd (클론 0 유지)
         run: |
-          OUT=$(npx --yes jscpd --min-tokens 40 2>&1)
+          OUT=$(npx --yes jscpd@5.4.1 --min-tokens 40 2>&1)
           echo "$OUT"
           echo "$OUT" | grep -q "Found 0 clones" || exit 1
 

@@ -266,6 +266,17 @@ updated_count, hidden_count, error_message, created_at`.
   같은 규칙(`NEXUS_TELEGRAM_USER_ID` 우선, argv 는 같을 때만, 빈 값 거부)을 쓴다 — 사칭 id 로 다른 작가의
   세션을 읽거나 지울 수 없다.
 
+- **LOW 조치 (2026-10)**: `SUPER_ADMIN` 은 설정 여부만 로그; 목록 `page` ≤ 1000, `category`/`type` 은 슬러그
+  패턴만(캐시 키 오염 방지); 미발행 글 좋아요 404; PBKDF2 600k(기존 해시는 저장된 반복 횟수로 그대로 검증)와
+  없는 닉네임에도 더미 해시 1회(타이밍 열거 방지), `nickname-available` 도 nginx 인증 리밋; 업로드 조각은 회원당
+  열린 업로드 8개까지; svg 썸네일은 블록리스트 대신 키비주얼 허용목록; `with_ref`/`safe_href` 는 http(s)·상대 경로만
+  (프로토콜 상대 `//`·`/\` 차단, 안전하지 않은 외부 링크는 카드가 비링크로 렌더); 커버 URL 은 CSS `url("…")` 로
+  인용; 발행 도구는 덮어쓰기 거부·발행일 범위(과거 30일~내일)·`read_minutes` 1~10·제어문자 제거·파일명 255 바이트;
+  세션 도구는 저장 텍스트의 `===` 구분선을 무력화; 화이트리스트 파일이 깨져도 fail-closed; Redis URL 로그 마스킹;
+  compose 기본 DB 비밀번호 제거; CI jscpd 버전 고정.
+  **미조치**: 백엔드 컨테이너 non-root `USER` (S3 마운트(mountpoint-s3) 소유권/uid 옵션을 인프라와 맞춘 뒤 적용),
+  GitHub Actions SHA 고정, 익명 좋아요의 캐시 버전 bump(불변식 1 — nginx 리밋 경로 수정으로 완화).
+
 ## 영구 미디어 저장소 (`MEDIA_DIR`)
 
 에디터 본문 이미지(`authored/`)와 인제스트 썸네일(`thumbnails/`)은 전부 `settings.media_dir` 아래에만

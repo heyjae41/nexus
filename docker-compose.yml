@@ -10,7 +10,8 @@ services:
       TZ: Asia/Seoul
       POSTGRES_DB: ${DB_NAME:-paybooc_ai}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
+      # 기본 비밀번호 없음 — .env 의 DB_PASSWORD 가 비어 있으면 compose 가 기동을 거부한다
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 를 .env 에 설정하세요}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

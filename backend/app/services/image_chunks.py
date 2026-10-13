@@ -17,6 +17,14 @@ MAX_PARTS = 1100
 # 글 본문 조각: 제목·요약 메타가 매 요청에 실리므로 작게, 조각 수는 본문 상한(200k자)에 맞춘다
 BODY_CHUNK_RAW = 3900
 BODY_MAX_PARTS = 210
+# 회원당 동시에 열어 둘 수 있는 업로드 수 — 업로드마다 최대 ~6MB 를 TTL 동안 쥐므로 캐시 Redis 고갈 방지
+MAX_OPEN_UPLOADS = 8
+OPEN_UPLOAD_ERROR = "진행 중인 업로드가 너무 많습니다. 잠시 후 다시 시도해 주세요"
+
+
+def owner_of(key: str) -> str:
+    """조각 키 '{member_id}:...' 의 소유 회원."""
+    return key.split(":", 1)[0]
 
 
 @dataclass
@@ -39,6 +47,9 @@ class MemoryImageChunks:
             self._purge()
             item = self._items.get(key)
             if item is None:
+                owner = owner_of(key)
+                if sum(owner_of(k) == owner for k in self._items) >= MAX_OPEN_UPLOADS:
+                    raise ValueError(OPEN_UPLOAD_ERROR)
                 item = _Upload(
                     total=total,
                     content_type=content_type,
@@ -79,6 +90,8 @@ class RedisImageChunks:
         existing = self.client.get(f"{prefix}:meta")
         if existing is not None and existing != meta:
             raise ValueError("업로드 정보가 일치하지 않습니다")
+        if existing is None:
+            self._reserve_slot(key)
         pipe = self.client.pipeline()
         pipe.set(f"{prefix}:meta", meta, ex=TTL_SECONDS)
         pipe.set(f"{prefix}:{index}", base64.b64encode(raw).decode(), ex=TTL_SECONDS)
@@ -101,7 +114,26 @@ class RedisImageChunks:
             f"{prefix}:meta", f"{prefix}:idx", f"{prefix}:lock",
             *[f"{prefix}:{part_index}" for part_index in range(total)],
         )
+        self.client.srem(self._owner_set(key), key)
         return b"".join(parts)
+
+    @staticmethod
+    def _owner_set(key: str) -> str:
+        return f"nexus:imgup:owner:{owner_of(key)}"
+
+    def _reserve_slot(self, key: str) -> None:
+        """회원별 열린 업로드 집합에 등록한다. 만료된 업로드(meta 없음)는 집합에서 걷어 낸다."""
+        owner_set = self._owner_set(key)
+        live = 0
+        for open_key in self.client.smembers(owner_set):
+            if self.client.exists(f"nexus:imgup:{open_key}:meta"):
+                live += 1
+            else:
+                self.client.srem(owner_set, open_key)
+        if live >= MAX_OPEN_UPLOADS:
+            raise ValueError(OPEN_UPLOAD_ERROR)
+        self.client.sadd(owner_set, key)
+        self.client.expire(owner_set, TTL_SECONDS)
 
 
 def build_image_chunks(redis_url: str):

@@ -29,7 +29,9 @@ def test_log_configured_secrets_reports_lookup_error_without_payload():
     assert "hidden-secret-body" not in lines[0]
 
 
-def test_describe_super_admin_env_prints_only_that_value():
-    assert describe_super_admin_env("heyjae") == "[secrets] SUPER_ADMIN=heyjae"
+def test_describe_super_admin_env_prints_presence_not_value():
+    """닉네임은 권한관리 진입 키라 로그에 값이 남으면 안 된다 — 설정 여부만."""
+    assert describe_super_admin_env("heyjae") == "[secrets] SUPER_ADMIN=set"
+    assert "heyjae" not in describe_super_admin_env("heyjae")
     assert describe_super_admin_env(None) == "[secrets] SUPER_ADMIN=<empty>"
     assert describe_super_admin_env("") == "[secrets] SUPER_ADMIN=<empty>"

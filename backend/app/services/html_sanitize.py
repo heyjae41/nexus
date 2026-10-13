@@ -85,12 +85,19 @@ def first_media_src(html: str) -> str | None:
 
 # --- 속성 정책 ---
 
+_URL_WHITESPACE_RE = re.compile(r"[\t\n\r]")
+
+
 def safe_href(value) -> str | None:
-    href = str(value or "").strip()
+    # 브라우저는 URL 안의 탭·개행을 지우고 해석한다 — "/\t/evil.com" 은 "//evil.com" 이 된다
+    href = _URL_WHITESPACE_RE.sub("", str(value or "")).strip()
     lowered = href.lower()
     if lowered.startswith(("javascript:", "data:")):
         return None
-    if href.startswith("/") or lowered.startswith(("https://", "http://")):
+    if lowered.startswith(("https://", "http://")):
+        return href
+    # 상대 경로만 — "//evil.com", "/\\evil.com" 은 같은 탭에서 외부로 빠져나간다
+    if href.startswith("/") and not href.replace("\\", "/").startswith("//"):
         return href
     return None
 

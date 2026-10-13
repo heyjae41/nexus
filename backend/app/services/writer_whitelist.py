@@ -16,8 +16,13 @@ def load_whitelist(path: str = DEFAULT_WHITELIST_PATH) -> set[int]:
     if not file.is_file():
         logger.warning("화이트리스트 파일이 없습니다: %s (전원 차단)", path)
         return set()
+    try:
+        text = file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.warning("화이트리스트 파일을 읽을 수 없습니다: %s (%s, 전원 차단)", path, exc)
+        return set()
     ids: set[int] = set()
-    for line in file.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         entry = line.split("#", 1)[0].strip()
         if not entry:
             continue

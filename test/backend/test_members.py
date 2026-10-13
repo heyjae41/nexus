@@ -172,3 +172,54 @@ def test_update_member_nickname_race_reports_nickname_conflict(db, monkeypatch):
     monkeypatch.setattr(members_mod, "_nickname_taken", lambda *args, **kw: False)
     with pytest.raises(ValueError, match="닉네임"):
         update_member(db, a.id, nickname="라마바")
+
+
+# --- 보안 LOW: 해시 비용 상향, 로그인 타이밍으로 닉네임 존재 여부가 새지 않게 ---
+
+def test_pbkdf2_iterations_meet_owasp_floor():
+    from app.repositories import members
+
+    assert members.PBKDF2_ITERATIONS >= 600_000
+    assert members.hash_password("Nexus1!pw").split("$")[1] == str(members.PBKDF2_ITERATIONS)
+
+
+def test_login_with_unknown_nickname_still_runs_password_hash(db, monkeypatch):
+    import pytest as _pytest
+
+    from app.repositories import members
+
+    calls = []
+    monkeypatch.setattr(members, "verify_password", lambda pw, stored: calls.append(stored) or False)
+    with _pytest.raises(members.AuthError):
+        members.authenticate_member(db, nickname="없는사람", password="Nexus1!pw")
+    assert len(calls) == 1 and calls[0].startswith("pbkdf2_sha256$")
+
+
+def test_login_upgrades_legacy_hash_iterations(db):
+    """240k 로 저장된 기존 회원은 로그인 성공 시 현재 비용으로 재해시된다 (타이밍 차이도 사라진다)."""
+    import hashlib
+
+    from app.repositories import members
+
+    member = members.create_member(db, nickname="구회원", password="Nexus1!pw", role="기획자", interests="PM/PO")
+    salt = "00" * 16
+    legacy = hashlib.pbkdf2_hmac("sha256", b"Nexus1!pw", bytes.fromhex(salt), 240_000).hex()
+    member.password_hash = f"pbkdf2_sha256$240000${salt}${legacy}"
+    db.commit()
+
+    assert members.authenticate_member(db, nickname="구회원", password="Nexus1!pw").id == member.id
+    db.refresh(member)
+    assert member.password_hash.split("$")[1] == str(members.PBKDF2_ITERATIONS)
+    assert members.verify_password("Nexus1!pw", member.password_hash)
+    # 재로그인은 재해시하지 않는다
+    before = member.password_hash
+    members.authenticate_member(db, nickname="구회원", password="Nexus1!pw")
+    db.refresh(member)
+    assert member.password_hash == before
+
+
+def test_dummy_hash_is_precomputed_at_current_cost():
+    from app.repositories import members
+
+    assert members.DUMMY_PASSWORD_HASH.split("$")[1] == str(members.PBKDF2_ITERATIONS)
+    assert members.verify_password("anything", members.DUMMY_PASSWORD_HASH) is False
