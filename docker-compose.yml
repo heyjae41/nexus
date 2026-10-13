@@ -44,6 +44,7 @@ services:
       MEDIA_DIR: /app/media
     volumes:
       - ./contents:/app/contents
+      # 컨테이너는 uid 1000 비루트 — Linux 호스트에서는 ./media 가 uid 1000 소유여야 한다 (docs/SETUP.md)
       - ./media:/app/media
     depends_on:
       postgres:

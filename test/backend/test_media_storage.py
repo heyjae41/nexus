@@ -142,3 +142,52 @@ def test_backfill_recreates_missing_thumbnails(db, _isolated_media):
     assert result.restored == 1 and result.checked == 1
     assert path.read_bytes()
     assert backfill_thumbnails(db, _isolated_media).restored == 0
+
+
+def _dockerfile_lines() -> list[str]:
+    return (REPO / "docker" / "backend.Dockerfile").read_text(encoding="utf-8").splitlines()
+
+
+def test_backend_image_runs_as_uid_1000_matching_the_s3_mount_owner():
+    """dev 파드의 S3 마운트(mountpoint-s3, default_permissions)는 /app/media 를 uid 1000 소유·0755 로
+    보여 준다 — 소유자 uid 와 같아야 쓸 수 있으므로 비루트 계정은 1000 이어야 하고, k8s 가
+    runAsNonRoot 를 이미지 조사 없이 검증하도록 숫자 uid:gid 로 적는다."""
+    lines = _dockerfile_lines()
+    user_lines = [i for i, line in enumerate(lines) if re.match(r"^USER\s+1000:1000\s*$", line)]
+    assert len(user_lines) == 1, "backend.Dockerfile 은 USER 1000:1000 한 줄로 비루트 전환해야 한다"
+    last_build_step = max(i for i, line in enumerate(lines) if re.match(r"^(COPY|RUN)\s", line))
+    assert user_lines[0] > last_build_step, "USER 전환은 pip/COPY/compileall 등 모든 빌드 단계 뒤여야 한다"
+
+
+def test_backend_image_precompiles_bytecode_for_read_only_app_dir():
+    """비루트는 /app 에 __pycache__ 를 만들 수 없다 — 빌드 때 미리 컴파일해 둔다."""
+    assert any(re.search(r"compileall\b.*\bapp\b", line) for line in _dockerfile_lines())
+
+
+def test_ensure_media_storage_fails_fast_when_mounted_dir_is_not_writable(tmp_path, monkeypatch):
+    """마운트는 있는데 소유자 uid 가 컨테이너 uid 와 달라 쓸 수 없으면 업로드마다 실패한다 —
+    기동 시점에 거부해 배포 직후 드러나게 한다."""
+    import os
+
+    import pytest
+
+    from app.services import media_storage
+
+    if os.geteuid() == 0:
+        pytest.skip("root 는 권한 비트를 무시한다")
+    media = tmp_path / "media"
+    media.mkdir()
+    media.chmod(0o555)
+    monkeypatch.setattr(media_storage.os.path, "ismount", lambda path: True)
+    try:
+        with pytest.raises(RuntimeError, match="쓰기|uid"):
+            media_storage.ensure_media_storage(str(media), require_mount=True)
+    finally:
+        media.chmod(0o755)
+
+
+def test_ensure_media_storage_reports_writable_state(tmp_path):
+    from app.services.media_storage import ensure_media_storage
+
+    status = ensure_media_storage(str(tmp_path / "media"), require_mount=False)
+    assert "writable=yes" in status

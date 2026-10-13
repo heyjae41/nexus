@@ -1,8 +1,8 @@
 """영구 미디어 저장소(settings.media_dir) 기동 검증과 복구.
 
-배포 파드는 /app/media 에 S3 를 마운트한다. 마운트가 빠진 채 기동하면 mkdir 이
+배포 파드는 /app/media 에 S3 를 마운트하고 컨테이너는 uid 1000 비루트로 돈다. 마운트가 빠진 채 기동하면 mkdir 이
 휘발성 디렉터리를 조용히 만들어 "재기동 후 이미지 소실" 사고가 재발하므로,
-MEDIA_REQUIRE_MOUNT=true 환경에서는 마운트가 없으면 기동을 거부한다.
+MEDIA_REQUIRE_MOUNT=true 환경에서는 마운트가 없거나 실행 계정이 쓸 수 없으면 기동을 거부한다.
 """
 import logging
 import os
@@ -29,7 +29,15 @@ def ensure_media_storage(media_dir: str, require_mount: bool) -> str:
             "MEDIA_REQUIRE_MOUNT=false 로 기동하세요"
         )
     root.mkdir(parents=True, exist_ok=True)
-    status = f"[media] dir={root} mount={'yes' if mounted else 'no'}"
+    writable = os.access(root, os.W_OK)
+    if require_mount and not writable:
+        raise RuntimeError(
+            f"미디어 저장소 {root} 에 쓰기 권한이 없습니다 (uid={os.geteuid()}) — 마운트 옵션의 uid/gid 가 "
+            "컨테이너 실행 계정과 맞는지 확인하세요 (backend.Dockerfile 의 USER 와 PV mountOptions)"
+        )
+    if not writable:
+        logger.warning("미디어 저장소 %s 에 쓰기 권한이 없습니다 (uid=%s) — 업로드가 실패합니다", root, os.geteuid())
+    status = f"[media] dir={root} mount={'yes' if mounted else 'no'} writable={'yes' if writable else 'no'}"
     logger.info(status)
     return status
 
