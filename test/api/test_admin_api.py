@@ -429,3 +429,63 @@ def test_body_parts_enforce_part_caps(client):
     assert client.post("/api/admin/articles/parts", json=too_many).status_code == 400
     too_big = _body_part_payload("j" * 32, 0, 2, b"x" * 4000)
     assert client.post("/api/admin/articles/parts", json=too_big).status_code == 400
+
+
+# --- 보안 점검(2026-10) HIGH 2: 권한은 닉네임이 아니라 회원 ID 로 ---
+
+def _rename(client, nickname):
+    res = client.patch("/api/auth/me", json={"nickname": nickname})
+    assert res.status_code == 200, res.text
+
+
+def test_author_keeps_edit_right_after_rename_and_squatter_gets_403(client):
+    _curation(client)
+    _register(client, "원작자")
+    _promote(client, "원작자")
+    created = _post_body_parts(client, "<p>원문</p>").json()["data"]
+    assert created["authorMemberId"]
+    _rename(client, "새이름")
+    assert _post_body_parts(client, "<p>수정</p>", articleId=created["id"]).status_code == 200
+
+    client.post("/api/auth/logout")
+    _register(client, "원작자")  # 비워진 옛 닉네임을 선점한 다른 회원
+    _promote(client, "원작자")
+    payload = _body_part_payload("k" * 32, 0, 1, "<p>탈취</p>".encode(), articleId=created["id"])
+    assert client.post("/api/admin/articles/parts", json=payload).status_code == 403
+    single = client.patch(f"/api/admin/articles/{created['id']}", json={
+        "articleType": "guide", "title": "탈취", "bodyHtml": "<p>탈취</p>",
+    })
+    assert single.status_code == 403
+
+
+def test_demoted_admin_cannot_edit_own_article(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = _post_body_parts(client, "<p>원문</p>").json()["data"]
+    db = client.session_factory()
+    member = db.scalar(select(Member).where(Member.nickname == "운영자"))
+    member.access_role = "user"
+    db.commit()
+    db.close()
+    payload = _body_part_payload("m" * 32, 0, 1, b"<p>x</p>", articleId=created["id"])
+    assert client.post("/api/admin/articles/parts", json=payload).status_code == 403
+
+
+def test_withdrawal_unlinks_author_member_id(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    created = _post_body_parts(client, "<p>원문</p>").json()["data"]
+    assert client.delete("/api/auth/me").status_code == 200
+    db = client.session_factory()
+    article = db.get(Article, created["id"])
+    assert article.author_member_id is None and article.author_name == "운영자"
+    db.close()
+
+
+def test_internal_content_resanitize_endpoint(client, seed):
+    seed(client)
+    res = client.post("/api/internal/content/resanitize")
+    assert res.status_code == 200, res.text
+    assert set(res.json()["data"]) == {"checked", "changed"}

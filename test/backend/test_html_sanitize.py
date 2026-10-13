@@ -1,4 +1,5 @@
 """직접 작성 글 HTML 정화."""
+import pytest
 from app.services.html_sanitize import sanitize_article_html
 
 
@@ -33,3 +34,45 @@ def test_keeps_absolute_media_url_as_site_path():
     )
     assert 'src="/api/media/authored/a.png"' in clean
     assert "edu.dev.bccard.ai" not in clean
+
+
+# --- 보안 점검(2026-10) 회귀: 새니타이저 우회 2종 ---
+
+def _has_live_handler(html: str) -> bool:
+    """이스케이프된 텍스트가 아니라 실제 태그/속성으로 살아 있는지 본다."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    if soup.find(["script", "img", "svg"]):
+        return True
+    return any(a.lower().startswith("on") for t in soup.find_all(True) for a in t.attrs)
+
+
+def test_top_level_entities_stay_escaped():
+    """출력 조립 시 최상위 텍스트의 이스케이프가 풀려 &lt;img onerror&gt; 가 살아났던 버그."""
+    out = sanitize_article_html("&lt;img src=x onerror=alert(1)&gt;")
+    assert not _has_live_handler(out)
+    assert "&lt;img" in out
+
+
+def test_text_inside_unwrapped_tag_stays_escaped():
+    out = sanitize_article_html("<span>&lt;img src=x onerror=alert(1)&gt;</span>")
+    assert not _has_live_handler(out)
+    out = sanitize_article_html("<div><p>ok</p>&lt;svg onload=alert(1)&gt;</div>")
+    assert "<p>ok</p>" in out and not _has_live_handler(out)
+
+
+def test_cdata_sections_are_removed_top_level_and_nested():
+    for raw in (
+        "<![CDATA[><img src=x onerror=alert(1)>]]>",
+        "<p><![CDATA[><img src=x onerror=alert(1)>]]></p>",
+        "<p>a</p><![CDATA[ x ><svg onload=alert(1)>]]>",
+    ):
+        out = sanitize_article_html(raw)
+        assert "CDATA" not in out and not _has_live_handler(out), out
+
+
+@pytest.mark.filterwarnings("ignore::bs4.XMLParsedAsHTMLWarning")
+def test_declarations_and_processing_instructions_are_removed():
+    out = sanitize_article_html("<!DOCTYPE html><?xml version='1.0'?><!x><p>ok</p>")
+    assert out == "<p>ok</p>"

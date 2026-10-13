@@ -81,7 +81,7 @@ python .claude/skills/nexus-writer/tools/fetch_reference.py <URL>
 ### 5단계 — 저장 (발행)
 ```bash
 . .venv/bin/activate
-python .claude/skills/nexus-writer/tools/save_article.py article.json
+python .claude/skills/nexus-writer/tools/save_article.py article.json --user <userid>
 ```
 `article.json` 형식:
 ```json

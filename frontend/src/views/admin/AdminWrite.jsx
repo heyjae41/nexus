@@ -46,7 +46,8 @@ export default function AdminWrite({ articleId = null, user = null }) {
     fetchArticle(articleId)
       .then((article) => {
         if (!active) return
-        const mine = article?.sourceType === 'authored' && article?.authorName === user?.nickname
+        const mine = article?.sourceType === 'authored'
+          && user?.accessRole === 'admin' && article?.authorMemberId === user?.id
         if (!mine) {
           setBlocked('이 글을 수정할 수 없습니다.')
           return

@@ -30,7 +30,7 @@ SUPER_ADMIN 동작 등) 사실은 `AGENTS.md` 의 "Learned Workspace Facts" 에 
    부착한다 (`app/services/links.py` 의 `with_ref` 사용).
 3. **인제스트 명명규칙**: `contents/yyyymmdd_글유형_제목.html` (유형: 뉴스레터/컬럼/가이드).
 4. **작가 화이트리스트 fail-closed**: `.writer_whitelist` 미등록 사용자는 발행/세션 도구가 차단.
-   스킬 지시 우회를 막기 위해 도구 자체 검증을 제거하지 말 것.
+   스킬 지시 우회를 막기 위해 도구 자체 검증을 제거하지 말 것 (`save_article.py --user <id>` 필수).
 5. **paybooc_ai DB 공유 주의**: `bc_merchant_validation`, `naver_merchant_capture` 테이블은
    타 프로젝트 소유 — 절대 수정/삭제 금지.
 6. **스키마 변경**: 기존 테이블 ALTER 는 `backend/migrations/NNN_*.sql` 로 기록한다
@@ -41,6 +41,10 @@ SUPER_ADMIN 동작 등) 사실은 `AGENTS.md` 의 "Learned Workspace Facts" 에 
 9. **영구 파일은 `settings.media_dir` 아래에만**: 배포 파드는 `/app/media` 에 S3 마운트, 이미지가
    `MEDIA_DIR`/`MEDIA_REQUIRE_MOUNT=true` 고정. 그 밖의 컨테이너 경로는 휘발성. S3 마운트는 rename·덮어쓰기를
    거부하므로 임시파일→rename 패턴 금지, 새 이름으로 쓰거나 존재하면 건너뛴다 (`docs/ARCHITECTURE.md` 영구 미디어 저장소).
+10. **HTML 은 저장 전에 반드시 새니타이저 통과**: 어드민·인제스트·키비주얼 모두 `html_sanitize`/`content_sanitize`
+    프로필을 거친다. 출력 조립에 `str(node)` 사용 금지(이스케이프 풀림), CDATA·선언 노드 제거 유지.
+11. **권한 키는 닉네임이 아니라 회원 ID**: 글 수정은 `author_member_id` + 현재 어드민, 수퍼어드민 닉네임은
+    개명·탈회·선점 불가.
 
 ## 자주 쓰는 명령
 
@@ -52,6 +56,7 @@ cd frontend && npm run dev                                      # 프론트 — 
 (cd backend && python -m app.collect_once)                      # 수집 체인 1회 실행 (K8s CronJob 엔트리)
 curl -X POST localhost:8000/api/internal/{ingest,brunch,newsletter,meetup,classes,cardpick}/run  # 수집 수동 실행
 curl -X POST localhost:8000/api/internal/media/backfill        # 사라진 인제스트 썸네일 재생성
+curl -X POST localhost:8000/api/internal/content/resanitize    # 저장된 글 본문·키비주얼 재정화(1회성)
 docker compose up -d --build                                    # 전체 스택 — http://localhost:8080
 
 # 테스트 (pytest.ini 가 testpaths=test, pythonpath=backend 를 잡아 주므로 루트에서 실행)

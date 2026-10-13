@@ -2,8 +2,12 @@
 """글 저장 도구 — JSON 입력을 받아 /contents 에 명명규칙에 맞는 HTML 로 저장한다.
 
 사용법:
-  python save_article.py article.json          # 파일 입력
-  echo '{...}' | python save_article.py -      # stdin 입력
+  python save_article.py article.json --user <telegram_user_id>   # 파일 입력
+  echo '{...}' | python save_article.py - --user <telegram_user_id>  # stdin 입력
+  (NEXUS_TELEGRAM_USER_ID 환경변수가 있으면 --user 대신 그 값을 쓴다)
+
+작가 화이트리스트(.writer_whitelist)에 없는 사용자는 DENIED 를 출력하고 아무것도 쓰지 않는다.
+스킬 지시문이 0단계를 건너뛰어도 도구가 스스로 막는다 (불변식 4, fail-closed).
 
 입력 JSON 필드:
   title(필수), article_type(newsletter|column|guide, 필수),
@@ -13,6 +17,7 @@
 출력: 저장된 파일 경로 (stdout)
 """
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -25,13 +30,50 @@ from app.services.article_builder import (  # noqa: E402
     estimate_read_minutes,
     render_article_html,
 )
+from app.services.ingest import ingest_now  # noqa: E402
+from app.services.writer_whitelist import is_allowed_writer  # noqa: E402
 from bs4 import BeautifulSoup  # noqa: E402
 
 REQUIRED = ("title", "article_type", "summary", "author", "body_html", "key_visual_html")
 
 
-def main() -> int:
-    source = sys.argv[1] if len(sys.argv) > 1 else "-"
+def _parse_args(argv: list[str]) -> tuple[str, str | None]:
+    """(입력 경로, 사용자 id).
+
+    호스트(hermes)가 넣는 NEXUS_TELEGRAM_USER_ID 가 있으면 그것만 믿는다 — 모델이 고르는 --user 는
+    환경변수와 같을 때만 허용하고, 환경변수가 비어 있으면 거부(None). 환경변수가 아예 없을 때만
+    --user 를 쓴다(호스트 연동 전 호환용, 더 약한 보호)."""
+    source, user = "-", None
+    rest = list(argv)
+    while rest:
+        item = rest.pop(0)
+        if item == "--user" and rest:
+            user = rest.pop(0)
+        else:
+            source = item
+    host_user = os.environ.get("NEXUS_TELEGRAM_USER_ID")
+    if host_user is None:
+        return source, user
+    host_user = host_user.strip()
+    if not host_user or (user is not None and user.strip() != host_user):
+        return source, None
+    return source, host_user
+
+
+def main(
+    argv: list[str] | None = None,
+    *,
+    telegram_user_id: str | None = None,
+    whitelist_path: str | None = None,
+    contents_dir: Path | None = None,
+) -> int:
+    source, arg_user = _parse_args(sys.argv[1:] if argv is None else argv)
+    user_id = telegram_user_id if telegram_user_id is not None else arg_user
+    whitelist = whitelist_path or str(PROJECT_ROOT / ".writer_whitelist")
+    if not user_id or not is_allowed_writer(user_id, whitelist):
+        print("DENIED: 화이트리스트에 등록되지 않은 사용자입니다 (저장하지 않음)")
+        return 1
+
     raw = sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8")
     try:
         payload = json.loads(raw)
@@ -66,15 +108,13 @@ def main() -> int:
         print(f"오류: {exc}", file=sys.stderr)
         return 1
 
-    contents_dir = PROJECT_ROOT / "contents"
+    contents_dir = contents_dir or PROJECT_ROOT / "contents"
     contents_dir.mkdir(exist_ok=True)
     target = contents_dir / filename
     target.write_text(html, encoding="utf-8")
     print(str(target))
 
     # 저장 직후 즉시 반영 (best-effort) — 실패해도 1분 스케줄러가 안전망으로 처리
-    from app.services.ingest import ingest_now
-
     result = ingest_now(str(contents_dir))
     if result is not None and result.ingested:
         print("즉시 반영 완료: 사이트에 바로 노출됩니다")

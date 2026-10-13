@@ -40,6 +40,7 @@ def publish_authored_article(
         summary=_summary(summary, text, clean_title),
         body_html=html,
         author_name=member.nickname,
+        author_member_id=member.id,
         source_type=AUTHORED_SOURCE,
         thumbnail_url=first_media_src(html),
         read_minutes=_read_minutes(text),
@@ -79,10 +80,19 @@ def update_authored_article(
 
 
 def assert_can_edit_authored(article: Article | None, member: Member) -> Article:
-    """직접 작성한 글의 작성자만 수정할 수 있다 (없으면 LookupError, 남의 글이면 PermissionError)."""
+    """직접 작성한 글의 작성자(회원 ID 일치)이면서 현재 어드민인 회원만 수정할 수 있다.
+
+    닉네임 비교는 쓰지 않는다 — 닉네임은 바꾸거나 탈회 후 남이 선점할 수 있다.
+    015 마이그레이션 전 글(author_member_id NULL)은 아무도 수정하지 못한다."""
     if article is None:
         raise LookupError("글을 찾을 수 없습니다")
-    if article.source_type != AUTHORED_SOURCE or article.author_name != member.nickname:
+    if member.access_role != "admin":
+        raise PermissionError("어드민 권한이 필요합니다")
+    if (
+        article.source_type != AUTHORED_SOURCE
+        or article.author_member_id is None
+        or article.author_member_id != member.id
+    ):
         raise PermissionError("직접 작성한 글만 수정할 수 있습니다")
     return article
 

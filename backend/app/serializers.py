@@ -202,4 +202,5 @@ def serialize_article_detail(article: Article) -> dict:
         "keyVisualHtml": article.key_visual_html,
         "sourceUrl": article.source_url,
         "sourceType": article.source_type,
+        "authorMemberId": article.author_member_id,
     }
