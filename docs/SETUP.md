@@ -140,8 +140,10 @@ postgres/redis 포함 4개 컨테이너 (`.env` 의 `DB_PASSWORD` 필수 — 기
 - 배포 파드에서 업로드 이미지가 재기동 후 사라지면 `/app/media` S3 마운트와 `MEDIA_DIR` 을 확인한다
   (`docs/ARCHITECTURE.md` 의 '영구 미디어 저장소'). 로컬은 `./media` 를 쓴다.
 - 백엔드 컨테이너는 uid 1000 비루트로 돈다. Linux 호스트에서 compose 를 띄울 때 `./media` 가 다른 소유자면
-  기동 로그에 `쓰기 권한이 없습니다` 가 뜨고 멈춘다 — `mkdir -p media && sudo chown 1000:1000 media` 로 맞춘다
-  (Docker Desktop(macOS/Windows) 은 바인드 마운트 권한을 투명하게 처리해 조치가 필요 없다).
+  기동 로그에 `쓰기 권한이 없습니다` 가 뜨고 멈춘다(compose 가 `MEDIA_REQUIRE_MOUNT=true` 를 고정) —
+  `mkdir -p media && sudo chown -R 1000:1000 media` 로 맞춘다(전에 root 로 돌렸다면 하위 `authored/`·`thumbnails/` 도
+  root 소유라 `-R` 이 필요). Docker Desktop for Mac 은 바인드 마운트 권한을 투명하게 처리해 조치가 필요 없고,
+  WSL2 안의 체크아웃·rootless/userns-remap 도커는 Linux 와 같이 호스트 쪽 소유자를 맞춰야 한다.
 - 사내망에서 `uv pip install` 이 TLS(UnknownIssuer) 로 실패할 수 있다 → `python -m pip install` 사용.
 - Vite 개발 서버가 켜진 상태에서 git 브랜치 전환 시 설정 파일이 일시적으로 사라지면
   서버가 잘못된 상태로 자동 재시작될 수 있다 → 증상(빈 화면, "React is not defined") 시 `npm run dev` 재실행.

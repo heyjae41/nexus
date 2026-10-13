@@ -178,7 +178,7 @@ def test_ensure_media_storage_fails_fast_when_mounted_dir_is_not_writable(tmp_pa
     media = tmp_path / "media"
     media.mkdir()
     media.chmod(0o555)
-    monkeypatch.setattr(media_storage.os.path, "ismount", lambda path: True)
+    monkeypatch.setattr(media_storage, "_is_mount", lambda path: True)
     try:
         with pytest.raises(RuntimeError, match="쓰기|uid"):
             media_storage.ensure_media_storage(str(media), require_mount=True)
@@ -191,3 +191,48 @@ def test_ensure_media_storage_reports_writable_state(tmp_path):
 
     status = ensure_media_storage(str(tmp_path / "media"), require_mount=False)
     assert "writable=yes" in status
+
+
+def test_ensure_media_storage_warns_but_continues_without_require_mount(tmp_path, caplog):
+    """로컬(MEDIA_REQUIRE_MOUNT=false)에서는 쓰기 불가를 경고만 하고 기동은 계속한다."""
+    import logging
+    import os
+
+    import pytest
+
+    from app.services.media_storage import ensure_media_storage
+
+    if os.geteuid() == 0:
+        pytest.skip("root 는 권한 비트를 무시한다")
+    media = tmp_path / "media"
+    media.mkdir()
+    media.chmod(0o555)
+    try:
+        with caplog.at_level(logging.WARNING):
+            status = ensure_media_storage(str(media), require_mount=False)
+    finally:
+        media.chmod(0o755)
+    assert "writable=no" in status
+    assert "쓰기 권한" in caplog.text
+
+
+def test_ensure_media_storage_checks_existing_subdirs_too(tmp_path, monkeypatch):
+    """root 로 돌던 compose 체크아웃은 media/ 만 chown 하면 authored/·thumbnails/ 가 root 소유로 남는다 —
+    루트만 보고 통과시키면 첫 업로드에서야 EACCES 가 난다."""
+    import os
+
+    import pytest
+
+    from app.services import media_storage
+
+    if os.geteuid() == 0:
+        pytest.skip("root 는 권한 비트를 무시한다")
+    media = tmp_path / "media"
+    (media / "thumbnails").mkdir(parents=True)
+    (media / "thumbnails").chmod(0o555)
+    monkeypatch.setattr(media_storage, "_is_mount", lambda path: True)
+    try:
+        with pytest.raises(RuntimeError, match="thumbnails"):
+            media_storage.ensure_media_storage(str(media), require_mount=True)
+    finally:
+        (media / "thumbnails").chmod(0o755)

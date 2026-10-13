@@ -5,6 +5,7 @@ from pathlib import Path
 from app.config import get_settings
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
+AUTHORED_SUBDIR = "authored"
 _SIGNATURES = {
     "image/png": (b"\x89PNG\r\n\x1a\n",),
     "image/jpeg": (b"\xff\xd8\xff",),
@@ -16,11 +17,11 @@ _EXT = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp
 
 def save_article_image(data: bytes, content_type: str | None) -> str:
     kind = _validated_type(data, content_type)
-    root = Path(get_settings().media_dir) / "authored"
+    root = Path(get_settings().media_dir) / AUTHORED_SUBDIR
     root.mkdir(parents=True, exist_ok=True)
     name = f"{secrets.token_hex(16)}.{_EXT[kind]}"
     (root / name).write_bytes(data)
-    return f"/api/media/authored/{name}"
+    return f"/api/media/{AUTHORED_SUBDIR}/{name}"
 
 
 def _validated_type(data: bytes, content_type: str | None) -> str:
