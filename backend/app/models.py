@@ -85,6 +85,10 @@ class Article(Base):
     body_html: Mapped[str | None] = mapped_column(Text)
     key_visual_html: Mapped[str | None] = mapped_column(Text)
     author_name: Mapped[str | None] = mapped_column(String(100))
+    # 직접 작성 글의 수정 권한 키 — 닉네임은 바뀔 수 있어 회원 ID 로 묶는다 (015 마이그레이션)
+    author_member_id: Mapped[int | None] = mapped_column(
+        ForeignKey("members.id", ondelete="SET NULL"), index=True
+    )
     source_type: Mapped[str] = mapped_column(String(20), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(1000), unique=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String(1000))  # 목록 카드 대표 이미지

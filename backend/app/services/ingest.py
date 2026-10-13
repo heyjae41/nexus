@@ -17,6 +17,7 @@ from app.cache import VersionedCache
 from app.models import Article
 from app.repositories.categories import get_category_by_slug
 from app.services.content_extract import extract_content
+from app.services.content_sanitize import sanitize_ingest_html, sanitize_key_visual_html
 from app.services.ingest_parser import parse_content_filename
 from app.services.thumbnails import save_key_visual_thumbnail
 
@@ -135,14 +136,17 @@ def _ingest_file(
 
     html = path.read_text(encoding="utf-8")
     content = extract_content(html)
+    # LLM 이 만든 HTML 이라 저장 전에 거른다 (프롬프트 인젝션 → 저장형 XSS 방지)
+    body_html = sanitize_ingest_html(content.body_html or "") or None
+    key_visual_html = sanitize_key_visual_html(content.key_visual_html)
     article = Article(
         category_id=category.id,
         article_type=parsed.article_type,
         title=content.title or parsed.title,
         summary=content.summary,
-        body_html=content.body_html,
-        key_visual_html=content.key_visual_html,
-        thumbnail_url=save_key_visual_thumbnail(content.key_visual_html, media_dir),
+        body_html=body_html,
+        key_visual_html=key_visual_html,
+        thumbnail_url=save_key_visual_thumbnail(key_visual_html, media_dir),
         author_name=content.author or "BC카드 AI사업팀",
         source_type="internal",
         content_filename=canonical_name,

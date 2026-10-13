@@ -137,3 +137,34 @@ def test_session_cannot_read_mutate_or_write_as_another_member(client):
         "/api/community/posts",
         json={"memberId": first["id"], "tag": "팁", "title": "위조", "body": "본문"},
     ).status_code == 403
+
+
+# --- 보안 점검(2026-10) HIGH 2: 수퍼어드민 닉네임은 뺏기거나 비워질 수 없다 ---
+
+def _signup(client, nickname):
+    res = client.post("/api/auth/register", json={
+        "nickname": nickname, "password": "passw0rd1", "role": "개발자", "interests": ["AI/ML"],
+    })
+    assert res.status_code == 201, res.text
+    return res.json()["data"]
+
+
+def test_nobody_can_rename_into_super_admin_nickname(client, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "super_admin", "총관리자")
+    _signup(client, "일반인")
+    res = client.patch("/api/auth/me", json={"nickname": "총관리자"})
+    assert res.status_code == 400
+    assert client.get("/api/auth/me").json()["data"]["nickname"] == "일반인"
+
+
+def test_super_admin_cannot_rename_away_or_withdraw(client, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "super_admin", "총관리자")
+    me = _signup(client, "총관리자")
+    assert me["superAdmin"] is True
+    assert client.patch("/api/auth/me", json={"nickname": "다른이름"}).status_code == 400
+    assert client.delete("/api/auth/me").status_code == 400
+    assert client.get("/api/auth/me").json()["data"]["nickname"] == "총관리자"

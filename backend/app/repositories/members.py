@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Article,
     CommunityComment,
     CommunityPost,
     CommunityPostLike,
@@ -180,6 +181,7 @@ def update_member(
         name = _validate_nickname(nickname)
         if _nickname_taken(db, name, exclude_id=member_id):
             raise ValueError("이미 사용 중인 닉네임입니다")
+        _guard_super_admin_nickname(member.nickname, name)
         member.nickname = name
     if role is not None:
         member.role = role
@@ -189,11 +191,27 @@ def update_member(
     return member
 
 
+def _is_reserved(nickname: str) -> bool:
+    from app.config import get_settings
+
+    return nickname in get_settings().super_admin_set
+
+
+def _guard_super_admin_nickname(current: str, new: str) -> None:
+    """수퍼어드민 닉네임은 권한 키다 — 남이 가져가거나(선점) 비워지지(개명) 않게 막는다."""
+    if new != current and (_is_reserved(new) or _is_reserved(current)):
+        raise ValueError("이 닉네임은 변경할 수 없습니다")
+
+
 def delete_member(db: Session, member_id: int) -> None:
-    """탈회 — 콘텐츠는 보존(작성자명 유지·연결 해제), 좋아요는 회수한다."""
+    """탈회 — 콘텐츠는 보존(작성자명 유지·연결 해제), 좋아요는 회수한다.
+
+    수퍼어드민 계정은 탈회할 수 없다 — 닉네임이 비면 남이 선점해 권한을 얻는다."""
     member = db.get(Member, member_id)
     if member is None:
         raise LookupError("회원 정보를 찾을 수 없습니다")
+    if _is_reserved(member.nickname):
+        raise ValueError("수퍼어드민 계정은 탈회할 수 없습니다")
 
     from app.repositories.auth import delete_member_sessions
 
@@ -234,6 +252,12 @@ def delete_member(db: Session, member_id: int) -> None:
         update(CommunityComment)
         .where(CommunityComment.member_id == member_id)
         .values(member_id=None)
+    )
+    # 직접 작성 글은 작성자명만 남기고 수정 권한 연결을 끊는다 (이후 아무도 수정 불가)
+    db.execute(
+        update(Article)
+        .where(Article.author_member_id == member_id)
+        .values(author_member_id=None)
     )
 
     db.delete(member)

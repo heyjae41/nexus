@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import ArticleDetail from '@/views/ArticleDetail'
@@ -38,6 +38,7 @@ const authored = {
   title: '내가 쓴 컬럼',
   summary: '요약',
   authorName: '운영자',
+  authorMemberId: 1,
   sourceType: 'authored',
   readMinutes: 2,
   likesCount: 1,
@@ -65,17 +66,27 @@ describe('내 글 수정', () => {
   })
 
   it('작성자에게 수정 버튼을 보여 준다', async () => {
-    detail({ nickname: '운영자', accessRole: 'admin' })
+    detail({ id: 1, nickname: '운영자', accessRole: 'admin' })
     expect(await screen.findByRole('link', { name: '수정' })).toHaveAttribute('href', '/articles/7/edit')
   })
 
+  it('닉네임이 같아도 회원 ID 가 다르거나 어드민이 아니면 수정 버튼이 없다', async () => {
+    detail({ id: 9, nickname: '운영자', accessRole: 'admin' })  // 옛 닉네임을 선점한 다른 회원
+    await screen.findByRole('button', { name: /좋아요/ })
+    expect(screen.queryByRole('link', { name: '수정' })).not.toBeInTheDocument()
+    cleanup()
+    detail({ id: 1, nickname: '운영자', accessRole: 'user' })  // 강등된 작성자
+    await screen.findByRole('button', { name: /좋아요/ })
+    expect(screen.queryByRole('link', { name: '수정' })).not.toBeInTheDocument()
+  })
+
   it('다른 사람과 수집 글에는 수정 버튼을 보여 주지 않는다', async () => {
-    detail({ nickname: '다른사람', accessRole: 'admin' })
+    detail({ id: 2, nickname: '다른사람', accessRole: 'admin' })
     await screen.findByRole('button', { name: /좋아요/ })
     expect(screen.queryByRole('link', { name: '수정' })).not.toBeInTheDocument()
 
     fetchArticle.mockResolvedValue({ ...authored, sourceType: 'brunch', authorName: '운영자' })
-    detail({ nickname: '운영자', accessRole: 'admin' })
+    detail({ id: 1, nickname: '운영자', accessRole: 'admin' })
     await screen.findByRole('heading', { name: '내가 쓴 컬럼' })
     expect(screen.queryByRole('link', { name: '수정' })).not.toBeInTheDocument()
   })
@@ -85,7 +96,7 @@ describe('내 글 수정', () => {
     const ue = userEvent.setup()
     render(
       <MemoryRouter>
-        <AdminWrite articleId="7" user={{ nickname: '운영자', accessRole: 'admin' }} />
+        <AdminWrite articleId="7" user={{ id: 1, nickname: '운영자', accessRole: 'admin' }} />
       </MemoryRouter>,
     )
     const title = await screen.findByRole('textbox', { name: '제목' })

@@ -15,6 +15,7 @@ from app.serializers import api_response, serialize_article_card
 from app.services.brunch import collect_and_pick
 from app.services.brunch_fetcher import DEFAULT_KEYWORDS, fetch_candidates, filter_by_window
 from app.services.ingest import scan_contents_dir
+from app.services.content_sanitize import resanitize_stored_articles
 from app.services.media_storage import backfill_thumbnails
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,15 @@ def media_backfill(db: Session = Depends(get_db)):
     return api_response(
         {"checked": result.checked, "restored": result.restored, "failed": result.failed}
     )
+
+
+@router.post("/content/resanitize")
+def content_resanitize(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    """정화 정책 도입 이전에 저장된 글의 본문·키비주얼을 현재 정책으로 다시 거른다 (1회성 운영)."""
+    result = resanitize_stored_articles(db, cache)
+    return api_response({"checked": result.checked, "changed": result.changed})
 
 
 @router.post("/meetup/run")

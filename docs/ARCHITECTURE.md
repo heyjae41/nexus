@@ -212,6 +212,7 @@ updated_count, hidden_count, error_message, created_at`.
   조각 저장소는 이미지 조각과 같은 Redis(`nexus:imgup:*`, 600초 TTL)이고, Redis 미가용 시 프로세스 메모리
   폴백이라 다중 파드에서는 Redis 가 필요하다. `POST /api/admin/media/parts` 는 본문 이미지 조각.
 - `POST /api/internal/media/backfill` — 사라진 인제스트 썸네일 재생성(위 '영구 미디어 저장소')
+- `POST /api/internal/content/resanitize` — 저장된 글 본문·키비주얼 재정화(위 '콘텐츠 보안')
 - `POST /api/internal/brunch/run` · `POST /api/internal/newsletter/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
 
 ## 테스트 전략 (TDD)
@@ -220,6 +221,29 @@ updated_count, hidden_count, error_message, created_at`.
 - 단위/API 테스트 DB: SQLite in-memory(SQLAlchemy 공용 타입만 사용) — 로컬 PG 불필요.
 - 캐시 테스트: InMemory 백엔드로 정책(버전 무효화) 검증 + Redis 연동은 통합 마커.
 - 품질 게이트: ruff(문법/린트), radon(복잡도 B 이상), jscpd(중복), code-reviewer 에이전트 리뷰.
+
+## 콘텐츠 보안 (보안 점검 2026-10 반영)
+
+- **HTML 새니타이저** (`services/html_sanitize.py`): 프로필(허용 태그·속성 정책) 기반 allowlist.
+  어드민 본문은 `/api/media` 이미지만, 인제스트 본문(`content_sanitize.sanitize_ingest_html`)은
+  h1/figure/table/data:image 까지, 키비주얼(`sanitize_key_visual_html`)은 SMIL 애니메이션 SVG 허용 목록.
+  출력은 `decode_contents()` 로 재이스케이프하고 CDATA·선언·PI 노드를 제거한다 — 둘 다 과거에
+  저장형 XSS 우회 경로였다(회귀 테스트 `test_html_sanitize.py`, `test_ingest_sanitize.py`).
+- **직접 작성 글 수정 권한**: `articles.author_member_id`(015) 와 현재 `access_role=admin` 으로 판정한다.
+  닉네임은 바꾸거나 탈회 후 남이 선점할 수 있어 권한 키로 쓰지 않는다. 015 이전 글(NULL)은 아무도 수정 불가.
+- **수퍼어드민 닉네임 보호**: `SUPER_ADMIN` 에 있는 닉네임으로 개명할 수 없고, 그 계정은 개명·탈회할 수
+  없다 — 닉네임이 비면 남이 선점해 권한관리를 얻는다. 최초 가입은 허용(신규 환경 부트스트랩).
+- **발행 도구 fail-closed**: `save_article.py` 는 사용자 id 로 `.writer_whitelist` 를 직접 검사하고 미등록이면
+  `DENIED` 를 출력하고 아무것도 쓰지 않는다. 호스트(hermes)가 넣는 `NEXUS_TELEGRAM_USER_ID` 가 있으면 그것만
+  믿고(`--user` 는 같을 때만 허용, 빈 값은 거부), 없을 때만 `--user` 를 쓴다. 모델이 고르는 `--user` 는
+  프롬프트 인젝션에 약하므로 hermes 쪽에서 환경변수를 넣어 주는 것이 진짜 게이트다.
+- **키비주얼 CSS**: `<style>` 은 `<svg>` 안에서만, 외부 요청(url/@import/image-set)·CSS 이스케이프·
+  `position:fixed` 는 차단. `fill`/`filter` 등의 `url()` 은 `#id` 참조만. SPA 전체 디페이스·피싱 오버레이 방지.
+- **기존 저장분 재정화**: `POST /api/internal/content/resanitize` 가 internal·authored 글을 현재 정책으로 다시
+  거른다(바뀐 글만 갱신, 캐시 버전 증가). 정화 도입 이전 글은 인제스트가 재처리하지 않으므로 배포 후 1회 실행.
+- **015 배포 순서**: ① DB 백업 → ② `015_articles_author_member_id.sql` 적용(멱등) → ③ 백필 결과 확인
+  (`author_member_id IS NULL` 인 authored 글은 수동 지정) → ④ 백엔드 배포 → ⑤ resanitize 1회 → ⑥ hermes 에
+  `NEXUS_TELEGRAM_USER_ID` 주입. ORM 에 컬럼이 추가되어 015 전에 새 백엔드를 띄우면 글 조회가 전부 실패한다.
 
 ## 영구 미디어 저장소 (`MEDIA_DIR`)
 

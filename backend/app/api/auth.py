@@ -186,7 +186,10 @@ def withdraw(
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
 ):
-    delete_member(db, member.id)
+    try:
+        delete_member(db, member.id)
+    except ValueError as exc:
+        _raise_member_value_error(exc)
     cache.bump_version()
     _clear_session_cookie(response)
     return api_response({"deleted": True})

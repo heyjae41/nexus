@@ -201,10 +201,12 @@ export default function ArticleDetail({ user = null }) {
 
   const article = withViewerFields({ ...staticArt, ...apiArticle })
   const displayLikeCount = fmtEn(likeCount)
+  // 서버와 같은 기준: 직접 작성 글 + 작성자 회원 ID 일치 + 현재 어드민 (닉네임은 바뀔 수 있어 쓰지 않는다)
   const canEdit = Boolean(
-    user?.nickname
+    user?.id
+    && user?.accessRole === 'admin'
     && article?.sourceType === 'authored'
-    && article?.authorName === user.nickname
+    && article?.authorMemberId === user.id
   )
 
   const handleLike = async () => {
