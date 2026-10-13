@@ -33,7 +33,22 @@ export function initial(name) {
   return name ? name[0] : '?'
 }
 
-/* 커버 이미지가 있으면 그라디언트 위에 겹치고, 없으면 그라디언트만 */
+/* 수집 데이터의 커버 URL 은 http(s)·같은 출처 경로만 — 그 외는 그라디언트만 쓴다 */
+export function safeCoverUrl(url) {
+  if (typeof url !== 'string') return null
+  const value = url.trim()
+  if (/^\/(?![/\\])/.test(value)) return value
+  try {
+    const parsed = new URL(value)
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null
+  } catch {
+    return null
+  }
+}
+
+/* 커버 이미지가 있으면 그라디언트 위에 겹치고, 없으면 그라디언트만.
+   url() 안은 JSON 문자열로 인용해 `x), url(https://tracker/...)` 식의 CSS 주입을 막는다 */
 export function coverBg(url, grad) {
-  return url ? `center/cover no-repeat url(${url}), ${grad}` : grad
+  const safe = safeCoverUrl(url)
+  return safe ? `center/cover no-repeat url(${JSON.stringify(safe)}), ${grad}` : grad
 }

@@ -334,6 +334,7 @@ export default function ArticleDetail({ user = null }) {
             <p style={{ fontSize: 16, color: '#9a9aa4', marginBottom: 20 }}>
               이 글은 브런치에서 볼 수 있습니다
             </p>
+            {article.linkUrl && (
             <a
               href={article.linkUrl}
               target="_blank"
@@ -347,6 +348,7 @@ export default function ArticleDetail({ user = null }) {
             >
               원문 보기 →
             </a>
+            )}
           </div>
         </div>
       ) : (

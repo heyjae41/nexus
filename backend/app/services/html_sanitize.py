@@ -90,7 +90,10 @@ def safe_href(value) -> str | None:
     lowered = href.lower()
     if lowered.startswith(("javascript:", "data:")):
         return None
-    if href.startswith("/") or lowered.startswith(("https://", "http://")):
+    if lowered.startswith(("https://", "http://")):
+        return href
+    # 상대 경로만 — "//evil.com", "/\\evil.com" 은 같은 탭에서 외부로 빠져나간다
+    if href.startswith("/") and not href.startswith(("//", "/\\")):
         return href
     return None
 

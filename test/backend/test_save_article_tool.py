@@ -72,3 +72,38 @@ def test_host_env_overrides_valid_argv_and_denies(tool_env, monkeypatch, capsys,
     monkeypatch.setenv("NEXUS_TELEGRAM_USER_ID", host_env)
     assert save_article.main([str(article), "--user", "111"], whitelist_path=str(whitelist), contents_dir=contents) == 1
     assert "DENIED" in capsys.readouterr().out
+
+
+# --- 보안 LOW: 덮어쓰기 금지, read_minutes 범위, 날짜 범위, 친절한 오류 ---
+
+def _publish(article, whitelist, contents, payload=None):
+    if payload is not None:
+        article.write_text(json.dumps(payload), encoding="utf-8")
+    return save_article.main([str(article)], telegram_user_id="111", whitelist_path=str(whitelist), contents_dir=contents)
+
+
+def test_refuses_to_overwrite_an_existing_file(tool_env, capsys):
+    whitelist, contents, article = tool_env
+    assert _publish(article, whitelist, contents) == 0
+    assert _publish(article, whitelist, contents) == 1
+    assert "이미" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("read_minutes", ["abc", 0, 99, -1])
+def test_read_minutes_is_clamped_or_rejected(tool_env, read_minutes):
+    whitelist, contents, article = tool_env
+    code = _publish(article, whitelist, contents, {**PAYLOAD, "read_minutes": read_minutes})
+    if isinstance(read_minutes, int) and read_minutes > 0:
+        assert code == 0
+        html = next(contents.glob("*.html")).read_text(encoding="utf-8")
+        assert 'content="10"' in html or 'content="1"' in html
+    else:
+        assert code == 1
+
+
+@pytest.mark.parametrize("published", ["1999-01-01", "2999-01-01", "not-a-date"])
+def test_published_date_must_be_recent_and_valid(tool_env, capsys, published):
+    whitelist, contents, article = tool_env
+    assert _publish(article, whitelist, contents, {**PAYLOAD, "published_date": published}) == 1
+    assert "published_date" in capsys.readouterr().err
+    assert not contents.exists() or not any(contents.iterdir())

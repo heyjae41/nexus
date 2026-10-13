@@ -9,8 +9,15 @@ const shellStyle = {
   overflow: 'hidden',
 }
 
-/* 외부 수집 콘텐츠 카드 — 새 탭 <a> 셸 */
+/* 외부 수집 콘텐츠 카드 — 새 탭 <a> 셸. href 가 없으면(서버가 안전하지 않은 링크를 걸러 null) 비링크 셸 */
 export function ExternalCard({ href, ariaLabel, testId, children }) {
+  if (!href) {
+    return (
+      <div aria-label={ariaLabel} data-testid={testId} style={shellStyle}>
+        {children}
+      </div>
+    )
+  }
   return (
     <a
       href={href}

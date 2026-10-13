@@ -10,8 +10,10 @@ from datetime import date
 KOREAN_TYPE = {"newsletter": "뉴스레터", "column": "컬럼", "guide": "가이드"}
 KOREAN_TO_CODE = {v: k for k, v in KOREAN_TYPE.items()}
 
-# 파일명에서 제거할 문자: 공백 + 파일시스템/규칙상 위험 문자
-UNSAFE_CHARS_RE = re.compile(r'[\s_/\\:*?"<>|.]+')
+# 파일명에서 제거할 문자: 공백 + 파일시스템/규칙상 위험 문자 + 제어문자
+UNSAFE_CHARS_RE = re.compile(r'[\s_/\\:*?"<>|.\x00-\x1f\x7f]+')
+# 대부분의 파일시스템 이름 한계 — 한글 제목은 글자당 3바이트라 글자 수가 아니라 바이트로 자른다
+MAX_FILENAME_BYTES = 255
 
 READ_CHARS_PER_MINUTE = 500
 MIN_MINUTES, MAX_MINUTES = 1, 10
@@ -26,7 +28,11 @@ def build_filename(published: date, article_type: str, title: str) -> str:
     compact_title = UNSAFE_CHARS_RE.sub("", title)
     if not compact_title:
         raise ValueError("제목이 비어 있습니다")
-    return f"{published.strftime('%Y%m%d')}_{korean}_{compact_title}.html"
+    head = f"{published.strftime('%Y%m%d')}_{korean}_"
+    room = MAX_FILENAME_BYTES - len(head.encode("utf-8")) - len(".html")
+    while len(compact_title.encode("utf-8")) > room:
+        compact_title = compact_title[:-1]
+    return f"{head}{compact_title}.html"
 
 
 def estimate_read_minutes(text: str) -> int:

@@ -6,7 +6,7 @@
 공개 URL(/api/media/thumbnails/<내용해시>.<ext>)을 돌려준다.
 
 - data-URI 이미지: 디코드해 파일로 저장 → 로컬 URL 반환
-- 인라인 svg: 위험요소(script/foreignObject/on*/javascript:) 제거 후 .svg 저장
+- 인라인 svg: 키비주얼 허용목록 새니타이저(content_sanitize.sanitize_key_visual_html)를 거쳐 .svg 저장
   (xmlns 보강해 독립 렌더 가능). /api/media 응답 CSP 하드닝(main.py)과 함께 이중 방어.
 - 외부 URL 이미지: 저장하지 않고 그 URL 을 그대로 반환
 - 이미지 없음/디코드 실패/용량 초과: None
@@ -18,6 +18,8 @@ import re
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+
+from app.services.content_sanitize import sanitize_key_visual_html
 
 MEDIA_URL_PREFIX = "/api/media"
 THUMBNAIL_SUBDIR = "thumbnails"
@@ -57,11 +59,8 @@ def save_key_visual_thumbnail(key_visual_html: str | None, media_dir: str) -> st
 
     svg = soup.find("svg")
     if svg is not None:
-        _sanitize_svg(svg)
-        if not svg.get("xmlns"):
-            svg["xmlns"] = _SVG_XMLNS
-        data = svg.encode()
-        if len(data) > MAX_THUMBNAIL_BYTES:
+        data = _sanitized_svg_bytes(str(svg))
+        if data is None or len(data) > MAX_THUMBNAIL_BYTES:
             return None
         return _store(data, "svg", media_dir)
 
@@ -85,33 +84,20 @@ def _from_img_src(src: str, media_dir: str) -> str | None:
         return None
     if ext == "svg":
         # data-URI 로 실려온 svg 도 인라인 svg 와 동일하게 위생처리한다
-        return _store(_sanitized_svg_bytes(data), "svg", media_dir)
+        cleaned = _sanitized_svg_bytes(data.decode("utf-8", errors="replace"))
+        return None if cleaned is None else _store(cleaned, "svg", media_dir)
     return _store(data, ext, media_dir)
 
 
-def _sanitize_svg(svg) -> None:
-    """svg 요소에서 스크립트 실행 벡터를 제거한다 (in-place)."""
-    for tag in svg.find_all(
-        lambda t: t.name is not None and t.name.lower() in {"script", "foreignobject"}
-    ):
-        tag.decompose()
-    for tag in [svg, *svg.find_all(True)]:
-        for attr in list(tag.attrs):
-            low = attr.lower()
-            value = tag.get(attr)
-            if low.startswith("on"):
-                del tag[attr]
-            elif low in {"href", "xlink:href"} and isinstance(value, str) and (
-                value.strip().lower().startswith("javascript:")
-            ):
-                del tag[attr]
+def _sanitized_svg_bytes(markup: str) -> bytes | None:
+    """키비주얼 허용목록(SMIL 애니메이션 허용, script·image·외부 url·이벤트 속성 제거)을 거친 svg 바이트.
 
-
-def _sanitized_svg_bytes(data: bytes) -> bytes:
-    svg = BeautifulSoup(data, "html.parser").find("svg")
+    블록리스트는 animate href·<style> url()·entity 인코딩 같은 틈새를 놓친다 — 저장 정책과 같은
+    허용목록을 쓴다. svg 가 남지 않으면 None."""
+    cleaned = sanitize_key_visual_html(markup)
+    svg = BeautifulSoup(cleaned or "", "html.parser").find("svg")
     if svg is None:
-        return data
-    _sanitize_svg(svg)
+        return None
     if not svg.get("xmlns"):
         svg["xmlns"] = _SVG_XMLNS
     return svg.encode()

@@ -6,6 +6,7 @@
 - 탈회 시 글/댓글은 작성자명만 남기고 연결을 해제하고, 좋아요는 회수한다.
 """
 import hashlib
+from functools import lru_cache
 import hmac
 import re
 import secrets
@@ -26,7 +27,8 @@ from app.models import (
 
 NICKNAME_MAX = 50
 PASSWORD_MIN = 8
-PBKDF2_ITERATIONS = 240_000
+# OWASP 권고 하한(600k). 기존 해시는 저장된 반복 횟수로 검증되므로 그대로 로그인된다.
+PBKDF2_ITERATIONS = 600_000
 
 
 class AuthError(Exception):
@@ -126,10 +128,18 @@ def create_member(
     return member
 
 
+@lru_cache(maxsize=1)
+def _dummy_password_hash() -> str:
+    """없는 닉네임에도 같은 비용의 해시를 돌려 응답 시간으로 가입 여부가 새지 않게 한다."""
+    return hash_password(secrets.token_urlsafe(16))
+
+
 def authenticate_member(db: Session, *, nickname: str, password: str) -> Member:
     name = _validate_nickname(nickname)
     member = db.scalars(select(Member).where(Member.nickname == name)).first()
-    if member is None or not verify_password(password or "", member.password_hash or ""):
+    stored = member.password_hash if member is not None else None
+    verified = verify_password(password or "", stored or _dummy_password_hash())
+    if member is None or not verified:
         raise AuthError("닉네임 또는 비밀번호가 올바르지 않습니다")
     return member
 

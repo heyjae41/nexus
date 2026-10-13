@@ -5,6 +5,11 @@ from fastapi import Depends, Query
 
 from app.serializers import api_response
 
+# page 상한 — 무한 page 는 offset 오버플로(500)와 페이지마다 새 캐시 키를 만든다
+MAX_PAGE = 1000
+# 필터 슬러그는 영문·숫자·하이픈·밑줄만 — 임의 문자열이 캐시 키를 오염시키지 않게
+SLUG_PATTERN = r"^[A-Za-z0-9_-]+$"
+
 
 @dataclass
 class PageQuery:
@@ -16,7 +21,7 @@ def page_query(default_size: int = 20):
     """페이지네이션 쿼리 파라미터 공통 의존성 — size 기본값만 엔드포인트별로 다르다."""
 
     def dep(
-        page: int = Query(default=1, ge=1),
+        page: int = Query(default=1, ge=1, le=MAX_PAGE),
         size: int = Query(default=default_size, ge=1, le=50),
     ) -> PageQuery:
         return PageQuery(page=page, size=size)

@@ -1,5 +1,6 @@
 """직접 작성 글 HTML 정화."""
 import pytest
+from app.services.html_sanitize import safe_href  # noqa: F401
 from app.services.html_sanitize import sanitize_article_html
 
 
@@ -76,3 +77,11 @@ def test_cdata_sections_are_removed_top_level_and_nested():
 def test_declarations_and_processing_instructions_are_removed():
     out = sanitize_article_html("<!DOCTYPE html><?xml version='1.0'?><!x><p>ok</p>")
     assert out == "<p>ok</p>"
+
+
+# --- 보안 LOW: "//evil.com", "/\\evil.com" 은 같은 탭에서 외부로 빠져나간다 ---
+
+def test_protocol_relative_and_backslash_links_are_dropped():
+    for href in ("//evil.com/x", "/\\evil.com", "/\\\\evil.com"):
+        assert safe_href(href) is None, href
+    assert safe_href("/articles/1") == "/articles/1"

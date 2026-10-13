@@ -172,3 +172,24 @@ def test_update_member_nickname_race_reports_nickname_conflict(db, monkeypatch):
     monkeypatch.setattr(members_mod, "_nickname_taken", lambda *args, **kw: False)
     with pytest.raises(ValueError, match="닉네임"):
         update_member(db, a.id, nickname="라마바")
+
+
+# --- 보안 LOW: 해시 비용 상향, 로그인 타이밍으로 닉네임 존재 여부가 새지 않게 ---
+
+def test_pbkdf2_iterations_meet_owasp_floor():
+    from app.repositories import members
+
+    assert members.PBKDF2_ITERATIONS >= 600_000
+    assert members.hash_password("Nexus1!pw").split("$")[1] == str(members.PBKDF2_ITERATIONS)
+
+
+def test_login_with_unknown_nickname_still_runs_password_hash(db, monkeypatch):
+    import pytest as _pytest
+
+    from app.repositories import members
+
+    calls = []
+    monkeypatch.setattr(members, "verify_password", lambda pw, stored: calls.append(stored) or False)
+    with _pytest.raises(members.AuthError):
+        members.authenticate_member(db, nickname="없는사람", password="Nexus1!pw")
+    assert len(calls) == 1 and calls[0].startswith("pbkdf2_sha256$")

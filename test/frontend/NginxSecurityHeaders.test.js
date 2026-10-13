@@ -36,6 +36,10 @@ describe('nginx 프록시 신뢰 경계 (docker/nginx.conf)', () => {
     expect(nginxConf).not.toMatch(/set_real_ip_from (10\.0\.0\.0\/8|172\.16\.0\.0\/12|192\.168\.0\.0\/16);/)
   })
 
+  it('닉네임 존재 확인도 로그인·가입과 같은 레이트리밋을 받는다 (열거 방지)', () => {
+    expect(nginxConf).toContain('location ~ ^/api/(auth/(login|register|nickname-available)|members)$ {')
+  })
+
   it('좋아요 레이트리밋은 숫자 변형(+1, 1_0, %201)으로 빠져나갈 수 없다', () => {
     expect(nginxConf).toContain('location ~ ^/api/articles/[^/]+/like$ {')
     expect(nginxConf).not.toContain('location ~ ^/api/articles/[0-9]+/like$')

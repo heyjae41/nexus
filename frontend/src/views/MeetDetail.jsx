@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EVENTS } from '../data'
-import { meetGrad, fmtKo } from '../utils/grads'
+import { meetGrad, fmtKo, coverBg as coverBgOf } from '../utils/grads'
 import BackLink from '../components/BackLink'
 
 export default function MeetDetail() {
@@ -12,9 +12,7 @@ export default function MeetDetail() {
 
   const index = EVENTS.indexOf(event)
   const grad = meetGrad(index)
-  const coverBg = event.img
-    ? `center/cover no-repeat url(${event.img}), ${grad}`
-    : grad
+  const coverBg = coverBgOf(event.img, grad)
 
   return (
     <main style={{ padding: '32px 40px 64px', maxWidth: 980, margin: '0 auto' }}>

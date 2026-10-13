@@ -7,6 +7,7 @@
 """
 import json
 import logging
+from urllib.parse import urlsplit, urlunsplit
 import threading
 import time
 from typing import Any, Callable, Protocol
@@ -164,12 +165,26 @@ class VersionedCache:
         self.backend.incr(f"{self.prefix}{VERSION_KEY}")
 
 
+def mask_url(url: str) -> str:
+    """로그용 — URL 의 비밀번호를 가린다."""
+    parts = urlsplit(url)
+    if parts.password is None:
+        return url
+    host = parts.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    if parts.port is not None:
+        host = f"{host}:{parts.port}"
+    netloc = f"{parts.username or ''}:***@{host}"
+    return urlunsplit(parts._replace(netloc=netloc))
+
+
 def create_cache(redis_url: str, prefix: str, ttl_seconds: int) -> VersionedCache:
     """Redis 연결을 시도하고 실패하면 InMemory 로 폴백한다."""
     backend: CacheBackend
     try:
         backend = RedisCacheBackend(redis_url)
-        logger.info("캐시 백엔드: Redis (%s)", redis_url)
+        logger.info("캐시 백엔드: Redis (%s)", mask_url(redis_url))
     except Exception as exc:  # noqa: BLE001 - 폴백 목적의 광역 캐치
         logger.warning("Redis 연결 실패(%s) → InMemory 캐시로 폴백", exc)
         backend = InMemoryCacheBackend()

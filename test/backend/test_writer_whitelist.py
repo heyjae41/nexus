@@ -48,3 +48,10 @@ def test_unicode_digit_entries_are_ignored(tmp_path):
     """isdigit() 는 통과하지만 int() 가 실패하는 유니코드 숫자는 무시한다 (fail-closed)."""
     path = write_wl(tmp_path, "²³\n8174778078\n")
     assert load_whitelist(path) == {8174778078}
+
+
+def test_undecodable_file_closes_without_traceback(tmp_path):
+    path = tmp_path / ".writer_whitelist"
+    path.write_bytes(b"\xff\xfe12345\n")
+    assert load_whitelist(str(path)) == set()
+    assert is_allowed_writer(12345, str(path)) is False

@@ -188,3 +188,11 @@ def test_get_or_set_single_flight():
 
     assert calls["n"] == 1  # 두 번째 요청은 리더의 결과를 기다렸다 재사용
     assert results == [{"v": 1}, {"v": 1}]
+
+
+def test_redis_url_is_masked_in_logs():
+    from app.cache import mask_url
+
+    assert mask_url("redis://:s3cret@redis:6379/0") == "redis://:***@redis:6379/0"
+    assert mask_url("redis://user:pw@h/1") == "redis://user:***@h/1"
+    assert mask_url("redis://localhost:6379/0") == "redis://localhost:6379/0"

@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.api.common import PageQuery, cached_page_response, page_query
+from app.api.common import PageQuery, SLUG_PATTERN, cached_page_response, page_query
 from app.cache import VersionedCache
 from app.db import get_db
 from app.repositories.articles import (
@@ -84,8 +84,8 @@ def home(db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cach
 
 @router.get("/articles")
 def articles(
-    category: str | None = Query(default=None, max_length=50),
-    type: str | None = Query(default=None, max_length=20),
+    category: str | None = Query(default=None, max_length=50, pattern=SLUG_PATTERN),
+    type: str | None = Query(default=None, max_length=20, pattern=SLUG_PATTERN),
     paging: PageQuery = page_query(12),
     db: Session = Depends(get_db),
     cache: VersionedCache = Depends(get_cache),
