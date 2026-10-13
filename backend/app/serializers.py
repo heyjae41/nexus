@@ -37,7 +37,7 @@ def serialize_category(cat: Category) -> dict:
 COLLECTED_SOURCE_TYPES = {"brunch", "stibee", "kma", "aitimes"}
 
 
-def article_link(article: Article) -> tuple[str, bool]:
+def article_link(article: Article) -> tuple[str | None, bool]:
     """(이동 URL, 외부링크 여부). 수집 글은 원문 주소에 항상 ref 를 부착한다."""
     if article.source_type in COLLECTED_SOURCE_TYPES and article.source_url:
         return with_ref(article.source_url), True

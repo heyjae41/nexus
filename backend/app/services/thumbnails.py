@@ -15,9 +15,10 @@ import base64
 import binascii
 import hashlib
 import re
+import warnings
 from pathlib import Path
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 from app.services.content_sanitize import sanitize_key_visual_html
 
@@ -89,15 +90,52 @@ def _from_img_src(src: str, media_dir: str) -> str | None:
     return _store(data, ext, media_dir)
 
 
+# html.parser 는 이름을 소문자로 만든다. 독립 .svg 파일은 XML 로 파싱돼 대소문자를 가리므로
+# viewBox·SMIL 속성이 무시된다 — 저장 직전에 표준 표기로 되돌린다.
+_SVG_CASE = {
+    name.lower(): name
+    for name in (
+        "viewBox", "preserveAspectRatio", "linearGradient", "radialGradient", "gradientUnits",
+        "gradientTransform", "spreadMethod", "clipPath", "clipPathUnits", "patternUnits",
+        "patternContentUnits", "patternTransform", "maskUnits", "maskContentUnits", "stdDeviation",
+        "animateTransform", "animateMotion", "attributeName", "attributeType", "repeatCount",
+        "repeatDur", "keyTimes", "keySplines", "calcMode", "startOffset", "textLength",
+        "lengthAdjust", "baseFrequency", "numOctaves", "stitchTiles", "primitiveUnits", "filterUnits",
+        "markerWidth", "markerHeight", "markerUnits", "refX", "refY", "viewTarget", "pathLength",
+        "tableValues", "xChannelSelector", "yChannelSelector", "edgeMode", "kernelMatrix",
+        "kernelUnitLength", "targetX", "targetY", "surfaceScale", "specularExponent",
+        "specularConstant", "diffuseConstant", "limitingConeAngle", "pointsAtX", "pointsAtY", "pointsAtZ",
+        "glyphRef", "textPath", "foreignObject", "feGaussianBlur", "feColorMatrix", "feComposite",
+        "feOffset", "feMerge", "feMergeNode", "feBlend", "feFlood", "feTurbulence", "feDisplacementMap",
+        "feImage", "feMorphology", "feTile", "feDropShadow", "feComponentTransfer", "feFuncR",
+        "feFuncG", "feFuncB", "feFuncA", "feConvolveMatrix", "feDiffuseLighting", "feSpecularLighting",
+        "feDistantLight", "fePointLight", "feSpotLight",
+    )
+}
+
+
+def _restore_svg_case(svg) -> None:
+    for tag in [svg, *svg.find_all(True)]:
+        if tag.name in _SVG_CASE:
+            tag.name = _SVG_CASE[tag.name]
+        for attr in list(tag.attrs):
+            proper = _SVG_CASE.get(attr)
+            if proper and proper != attr:
+                tag.attrs[proper] = tag.attrs.pop(attr)
+
+
 def _sanitized_svg_bytes(markup: str) -> bytes | None:
     """키비주얼 허용목록(SMIL 애니메이션 허용, script·image·외부 url·이벤트 속성 제거)을 거친 svg 바이트.
 
     블록리스트는 animate href·<style> url()·entity 인코딩 같은 틈새를 놓친다 — 저장 정책과 같은
     허용목록을 쓴다. svg 가 남지 않으면 None."""
-    cleaned = sanitize_key_visual_html(markup)
-    svg = BeautifulSoup(cleaned or "", "html.parser").find("svg")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", XMLParsedAsHTMLWarning)  # data-URI svg 의 <?xml ?> 프롤로그
+        cleaned = sanitize_key_visual_html(markup)
+        svg = BeautifulSoup(cleaned or "", "html.parser").find("svg")
     if svg is None:
         return None
+    _restore_svg_case(svg)
     if not svg.get("xmlns"):
         svg["xmlns"] = _SVG_XMLNS
     return svg.encode()

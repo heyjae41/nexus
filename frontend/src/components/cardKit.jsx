@@ -13,7 +13,7 @@ const shellStyle = {
 export function ExternalCard({ href, ariaLabel, testId, children }) {
   if (!href) {
     return (
-      <div aria-label={ariaLabel} data-testid={testId} style={shellStyle}>
+      <div className="card" data-testid={testId} style={shellStyle}>
         {children}
       </div>
     )

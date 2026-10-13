@@ -40,6 +40,7 @@ REQUIRED = ("title", "article_type", "summary", "author", "body_html", "key_visu
 # 발행일은 오늘 기준 과거 30일 ~ 내일까지만 — 임의 백데이트/미래 날짜로 정렬·상단 고정을 조작하지 못하게
 PUBLISHED_PAST_DAYS = 30
 PUBLISHED_FUTURE_DAYS = 1
+TITLE_MAX = 300  # articles.title String(300) — 넘기면 인제스트가 60초마다 실패를 반복하는 독 파일이 된다
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -65,6 +66,8 @@ def _published_date(raw) -> date:
 def _read_minutes(raw, body_text: str) -> int:
     if raw in (None, ""):
         return estimate_read_minutes(body_text)
+    if isinstance(raw, bool) or isinstance(raw, float) or (isinstance(raw, str) and not raw.strip().isdecimal()):
+        raise ValueError(f"read_minutes 는 정수여야 합니다: {raw}")
     try:
         minutes = int(raw)
     except (TypeError, ValueError) as exc:
@@ -108,20 +111,27 @@ def main(
         print(f"오류: JSON 파싱 실패 - {exc}", file=sys.stderr)
         return 1
 
-    missing = [f for f in REQUIRED if not str(payload.get(f, "")).strip()]
+    text = {key: _clean_text(payload.get(key, "")) for key in ("title", "summary", "author")}
+    missing = [
+        f for f in REQUIRED
+        if not (text[f] if f in text else str(payload.get(f, ""))).strip()
+    ]
     if missing:
         print(f"오류: 필수 필드 누락 - {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if len(text["title"]) > TITLE_MAX:
+        print(f"오류: 제목은 {TITLE_MAX}자 이내여야 합니다 ({len(text['title'])}자)", file=sys.stderr)
         return 1
 
     try:
         published = _published_date(payload.get("published_date"))
         body_text = BeautifulSoup(payload["body_html"], "html.parser").get_text(" ", strip=True)
         read_minutes = _read_minutes(payload.get("read_minutes"), body_text)
-        filename = build_filename(published, payload["article_type"], _clean_text(payload["title"]))
+        filename = build_filename(published, payload["article_type"], text["title"])
         html = render_article_html(
-            title=_clean_text(payload["title"]),
-            summary=_clean_text(payload["summary"]),
-            author=_clean_text(payload["author"]),
+            title=text["title"],
+            summary=text["summary"],
+            author=text["author"],
             body_html=payload["body_html"],
             key_visual_html=payload["key_visual_html"],
             read_minutes=read_minutes,

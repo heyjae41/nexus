@@ -7,9 +7,9 @@
 """
 import json
 import logging
-from urllib.parse import urlsplit, urlunsplit
 import threading
 import time
+from urllib.parse import urlsplit, urlunsplit
 from typing import Any, Callable, Protocol
 
 logger = logging.getLogger(__name__)

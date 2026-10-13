@@ -6,7 +6,6 @@
 - 탈회 시 글/댓글은 작성자명만 남기고 연결을 해제하고, 좋아요는 회수한다.
 """
 import hashlib
-from functools import lru_cache
 import hmac
 import re
 import secrets
@@ -128,19 +127,36 @@ def create_member(
     return member
 
 
-@lru_cache(maxsize=1)
-def _dummy_password_hash() -> str:
-    """없는 닉네임에도 같은 비용의 해시를 돌려 응답 시간으로 가입 여부가 새지 않게 한다."""
-    return hash_password(secrets.token_urlsafe(16))
+# 없는 닉네임에도 같은 비용의 검증을 돌려 응답 시간으로 가입 여부가 새지 않게 한다.
+# 비밀번호를 아무도 모르는 고정 해시라 비밀이 아니며, 기동 시 600k 를 돌리지 않으려고 상수로 둔다.
+DUMMY_PASSWORD_HASH = (
+    f"pbkdf2_sha256${PBKDF2_ITERATIONS}$6e6578757320647573656d79207361$"
+    "0f9f3f1d8ef0f7a1b2c3d4e5f60718293a4b5c6d7e8f9011223344556677889"
+)
+
+
+def _stored_iterations(stored: str) -> int:
+    try:
+        return int(stored.split("$")[1])
+    except (IndexError, ValueError):
+        return 0
+
+
+def _rehash_if_legacy(db: Session, member: Member, password: str) -> None:
+    """저장 비용이 현재 정책보다 낮으면 로그인 성공 시 재해시한다 — 비용 상향이 기존 계정에도 적용된다."""
+    if _stored_iterations(member.password_hash or "") < PBKDF2_ITERATIONS:
+        member.password_hash = hash_password(password)
+        db.commit()
 
 
 def authenticate_member(db: Session, *, nickname: str, password: str) -> Member:
     name = _validate_nickname(nickname)
     member = db.scalars(select(Member).where(Member.nickname == name)).first()
     stored = member.password_hash if member is not None else None
-    verified = verify_password(password or "", stored or _dummy_password_hash())
+    verified = verify_password(password or "", stored or DUMMY_PASSWORD_HASH)
     if member is None or not verified:
         raise AuthError("닉네임 또는 비밀번호가 올바르지 않습니다")
+    _rehash_if_legacy(db, member, password)
     return member
 
 

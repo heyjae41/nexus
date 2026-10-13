@@ -107,3 +107,21 @@ def test_published_date_must_be_recent_and_valid(tool_env, capsys, published):
     assert _publish(article, whitelist, contents, {**PAYLOAD, "published_date": published}) == 1
     assert "published_date" in capsys.readouterr().err
     assert not contents.exists() or not any(contents.iterdir())
+
+
+def test_required_fields_are_checked_after_control_characters_are_removed(tool_env, capsys):
+    whitelist, contents, article = tool_env
+    assert _publish(article, whitelist, contents, {**PAYLOAD, "summary": "\x00\x01"}) == 1
+    assert "summary" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("bad", [True, 3.7, "4.0"])
+def test_read_minutes_rejects_non_integers(tool_env, bad):
+    whitelist, contents, article = tool_env
+    assert _publish(article, whitelist, contents, {**PAYLOAD, "read_minutes": bad}) == 1
+
+
+def test_title_longer_than_db_column_is_rejected(tool_env, capsys):
+    whitelist, contents, article = tool_env
+    assert _publish(article, whitelist, contents, {**PAYLOAD, "title": "가" * 301}) == 1
+    assert "제목" in capsys.readouterr().err

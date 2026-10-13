@@ -14,7 +14,7 @@ describe('coverBg / safeCoverUrl', () => {
   })
 
   it('javascript:·data:·프로토콜 상대·CSS 주입 시도는 그라디언트만 남긴다', () => {
-    for (const bad of ['javascript:alert(1)', 'data:image/png;base64,AAAA', '//evil/x.png', '', null, undefined, 42]) {
+    for (const bad of ['javascript:alert(1)', 'data:image/png;base64,AAAA', '//evil/x.png', '/\t/evil/x.png', '/\n\\evil', '', null, undefined, 42]) {
       expect(coverBg(bad, grad)).toBe(grad)
     }
     const injected = coverBg('https://img.example/a.png"), url("https://tracker/p', grad)

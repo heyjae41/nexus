@@ -36,7 +36,8 @@ export function initial(name) {
 /* 수집 데이터의 커버 URL 은 http(s)·같은 출처 경로만 — 그 외는 그라디언트만 쓴다 */
 export function safeCoverUrl(url) {
   if (typeof url !== 'string') return null
-  const value = url.trim()
+  // 브라우저는 URL 안의 탭·개행을 지운다 — "/\t/evil" 이 "//evil" 이 되지 않게 먼저 제거
+  const value = url.replace(/[\t\n\r]/g, '').trim()
   if (/^\/(?![/\\])/.test(value)) return value
   try {
     const parsed = new URL(value)

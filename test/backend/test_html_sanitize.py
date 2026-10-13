@@ -85,3 +85,9 @@ def test_protocol_relative_and_backslash_links_are_dropped():
     for href in ("//evil.com/x", "/\\evil.com", "/\\\\evil.com"):
         assert safe_href(href) is None, href
     assert safe_href("/articles/1") == "/articles/1"
+
+
+def test_links_with_embedded_tab_or_newline_are_dropped():
+    """브라우저는 URL 안의 탭·개행을 지우므로 "/\t/evil.com" 은 "//evil.com" 이 된다."""
+    for href in ("/\t/evil.com", "/\n\\evil.com", "/\r/evil.com", "ja\tvascript:alert(1)"):
+        assert safe_href(href) is None, repr(href)

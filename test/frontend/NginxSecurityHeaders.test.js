@@ -37,7 +37,9 @@ describe('nginx 프록시 신뢰 경계 (docker/nginx.conf)', () => {
   })
 
   it('닉네임 존재 확인도 로그인·가입과 같은 레이트리밋을 받는다 (열거 방지)', () => {
-    expect(nginxConf).toContain('location ~ ^/api/(auth/(login|register|nickname-available)|members)$ {')
+    const nick = nginxConf.match(/location = \/api\/auth\/nickname-available \{[^}]*\$\{[^}]*\}[^}]*\}/)?.[0] ?? ''
+    expect(nick).toContain('limit_req zone=nick_limit')
+    expect(nginxConf).toMatch(/limit_req_zone \$binary_remote_addr zone=nick_limit:10m rate=\d+r\/m;/)
   })
 
   it('좋아요 레이트리밋은 숫자 변형(+1, 1_0, %201)으로 빠져나갈 수 없다', () => {
