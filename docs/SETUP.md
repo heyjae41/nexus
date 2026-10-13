@@ -8,7 +8,7 @@ GitHub 저장소에서 클론한 뒤 현재 개발환경과 동일하게 구성�
 | 항목 | 버전 | 비고 |
 |---|---|---|
 | Python | 3.11+ | `uv` 또는 venv |
-| Node.js | 22+ | npm 포함 |
+| Node.js | 22.22.2+ (또는 24.15+ — vitest 5·jsdom 30 요구) | npm 포함 |
 | PostgreSQL | 14+ | 로컬 또는 Docker |
 | Redis | 7+ | 선택 — 없으면 InMemory 캐시로 자동 폴백 |
 | Docker | 최신 | 배포 스택 실행 시에만 필요 |
