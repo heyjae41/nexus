@@ -11,4 +11,5 @@ RUN apk upgrade --no-cache curl libcurl openssl libssl3 libcrypto3
 ENV BACKEND_UPSTREAM=backend:8000
 ENV NGINX_ENVSUBST_FILTER=BACKEND_UPSTREAM
 COPY docker/nginx.conf /etc/nginx/templates/default.conf.template
+COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html

@@ -54,6 +54,20 @@ def test_session_cookie_secure_flag_follows_forwarded_proto(client):
     assert plain.status_code == 201
     assert "secure" not in plain.headers["set-cookie"].lower()
 
+    # 프록시가 여러 홉이면 "https, http" 처럼 목록이 온다 — 첫 값(클라이언트 쪽)이 기준
+    chained = client.post(
+        "/api/auth/register",
+        json={**PROFILE, "nickname": "체인쿠키"},
+        headers={"X-Forwarded-Proto": "https, http"},
+    )
+    assert "secure" in chained.headers["set-cookie"].lower()
+    spoofed = client.post(
+        "/api/auth/register",
+        json={**PROFILE, "nickname": "역체인쿠키"},
+        headers={"X-Forwarded-Proto": "http, https"},
+    )
+    assert "secure" not in spoofed.headers["set-cookie"].lower()
+
 
 def test_register_creates_hashed_password_and_hashed_server_session(client):
     res = client.post("/api/auth/register", json=PROFILE)

@@ -9,18 +9,20 @@ DB(PostgreSQL) 에 저장되므로 서버가 재기동돼도 대화가 유지된
   python session.py status  <user_id>                  # 메시지수/글자수/압축필요 여부
   python session.py compact <user_id> "<요약문>"       # 오래된 대화를 요약으로 압축
   python session.py clear   <user_id>                  # 대화 초기화
+
+<user_id> 출처 규칙은 check_writer.py 와 같다 (NEXUS_TELEGRAM_USER_ID 우선, 다르면 거부) —
+사칭한 id 로 다른 작가의 세션을 읽거나 지울 수 없다.
 """
 import sys
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(PROJECT_ROOT / "backend"))
+from _bootstrap import PROJECT_ROOT  # noqa: E402,F401 — app.* import 경로 설정
 
 from sqlalchemy.orm import Session  # noqa: E402
 
 from app.db import get_engine  # noqa: E402
 from app.models import Base  # noqa: E402
 from app.services import writer_session as ws  # noqa: E402
+from app.services.writer_identity import resolve_writer_id  # noqa: E402
 from app.services.writer_whitelist import is_allowed_writer  # noqa: E402
 
 
@@ -79,26 +81,29 @@ COMMANDS = {
 }
 
 
-def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in COMMANDS:
+def main(argv: list[str] | None = None, *, whitelist_path: str | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if len(argv) < 2 or argv[0] not in COMMANDS:
         print(__doc__, file=sys.stderr)
         return 2
-    command, extra_args = COMMANDS[sys.argv[1]]
-    try:
-        user_id = int(sys.argv[2])
-    except ValueError:
-        print(f"오류: user_id 는 숫자여야 합니다: {sys.argv[2]}", file=sys.stderr)
-        return 2
-    args = sys.argv[3 : 3 + extra_args]
+    command, extra_args = COMMANDS[argv[0]]
+    args = argv[2 : 2 + extra_args]
     if len(args) != extra_args:
         print(__doc__, file=sys.stderr)
         return 2
 
-    # 심층 방어: 스킬 지시(0단계) 와 무관하게 도구 스스로도 화이트리스트를 강제한다
-    whitelist_path = str(PROJECT_ROOT / ".writer_whitelist")
-    if not is_allowed_writer(user_id, whitelist_path):
+    # 심층 방어: 스킬 지시(0단계) 와 무관하게 도구 스스로도 id 출처와 화이트리스트를 강제한다.
+    # DB 엔진을 만들기 전에 거부해야 한다.
+    trusted = resolve_writer_id(argv[1])
+    whitelist = whitelist_path or str(PROJECT_ROOT / ".writer_whitelist")
+    if not trusted or not is_allowed_writer(trusted, whitelist):
         print("DENIED: 화이트리스트에 등록되지 않은 사용자입니다", file=sys.stderr)
         return 1
+    try:
+        user_id = int(trusted)
+    except ValueError:
+        print(f"오류: user_id 는 숫자여야 합니다: {trusted}", file=sys.stderr)
+        return 2
 
     engine = get_engine()
     Base.metadata.create_all(engine)  # 최초 실행 시 테이블 생성 (멱등)
