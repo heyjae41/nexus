@@ -41,6 +41,9 @@ describe('상단 인증 UI', () => {
     wrap(<Nav user={null} onLogin={vi.fn()} onLogout={vi.fn()} />)
 
     const burger = document.querySelector('.burger')
+    // 모바일 미디어쿼리(.burger { display: flex !important })를 흉내 낸다 — 실제 브라우저도 jsdom 30 도
+    // display:none 요소에는 초점을 주지 않으므로, 닫은 뒤 초점 복귀를 검증하려면 보이는 상태여야 한다
+    burger.style.display = 'flex'
     expect(burger).toHaveAttribute('aria-label', '전체 메뉴 열기')
     await ue.click(burger)
 
