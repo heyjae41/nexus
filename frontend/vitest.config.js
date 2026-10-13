@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { createRequire } from 'module'
 
-const frontendDir = path.resolve(__dirname, '.')
-const repoRoot = path.resolve(__dirname, '../')
+const frontendDir = path.resolve(import.meta.dirname, '.')
+const repoRoot = path.resolve(import.meta.dirname, '../')
 
 // Test files live at ../test/frontend/ (outside frontend/).
 // Bare-specifier resolution from that location never reaches
