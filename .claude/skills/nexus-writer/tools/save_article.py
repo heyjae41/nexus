@@ -17,13 +17,11 @@
 출력: 저장된 파일 경로 (stdout)
 """
 import json
-import os
 import sys
 from datetime import date
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(PROJECT_ROOT / "backend"))
+from _bootstrap import PROJECT_ROOT  # noqa: E402,F401 — app.* import 경로 설정
 
 from app.services.article_builder import (  # noqa: E402
     build_filename,
@@ -31,6 +29,7 @@ from app.services.article_builder import (  # noqa: E402
     render_article_html,
 )
 from app.services.ingest import ingest_now  # noqa: E402
+from app.services.writer_identity import resolve_writer_id  # noqa: E402
 from app.services.writer_whitelist import is_allowed_writer  # noqa: E402
 from bs4 import BeautifulSoup  # noqa: E402
 
@@ -38,11 +37,7 @@ REQUIRED = ("title", "article_type", "summary", "author", "body_html", "key_visu
 
 
 def _parse_args(argv: list[str]) -> tuple[str, str | None]:
-    """(입력 경로, 사용자 id).
-
-    호스트(hermes)가 넣는 NEXUS_TELEGRAM_USER_ID 가 있으면 그것만 믿는다 — 모델이 고르는 --user 는
-    환경변수와 같을 때만 허용하고, 환경변수가 비어 있으면 거부(None). 환경변수가 아예 없을 때만
-    --user 를 쓴다(호스트 연동 전 호환용, 더 약한 보호)."""
+    """(입력 경로, 사용자 id). id 출처 규칙은 writer_identity.resolve_writer_id (모든 작가 도구 공통)."""
     source, user = "-", None
     rest = list(argv)
     while rest:
@@ -51,13 +46,7 @@ def _parse_args(argv: list[str]) -> tuple[str, str | None]:
             user = rest.pop(0)
         else:
             source = item
-    host_user = os.environ.get("NEXUS_TELEGRAM_USER_ID")
-    if host_user is None:
-        return source, user
-    host_user = host_user.strip()
-    if not host_user or (user is not None and user.strip() != host_user):
-        return source, None
-    return source, host_user
+    return source, resolve_writer_id(user)
 
 
 def main(

@@ -8,14 +8,24 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.cache import InMemoryCacheBackend, VersionedCache
+from app.config import get_settings
 from app.db import get_db
 from app.main import create_app
 from app.models import Base, Category
 from app.repositories.articles import create_article
 
 
+INTERNAL_TOKEN = "test-internal-token"
+
+
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    # /api/internal/* 은 토큰 또는 루프백만 허용한다. TestClient 는 루프백이 아니므로
+    # 토큰을 설정하고 기본 헤더로 붙인다 (거부 경로는 test_internal_api 가 따로 검증).
+    # 캐시된 Settings 와 환경 둘 다에 둔다 — autouse _isolated_media 가 캐시 객체를 패치하므로
+    # 여기서 cache_clear 하면 안 되고, 개별 테스트가 cache_clear 해도 토큰이 유지돼야 한다.
+    monkeypatch.setenv("INTERNAL_API_TOKEN", INTERNAL_TOKEN)
+    monkeypatch.setattr(get_settings(), "internal_api_token", INTERNAL_TOKEN)
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         future=True,
@@ -38,6 +48,7 @@ def client():
     with TestClient(app) as c:
         c.session_factory = factory
         c.cache = cache
+        c.headers["X-Internal-Token"] = INTERNAL_TOKEN
         yield c
     engine.dispose()
 

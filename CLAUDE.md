@@ -45,6 +45,10 @@ SUPER_ADMIN 동작 등) 사실은 `AGENTS.md` 의 "Learned Workspace Facts" 에 
     프로필을 거친다. 출력 조립에 `str(node)` 사용 금지(이스케이프 풀림), CDATA·선언 노드 제거 유지.
 11. **권한 키는 닉네임이 아니라 회원 ID**: 글 수정은 `author_member_id` + 현재 어드민, 수퍼어드민 닉네임은
     개명·탈회·선점 불가.
+12. **nginx 보안 헤더와 CSP**: `docker/nginx.conf` 의 모든 서빙 location 은 `security-headers.conf` 를 include
+    한다(`add_header` 는 상속되지 않음). CSP 가 인라인 스크립트를 막으므로 `index.html` 에 인라인 `<script>` 금지,
+    새 외부 스크립트·API·폰트 호스트는 CSP 에 추가. `/api/internal/*` 는 nginx 403 + 앱 게이트(루프백 또는
+    `X-Internal-Token`) 이중이다 — 운영 호출은 파드 안에서 한다.
 
 ## 자주 쓰는 명령
 

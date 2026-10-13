@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.internal_access import require_internal_access
 from app.api.routes import get_cache
 from app.cache import VersionedCache
 from app.config import get_settings
@@ -20,7 +21,7 @@ from app.services.media_storage import backfill_thumbnails
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/internal")
+router = APIRouter(prefix="/api/internal", dependencies=[Depends(require_internal_access)])
 
 
 @router.post("/ingest/run")

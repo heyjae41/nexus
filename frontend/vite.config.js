@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',
+    // 기본은 루프백만 — 사내 LAN 에 개발 서버(/api 프록시 포함)를 열려면 VITE_DEV_HOST=0.0.0.0
+    host: process.env.VITE_DEV_HOST || 'localhost',
     port: 80,
     strictPort: true,
     proxy: {

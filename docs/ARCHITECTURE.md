@@ -245,6 +245,24 @@ updated_count, hidden_count, error_message, created_at`.
   (`author_member_id IS NULL` 인 authored 글은 수동 지정) → ④ 백엔드 배포 → ⑤ resanitize 1회 → ⑥ hermes 에
   `NEXUS_TELEGRAM_USER_ID` 주입. ORM 에 컬럼이 추가되어 015 전에 새 백엔드를 띄우면 글 조회가 전부 실패한다.
 
+- **내부 API 접근 통제** (`api/internal_access.py`): nginx 의 `/api/internal/` 403 과 별개로 앱도 거른다 —
+  `X-Internal-Token` 이 `INTERNAL_API_TOKEN` 과 일치(빈 설정은 절대 일치하지 않음)하거나 루프백 주소에서 온
+  요청만 허용. 운영 호출은 파드 안에서 `curl localhost:8000/...` 로 한다. 테스트 픽스처는 토큰을 기본 헤더로 붙인다.
+- **프록시 신뢰 경계** (`docker/nginx.conf`): TLS 는 ALB 가 끝내므로 `$scheme` 은 항상 http — 앞단의
+  `X-Forwarded-Proto` 를 map 으로 넘겨야 백엔드가 Secure 쿠키를 발급한다(목록이면 첫 값). 레이트리밋은
+  `real_ip` 모듈로 사설 대역 홉을 건너뛴 실제 클라이언트 IP 기준이며, 좋아요 리밋 경로는 `[^/]+` 로 잡아
+  `+1`·`1_0`·`%201` 같은 정수 변형 우회를 막는다.
+- **보안 응답 헤더** (`docker/security-headers.conf`): CSP(인라인 스크립트 금지, `frame-ancestors 'none'`),
+  nosniff, X-Frame-Options, Referrer-Policy, https 요청에만 HSTS. `add_header` 는 상속되지 않으므로 403 블록을
+  뺀 **모든 location 이 include** 해야 하고, 그래서 GA 부트스트랩은 `frontend/public/ga-init.js` 정적 파일이다.
+  새 외부 도메인(스크립트·API·폰트)을 쓰면 CSP 에 추가할 것 (가드: `NginxSecurityHeaders.test.js`).
+- **작가 도구 SSRF 방어** (`services/safe_fetch.py`): `fetch_reference.py` 는 공개 http(s) 주소만 가져온다 —
+  DNS 를 풀어 사설·루프백·링크로컬(메타데이터)·CGNAT 주소를 거부하고, 리다이렉트 홉마다 재검사(최대 3),
+  본문 2MB·전체 40초 상한. DNS 리바인딩은 잔여 위험.
+- **작가 id 출처 공통화** (`services/writer_identity.py`): `check_writer.py`·`session.py`·`save_article.py` 가
+  같은 규칙(`NEXUS_TELEGRAM_USER_ID` 우선, argv 는 같을 때만, 빈 값 거부)을 쓴다 — 사칭 id 로 다른 작가의
+  세션을 읽거나 지울 수 없다.
+
 ## 영구 미디어 저장소 (`MEDIA_DIR`)
 
 에디터 본문 이미지(`authored/`)와 인제스트 썸네일(`thumbnails/`)은 전부 `settings.media_dir` 아래에만

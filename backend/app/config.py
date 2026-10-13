@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # 권한관리 화면을 열 닉네임. 쉼표로 구분. 글쓰기 권한은 members.access_role 이다.
     super_admin: str = ""
 
+    # /api/internal/* 를 파드 밖(다른 파드·직접 라우팅)에서 부를 때 쓰는 X-Internal-Token 값.
+    # 비어 있으면 헤더로는 열리지 않고 루프백(파드 안 curl)만 허용한다.
+    internal_api_token: str = ""
+
     @field_validator("media_dir")
     @classmethod
     def _absolute_media_dir(cls, value: str) -> str:

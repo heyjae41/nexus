@@ -158,3 +158,41 @@ def test_internal_classes_maps_external_schema_error_to_502(client, monkeypatch)
     res = client.post("/api/internal/classes/run")
     assert res.status_code == 502
     assert res.json()["error"] == "클래스 수집에 실패했습니다"
+
+
+# --- 앱 레벨 접근 통제: nginx 403 과 별개로 토큰 또는 루프백(파드 안 curl)만 허용 ---
+
+def test_internal_api_rejects_missing_or_wrong_token(client):
+    del client.headers["X-Internal-Token"]
+    assert client.post("/api/internal/ingest/run").status_code == 403
+    client.headers["X-Internal-Token"] = "wrong"
+    assert client.post("/api/internal/ingest/run").status_code == 403
+
+
+def test_internal_api_empty_token_setting_never_matches(client, monkeypatch):
+    """토큰 미설정(빈 값)이면 헤더로는 절대 열리지 않는다 — 빈 문자열 일치 금지."""
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    client.headers["X-Internal-Token"] = ""
+    assert client.post("/api/internal/ingest/run").status_code == 403
+    get_settings.cache_clear()
+
+
+def test_internal_api_allows_loopback_without_token(client, tmp_path, monkeypatch):
+    """파드 안에서 localhost:8000 으로 부르는 운영 호출은 토큰 없이도 된다."""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("CONTENTS_DIR", str(tmp_path))
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    with TestClient(client.app, client=("127.0.0.1", 40000)) as local:
+        res = local.post("/api/internal/ingest/run")
+    assert res.status_code == 200, res.text
+    with TestClient(client.app, client=("::1", 40000)) as local6:
+        assert local6.post("/api/internal/ingest/run").status_code == 200
+    with TestClient(client.app, client=("10.0.0.7", 40000)) as remote:
+        assert remote.post("/api/internal/ingest/run").status_code == 403
+    get_settings.cache_clear()

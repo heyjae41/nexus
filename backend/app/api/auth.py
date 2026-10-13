@@ -52,8 +52,10 @@ class ProfilePatch(BaseModel):
 
 
 def _set_session_cookie(response: Response, request: Request, token: str) -> None:
-    # TLS 종단이 nginx 등 앞단에 있으면 앱에는 http 로 보이므로 X-Forwarded-Proto 를 우선한다
-    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    # TLS 종단이 ALB·nginx 등 앞단에 있으면 앱에는 http 로 보이므로 X-Forwarded-Proto 를 우선한다.
+    # 프록시가 여러 홉이면 "https, http" 목록이 오므로 클라이언트 쪽인 첫 값을 쓴다.
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    scheme = forwarded.split(",", 1)[0].strip().lower() or request.url.scheme
     response.set_cookie(
         COOKIE_NAME,
         token,

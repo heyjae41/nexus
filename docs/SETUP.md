@@ -60,6 +60,7 @@ curl -X POST localhost:8000/api/internal/classes/run  # 패스트캠퍼스 + Dak
 
 ```bash
 cd frontend && npm install && npm run dev    # http://localhost:80 (API 는 8000 으로 프록시)
+# 개발 서버는 기본으로 루프백에만 열린다. 다른 기기에서 접속하려면 VITE_DEV_HOST=0.0.0.0 npm run dev
 ```
 
 ## 5. 텔레그램 발행 스킬 (Hermes Agent)
@@ -129,7 +130,9 @@ cd frontend && npx playwright install chromium && npm run e2e
 ```bash
 docker compose up -d --build    # http://localhost:8080
 ```
-postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/api/internal/*` 는 nginx 가 차단.
+postgres/redis 포함 4개 컨테이너. DB/Redis 포트는 외부 미노출, `/api/internal/*` 는 nginx 가 차단하고
+백엔드도 루프백 또는 `X-Internal-Token`(`INTERNAL_API_TOKEN`) 없는 호출을 403 으로 거른다 —
+운영 호출은 `docker compose exec backend curl -X POST localhost:8000/api/internal/...` 처럼 컨테이너 안에서 한다.
 
 ## 8. 알려진 환경 이슈
 
