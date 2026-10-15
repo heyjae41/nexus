@@ -104,6 +104,20 @@ describe('어드민 글쓰기', () => {
     }))
     expect(screen.getByRole('link', { name: '글 보기' })).toHaveAttribute('href', '/articles/9')
   })
+
+  it('요약은 상세 화면 5줄 분량인 150자까지만 받고 글자 수를 보여 준다', async () => {
+    const ue = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <AdminWrite />
+      </MemoryRouter>,
+    )
+    const summary = screen.getByRole('textbox', { name: '요약' })
+    expect(summary).toHaveAttribute('maxLength', '150')
+    expect(screen.getByText('0/150')).toBeInTheDocument()
+    await ue.type(summary, '두 문장 요약입니다.')
+    expect(screen.getByText('11/150')).toBeInTheDocument()
+  })
 })
 
 describe('권한관리', () => {

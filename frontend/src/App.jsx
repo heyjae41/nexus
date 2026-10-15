@@ -69,7 +69,8 @@ function AppInner() {
   }
 
   const enroll = (classId) => {
-    const progress = Math.floor(Math.random() * 25)
+    const [value] = crypto.getRandomValues(new Uint32Array(1))
+    const progress = value % 25
     setEnrolled(prev => [
       ...prev.filter(e => e.id !== classId),
       { id: classId, progress },

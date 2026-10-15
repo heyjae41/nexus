@@ -489,3 +489,27 @@ def test_internal_content_resanitize_endpoint(client, seed):
     res = client.post("/api/internal/content/resanitize")
     assert res.status_code == 200, res.text
     assert set(res.json()["data"]) == {"checked", "changed"}
+
+
+def test_authored_summary_is_cut_to_whole_sentences(client):
+    _curation(client)
+    _register(client, "운영자")
+    _promote(client, "운영자")
+    sentence = "결제 데이터로 고객 경험을 바꾸는 방법을 정리했습니다."
+    auto = client.post("/api/admin/articles", json={
+        "articleType": "guide", "title": "자동 요약", "summary": "",
+        "bodyHtml": f"<p>{sentence}</p>" * 20,
+    }).json()["data"]
+    typed = client.post("/api/admin/articles", json={
+        "articleType": "guide", "title": "긴 요약", "summary": " ".join([sentence] * 10),
+        "bodyHtml": "<p>본문</p>",
+    }).json()["data"]
+    for body in (auto, typed):
+        assert len(body["summary"]) <= 150 and body["summary"].endswith("니다.")
+
+
+def test_internal_content_resummarize_endpoint(client, seed):
+    seed(client)
+    res = client.post("/api/internal/content/resummarize")
+    assert res.status_code == 200, res.text
+    assert set(res.json()["data"]) == {"checked", "changed"}

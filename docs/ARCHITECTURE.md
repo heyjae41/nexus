@@ -213,6 +213,8 @@ updated_count, hidden_count, error_message, created_at`.
   폴백이라 다중 파드에서는 Redis 가 필요하다. `POST /api/admin/media/parts` 는 본문 이미지 조각.
 - `POST /api/internal/media/backfill` — 사라진 인제스트 썸네일 재생성(위 '영구 미디어 저장소')
 - `POST /api/internal/content/resanitize` — 저장된 글 본문·키비주얼 재정화(위 '콘텐츠 보안')
+- `POST /api/internal/content/resummarize` — 직접 작성·텔레그램 글 요약을 150자 규칙(`services/summary.py`)으로 재생성(1회성).
+  텔레그램 글은 `contents/` 원본의 `meta description`(작가 요약)을 우선, 없으면 제목을 뺀 본문 앞 문장. 수집 글은 건드리지 않는다.
 - `POST /api/internal/brunch/run` · `POST /api/internal/newsletter/run` · `POST /api/internal/meetup/run` · `POST /api/internal/classes/run` — 수집 수동 실행
 
 ## 테스트 전략 (TDD)

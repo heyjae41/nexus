@@ -18,6 +18,7 @@ from app.services.brunch_fetcher import DEFAULT_KEYWORDS, fetch_candidates, filt
 from app.services.ingest import scan_contents_dir
 from app.services.content_sanitize import resanitize_stored_articles
 from app.services.media_storage import backfill_thumbnails
+from app.services.summary_backfill import resummarize_stored_articles
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,15 @@ def content_resanitize(
 ):
     """정화 정책 도입 이전에 저장된 글의 본문·키비주얼을 현재 정책으로 다시 거른다 (1회성 운영)."""
     result = resanitize_stored_articles(db, cache)
+    return api_response({"checked": result.checked, "changed": result.changed})
+
+
+@router.post("/content/resummarize")
+def content_resummarize(
+    db: Session = Depends(get_db), cache: VersionedCache = Depends(get_cache)
+):
+    """150자 요약 규칙 도입 이전에 저장된 직접 작성·텔레그램 글의 요약을 다시 만든다 (1회성 운영)."""
+    result = resummarize_stored_articles(db, cache, get_settings().contents_dir)
     return api_response({"checked": result.checked, "changed": result.changed})
 
 

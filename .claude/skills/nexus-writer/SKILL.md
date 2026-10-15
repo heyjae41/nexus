@@ -88,7 +88,7 @@ python .claude/skills/nexus-writer/tools/save_article.py article.json --user <us
 {
   "title": "글 제목",
   "article_type": "newsletter | column | guide",
-  "summary": "목록 카드에 보일 1~2문장 요약 (500자 이내)",
+  "summary": "상세 화면 제목 아래·목록 카드에 보일 2~3문장 요약 (150자 이내, 5줄 이하)",
   "author": "팀원 이름 (모르면 'BC카드 AI사업팀')",
   "body_html": "<p>...</p><h2>...</h2>...",
   "key_visual_html": "<svg viewBox=\"0 0 720 300\">...</svg>"

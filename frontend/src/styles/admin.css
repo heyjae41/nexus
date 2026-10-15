@@ -52,6 +52,7 @@
   font-size: 15px;
 }
 .admin-field textarea { min-height: 72px; resize: vertical; }
+.admin-field .admin-count { align-self: flex-end; font-size: 12px; color: #8a8a96; }
 .admin-error { color: #F4788F; font-size: 14px; margin: 0 0 12px; }
 .admin-ok { color: #dcdce2; font-size: 14.5px; }
 .admin-ok a { color: #F4788F; font-weight: 700; }

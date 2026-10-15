@@ -11,6 +11,8 @@ import {
 import '../../styles/admin.css'
 import { hasUnstoredImage } from './articleImages'
 
+const SUMMARY_MAX = 150
+
 const FORMATS = [
   { value: 'newsletter', label: '뉴스레터' },
   { value: 'column', label: '컬럼' },
@@ -138,7 +140,14 @@ export default function AdminWrite({ articleId = null, user = null }) {
       </label>
       <label className="admin-field">
         <span>요약</span>
-        <textarea value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={500} />
+        <textarea
+          aria-label="요약"
+          value={summary}
+          onChange={(event) => setSummary(event.target.value)}
+          maxLength={SUMMARY_MAX}
+          placeholder="비워 두면 본문 앞 문장으로 만듭니다"
+        />
+        <small className="admin-count">{summary.length}/{SUMMARY_MAX}</small>
       </label>
       <div className="admin-field">
         <span>본문</span>

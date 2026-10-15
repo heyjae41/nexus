@@ -64,6 +64,7 @@ curl -X POST localhost:8000/api/internal/{ingest,brunch,newsletter,meetup,classe
 curl -X POST localhost:8000/api/internal/media/backfill        # 사라진 인제스트 썸네일 재생성
 curl -X POST localhost:8000/api/internal/content/resanitize    # 저장된 글 본문·키비주얼 재정화(1회성)
 (cd backend && python -m app.internal_call content/resanitize)  # 파드 안 동일 호출 (이미지에 curl 없음)
+(cd backend && python -m app.internal_call content/resummarize) # 직접 작성·텔레그램 글 요약 150자 재생성(1회성)
 docker compose up -d --build                                    # 전체 스택 — http://localhost:8080
 
 # 테스트 (pytest.ini 가 testpaths=test, pythonpath=backend 를 잡아 주므로 루트에서 실행)

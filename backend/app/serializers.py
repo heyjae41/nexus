@@ -65,7 +65,6 @@ def serialize_article_card(article: Article) -> dict:
 
 
 def serialize_member(member) -> dict:
-    # password_hash 는 절대 직렬화하지 않는다
     interests = [item.strip() for item in (member.interests or "").split(",") if item.strip()]
     return {
         "id": member.id,

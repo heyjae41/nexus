@@ -8,6 +8,7 @@ from app.models import Article, Member
 from app.repositories.articles import AUTHORED_SOURCE, create_article, get_article
 from app.repositories.categories import get_category_by_slug
 from app.services.html_sanitize import first_media_src, plain_text, sanitize_article_html
+from app.services.summary import summarize
 
 ARTICLE_TYPES = ("newsletter", "column", "guide")
 CURATION_SLUG = "curation"
@@ -111,8 +112,7 @@ def _title(value: str) -> str:
 
 
 def _summary(summary: str | None, text: str, title: str) -> str:
-    chosen = (summary or "").strip() or text or title
-    return chosen[:500]
+    return summarize((summary or "").strip() or text or title)
 
 
 def _read_minutes(text: str) -> int:
