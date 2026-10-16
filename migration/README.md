@@ -10,6 +10,7 @@
 - `export.sh`: 로컬 DB의 스키마+데이터 커스텀 덤프 및 검증 매니페스트 생성
 - `import.sh`: 기존 EDU.AI 테이블 교체 후 트랜잭션 단위 복원
 - `verify.sh`: 테이블별 행 수와 컬럼 정의를 소스 매니페스트와 비교
+- `sync_schema_to_dev.sql`: 데이터를 유지한 채 대상 DB 스키마를 현재 모델(마이그레이션 001~015) 기준으로 맞추는 멱등 스크립트
 - `bootstrap/`: 신규 서버 최초 이전용으로 검증해 커밋한 스키마·데이터 번들
 - `artifacts/`: 이후 export 결과. 개인정보가 포함될 수 있어 Git에서 제외
 
@@ -78,6 +79,27 @@ curl -X POST http://localhost:8000/api/internal/brunch/run
 ```
 
 Docker 배포에서는 nginx가 `/api/internal/*` 외부 호출을 차단하므로 백엔드 컨테이너 내부 또는 서버 localhost에서 실행한다.
+
+## 데이터 유지 스키마 동기화
+
+export/import 는 대상 데이터를 원본 데이터로 **교체**한다. 대상(예: 운영) 데이터를 살린 채 개발에서 추가한
+테이블·컬럼만 따라잡으려면 `sync_schema_to_dev.sql` 을 쓴다. 두 스크립트 모두 실행한 PC 에서 env/접속 정보의
+DB 로 네트워크 접속하므로, 대상 DB 5432 에 닿는 곳에서 실행한다.
+
+```bash
+# 백엔드 중지·백업 후
+PGPASSWORD=... psql -h <대상host> -U <user> -d <db> -v ON_ERROR_STOP=1 -f migration/sync_schema_to_dev.sql
+```
+
+- 없는 테이블 생성, 없는 컬럼 추가, DEFAULT·NULL 허용·인덱스 정합, 015 작성자 백필(빈 값만)을 한 트랜잭션으로 실행한다.
+- 컬럼 삭제(007 `members.email`)와 데이터 보정(008/009/012)은 파일 6) 섹션에 주석으로만 두었다 — 대상 데이터를 보고 해제한다.
+- 실행 전 백엔드 Deployment 를 0 으로 줄이고 `collect_once` CronJob 을 중지한다. 테이블 잠금을 5초 안에 못 얻으면 전체 롤백된다.
+- `articles.source_url` 중복이 있으면 0) 사전 점검에서 중단된다 — 중복 글을 정리하고 다시 실행한다.
+- 7) 검증 쿼리 3개(컬럼·인덱스·제약)를 기준 DB 결과와 diff 한다. 컬럼 타입·길이 차이는 스크립트가 고치지 않으므로 수동 조치한다.
+- 8) 점검에서 `author_member_id` 가 빈 직접 작성 글이 나오면(대상 DB 에 `access_role` 이 없던 경우 전원 `user` 라 백필이 안 된다)
+  권한관리에서 어드민을 부여한 뒤 5) 백필 UPDATE 만 다시 실행한다. `article_type='brunch'` 건수가 0 이 아니면 008 을 해제한다.
+- 첫 줄 `\set` 은 psql 전용이다. GUI 클라이언트에서는 그 줄을 빼고 실행한다.
+- `backend/app/models.py` 에서 생성한 파일이므로 모델이나 마이그레이션이 바뀌면 함께 갱신한다.
 
 ## 안전 원칙
 
